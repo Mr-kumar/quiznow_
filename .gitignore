@@ -10,15 +10,23 @@
 !.yarn/releases
 !.yarn/versions
 
+# client dependencies
+client/node_modules/
+server/node_modules/
+
 # testing
 /coverage
 
 # next.js
 /.next/
 /out/
+client/.next/
+client/out/
 
 # production
 /build
+client/build/
+server/dist/
 
 # misc
 .DS_Store
