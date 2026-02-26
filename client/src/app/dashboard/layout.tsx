@@ -20,6 +20,7 @@ import {
   Shield,
   Target,
   TrendingUp,
+  Folder,
 } from "lucide-react";
 
 export default function DashboardLayout({
@@ -54,6 +55,11 @@ export default function DashboardLayout({
       href: "/dashboard/admin",
       label: "Admin Overview",
       icon: LayoutDashboard,
+    },
+    {
+      href: "/dashboard/admin/tests-hierarchy",
+      label: "Tests Hierarchy",
+      icon: Folder,
     },
     { href: "/dashboard/admin/tests", label: "Manage Tests", icon: FileText },
     { href: "/dashboard/admin/users", label: "Manage Users", icon: Users },

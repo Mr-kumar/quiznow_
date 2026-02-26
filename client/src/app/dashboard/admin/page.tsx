@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Users,
   FileText,
@@ -23,8 +24,76 @@ import {
   Edit,
   Trash2,
 } from "lucide-react";
+import { useAdminDashboard } from "@/hooks/use-admin-dashboard";
+
+function AdminDashboardSkeleton() {
+  return (
+    <div className="space-y-8">
+      {/* Hero Skeleton */}
+      <div className="relative overflow-hidden rounded-2xl bg-linear-to-r from-red-600 via-orange-600 to-yellow-600 p-8 text-white shadow-2xl">
+        <div className="relative z-10">
+          <div className="flex items-center gap-3 mb-4">
+            <Skeleton className="h-12 w-12 rounded-full bg-white/20" />
+            <div className="space-y-2">
+              <Skeleton className="h-8 w-64 bg-white/20" />
+              <Skeleton className="h-4 w-96 bg-white/20" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Metrics Skeleton */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        {[...Array(4)].map((_, i) => (
+          <Card key={i} className="border-0 shadow-xl">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-4 w-4" />
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-8 w-16 mb-2" />
+              <Skeleton className="h-4 w-24" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function AdminOverviewPage() {
+  const {
+    metrics,
+    userStats,
+    testStats,
+    attemptStats,
+    isLoading,
+    error,
+    refresh,
+  } = useAdminDashboard();
+
+  if (isLoading) {
+    return <AdminDashboardSkeleton />;
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-8">
+        <div className="relative overflow-hidden rounded-2xl bg-red-600 p-8 text-white shadow-2xl">
+          <div className="relative z-10">
+            <h1 className="text-3xl font-bold tracking-tight mb-4">
+              Error Loading Dashboard
+            </h1>
+            <p className="text-red-100 mb-6">{error}</p>
+            <Button onClick={refresh} variant="secondary">
+              Try Again
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       {/* 🎯 Hero Section */}
@@ -72,11 +141,18 @@ export default function AdminOverviewPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">
-              1,234
+              {metrics?.totalUsers.toLocaleString() || 0}
             </div>
             <p className="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1">
-              <ArrowUpRight className="h-3 w-3" />
-              +20% from last month
+              {metrics?.userGrowth && metrics.userGrowth > 0 ? (
+                <ArrowUpRight className="h-3 w-3" />
+              ) : (
+                <ArrowDownRight className="h-3 w-3" />
+              )}
+              {metrics?.userGrowth
+                ? `${metrics.userGrowth > 0 ? "+" : ""}${metrics.userGrowth}%`
+                : "0%"}{" "}
+              from last month
             </p>
           </CardContent>
         </Card>
@@ -92,11 +168,18 @@ export default function AdminOverviewPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-700 dark:text-green-300">
-              12
+              {metrics?.activeTests || 0}
             </div>
             <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
-              <ArrowUpRight className="h-3 w-3" />
-              +2 new this week
+              {metrics?.testGrowth && metrics.testGrowth > 0 ? (
+                <ArrowUpRight className="h-3 w-3" />
+              ) : (
+                <ArrowDownRight className="h-3 w-3" />
+              )}
+              {metrics?.testGrowth
+                ? `${metrics.testGrowth > 0 ? "+" : ""}${metrics.testGrowth}%`
+                : "0%"}{" "}
+              from last month
             </p>
           </CardContent>
         </Card>
@@ -112,11 +195,18 @@ export default function AdminOverviewPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-purple-700 dark:text-purple-300">
-              573
+              {metrics?.completedAttempts.toLocaleString() || 0}
             </div>
             <p className="text-xs text-purple-600 dark:text-purple-400 flex items-center gap-1">
-              <ArrowUpRight className="h-3 w-3" />
-              +201 since yesterday
+              {metrics?.attemptGrowth && metrics.attemptGrowth > 0 ? (
+                <ArrowUpRight className="h-3 w-3" />
+              ) : (
+                <ArrowDownRight className="h-3 w-3" />
+              )}
+              {metrics?.attemptGrowth
+                ? `${metrics.attemptGrowth > 0 ? "+" : ""}${metrics.attemptGrowth}%`
+                : "0%"}{" "}
+              from last month
             </p>
           </CardContent>
         </Card>
@@ -132,11 +222,18 @@ export default function AdminOverviewPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-orange-700 dark:text-orange-300">
-              68%
+              {metrics?.avgPerformance || 0}%
             </div>
             <p className="text-xs text-orange-600 dark:text-orange-400 flex items-center gap-1">
-              <ArrowUpRight className="h-3 w-3" />
-              +4% improvement
+              {metrics?.performanceGrowth && metrics.performanceGrowth > 0 ? (
+                <ArrowUpRight className="h-3 w-3" />
+              ) : (
+                <ArrowDownRight className="h-3 w-3" />
+              )}
+              {metrics?.performanceGrowth
+                ? `${metrics.performanceGrowth > 0 ? "+" : ""}${metrics.performanceGrowth}%`
+                : "0%"}{" "}
+              improvement
             </p>
           </CardContent>
         </Card>

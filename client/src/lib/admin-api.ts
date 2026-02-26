@@ -41,8 +41,7 @@ export const adminUsersApi = {
       params: { page, limit, search },
     }),
 
-  getById: (id: string) =>
-    api.get<ApiResponse<User>>(`/admin/users/${id}`),
+  getById: (id: string) => api.get<ApiResponse<User>>(`/admin/users/${id}`),
 
   create: (userData: CreateUserRequest) =>
     api.post<ApiResponse<User>>("/admin/users", userData),
@@ -50,8 +49,7 @@ export const adminUsersApi = {
   update: (id: string, userData: UpdateUserRequest) =>
     api.patch<ApiResponse<User>>(`/admin/users/${id}`, userData),
 
-  delete: (id: string) =>
-    api.delete<ApiResponse<void>>(`/admin/users/${id}`),
+  delete: (id: string) => api.delete<ApiResponse<void>>(`/admin/users/${id}`),
 };
 
 // Category Management API
@@ -80,24 +78,21 @@ export interface UpdateCategoryRequest {
 
 export const adminCategoriesApi = {
   getAll: (page = 1, limit = 10, search?: string) =>
-    api.get<PaginatedResponse<Category>>("/admin/categories", {
+    api.get<PaginatedResponse<Category>>("/categories", {
       params: { page, limit, search },
     }),
 
-  getById: (id: string) =>
-    api.get<ApiResponse<Category>>(`/admin/categories/${id}`),
+  getById: (id: string) => api.get<ApiResponse<Category>>(`/categories/${id}`),
 
   create: (categoryData: CreateCategoryRequest) =>
-    api.post<ApiResponse<Category>>("/admin/categories", categoryData),
+    api.post<ApiResponse<Category>>("/categories", categoryData),
 
   update: (id: string, categoryData: UpdateCategoryRequest) =>
-    api.patch<ApiResponse<Category>>(`/admin/categories/${id}`, categoryData),
+    api.patch<ApiResponse<Category>>(`/categories/${id}`, categoryData),
 
-  delete: (id: string) =>
-    api.delete<ApiResponse<void>>(`/admin/categories/${id}`),
+  delete: (id: string) => api.delete<ApiResponse<void>>(`/categories/${id}`),
 
-  getTree: () =>
-    api.get<ApiResponse<Category[]>>("/admin/categories/tree"),
+  getTree: () => api.get<ApiResponse<Category[]>>("/categories/tree"),
 };
 
 // Exam Management API
@@ -125,21 +120,19 @@ export interface UpdateExamRequest {
 
 export const adminExamsApi = {
   getAll: (page = 1, limit = 10, search?: string, categoryId?: string) =>
-    api.get<PaginatedResponse<Exam>>("/admin/exams", {
+    api.get<PaginatedResponse<Exam>>("/exams", {
       params: { page, limit, search, categoryId },
     }),
 
-  getById: (id: string) =>
-    api.get<ApiResponse<Exam>>(`/admin/exams/${id}`),
+  getById: (id: string) => api.get<ApiResponse<Exam>>(`/exams/${id}`),
 
   create: (examData: CreateExamRequest) =>
-    api.post<ApiResponse<Exam>>("/admin/exams", examData),
+    api.post<ApiResponse<Exam>>("/exams", examData),
 
   update: (id: string, examData: UpdateExamRequest) =>
-    api.patch<ApiResponse<Exam>>(`/admin/exams/${id}`, examData),
+    api.patch<ApiResponse<Exam>>(`/exams/${id}`, examData),
 
-  delete: (id: string) =>
-    api.delete<ApiResponse<void>>(`/admin/exams/${id}`),
+  delete: (id: string) => api.delete<ApiResponse<void>>(`/exams/${id}`),
 };
 
 // Test Series Management API
@@ -167,21 +160,20 @@ export interface UpdateTestSeriesRequest {
 
 export const adminTestSeriesApi = {
   getAll: (page = 1, limit = 10, search?: string, examId?: string) =>
-    api.get<PaginatedResponse<TestSeries>>("/admin/test-series", {
+    api.get<PaginatedResponse<TestSeries>>("/test-series", {
       params: { page, limit, search, examId },
     }),
 
   getById: (id: string) =>
-    api.get<ApiResponse<TestSeries>>(`/admin/test-series/${id}`),
+    api.get<ApiResponse<TestSeries>>(`/test-series/${id}`),
 
   create: (seriesData: CreateTestSeriesRequest) =>
-    api.post<ApiResponse<TestSeries>>("/admin/test-series", seriesData),
+    api.post<ApiResponse<TestSeries>>("/test-series", seriesData),
 
   update: (id: string, seriesData: UpdateTestSeriesRequest) =>
-    api.patch<ApiResponse<TestSeries>>(`/admin/test-series/${id}`, seriesData),
+    api.patch<ApiResponse<TestSeries>>(`/test-series/${id}`, seriesData),
 
-  delete: (id: string) =>
-    api.delete<ApiResponse<void>>(`/admin/test-series/${id}`),
+  delete: (id: string) => api.delete<ApiResponse<void>>(`/test-series/${id}`),
 };
 
 // Test Management API
@@ -239,21 +231,19 @@ export interface UpdateTestRequest {
 
 export const adminTestsApi = {
   getAll: (page = 1, limit = 10, search?: string, seriesId?: string) =>
-    api.get<PaginatedResponse<Test>>("/admin/tests", {
+    api.get<PaginatedResponse<Test>>("/tests", {
       params: { page, limit, search, seriesId },
     }),
 
-  getById: (id: string) =>
-    api.get<ApiResponse<Test>>(`/admin/tests/${id}`),
+  getById: (id: string) => api.get<ApiResponse<Test>>(`/tests/${id}`),
 
   create: (testData: CreateTestRequest) =>
-    api.post<ApiResponse<Test>>("/admin/tests", testData),
+    api.post<ApiResponse<Test>>("/tests", testData),
 
   update: (id: string, testData: UpdateTestRequest) =>
-    api.patch<ApiResponse<Test>>(`/admin/tests/${id}`, testData),
+    api.patch<ApiResponse<Test>>(`/tests/${id}`, testData),
 
-  delete: (id: string) =>
-    api.delete<ApiResponse<void>>(`/admin/tests/${id}`),
+  delete: (id: string) => api.delete<ApiResponse<void>>(`/tests/${id}`),
 };
 
 // Analytics API
@@ -299,11 +289,9 @@ export const adminAnalyticsApi = {
   getDashboardMetrics: () =>
     api.get<ApiResponse<DashboardMetrics>>("/admin/analytics/dashboard"),
 
-  getUserStats: () =>
-    api.get<ApiResponse<UserStats>>("/admin/analytics/users"),
+  getUserStats: () => api.get<ApiResponse<UserStats>>("/admin/analytics/users"),
 
-  getTestStats: () =>
-    api.get<ApiResponse<TestStats>>("/admin/analytics/tests"),
+  getTestStats: () => api.get<ApiResponse<TestStats>>("/admin/analytics/tests"),
 
   getAttemptStats: () =>
     api.get<ApiResponse<AttemptStats>>("/admin/analytics/attempts"),

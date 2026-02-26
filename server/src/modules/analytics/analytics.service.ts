@@ -1,0 +1,216 @@
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../../services/prisma/prisma.service';
+import { Status } from '@prisma/client';
+
+@Injectable()
+export class AnalyticsService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async getDashboardMetrics() {
+    const now = new Date();
+    const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    // Get current metrics
+    const [
+      totalUsers,
+      activeTests,
+      completedAttempts,
+      avgPerformance,
+      lastMonthUsers,
+      lastMonthTests,
+      lastMonthAttempts,
+      lastMonthPerformance,
+    ] = await Promise.all([
+      this.prisma.user.count(),
+      this.prisma.test.count({ where: { isActive: true, isLive: true } }),
+      this.prisma.attempt.count({ where: { status: Status.SUBMITTED } }),
+      this.getAveragePerformance(),
+      this.prisma.user.count({
+        where: { createdAt: { gte: lastMonth, lt: thisMonth } },
+      }),
+      this.prisma.test.count({
+        where: {
+          isActive: true,
+          isLive: true,
+          createdAt: { gte: lastMonth, lt: thisMonth },
+        },
+      }),
+      this.prisma.attempt.count({
+        where: {
+          status: Status.SUBMITTED,
+          createdAt: { gte: lastMonth, lt: thisMonth },
+        },
+      }),
+      this.getAveragePerformance(lastMonth, thisMonth),
+    ]);
+
+    // Calculate growth percentages
+    const userGrowth =
+      lastMonthUsers > 0
+        ? Math.round(((totalUsers - lastMonthUsers) / lastMonthUsers) * 100)
+        : 0;
+    const testGrowth =
+      lastMonthTests > 0
+        ? Math.round(
+            ((activeTests - lastMonthTests) / Math.max(lastMonthTests, 1)) *
+              100,
+          )
+        : 0;
+    const attemptGrowth =
+      lastMonthAttempts > 0
+        ? Math.round(
+            ((completedAttempts - lastMonthAttempts) /
+              Math.max(lastMonthAttempts, 1)) *
+              100,
+          )
+        : 0;
+    const performanceGrowth =
+      lastMonthPerformance > 0
+        ? Math.round(
+            ((avgPerformance - lastMonthPerformance) /
+              Math.max(lastMonthPerformance, 1)) *
+              100,
+          )
+        : 0;
+
+    return {
+      totalUsers,
+      activeTests,
+      completedAttempts,
+      avgPerformance,
+      userGrowth,
+      testGrowth,
+      attemptGrowth,
+      performanceGrowth,
+    };
+  }
+
+  async getUserStats() {
+    const now = new Date();
+    const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const [
+      total,
+      students,
+      instructors,
+      admins,
+      newThisMonth,
+      activeThisMonth,
+    ] = await Promise.all([
+      this.prisma.user.count(),
+      this.prisma.user.count({ where: { role: 'STUDENT' } }),
+      this.prisma.user.count({ where: { role: 'INSTRUCTOR' } }),
+      this.prisma.user.count({ where: { role: 'ADMIN' } }),
+      this.prisma.user.count({ where: { createdAt: { gte: thisMonth } } }),
+      this.prisma.user.count({
+        where: {
+          updatedAt: { gte: thisMonth },
+          attempts: {
+            some: { createdAt: { gte: thisMonth } },
+          },
+        },
+      }),
+    ]);
+
+    return {
+      total,
+      students,
+      instructors,
+      admins,
+      newThisMonth,
+      activeThisMonth,
+    };
+  }
+
+  async getTestStats() {
+    const now = new Date();
+    const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const [total, active, live, premium, createdThisMonth, completedThisMonth] =
+      await Promise.all([
+        this.prisma.test.count(),
+        this.prisma.test.count({ where: { isActive: true } }),
+        this.prisma.test.count({ where: { isActive: true, isLive: true } }),
+        this.prisma.test.count({ where: { isPremium: true } }),
+        this.prisma.test.count({ where: { createdAt: { gte: thisMonth } } }),
+        this.prisma.attempt.count({
+          where: {
+            status: Status.SUBMITTED,
+            createdAt: { gte: thisMonth },
+          },
+        }),
+      ]);
+
+    return {
+      total,
+      active,
+      live,
+      premium,
+      createdThisMonth,
+      completedThisMonth,
+    };
+  }
+
+  async getAttemptStats() {
+    const [total, completed, started, expired, avgScore, avgDuration] =
+      await Promise.all([
+        this.prisma.attempt.count(),
+        this.prisma.attempt.count({ where: { status: Status.SUBMITTED } }),
+        this.prisma.attempt.count({ where: { status: Status.STARTED } }),
+        this.prisma.attempt.count({ where: { status: Status.EXPIRED } }),
+        this.getAverageScore(),
+        this.getAverageDuration(),
+      ]);
+
+    return {
+      total,
+      completed,
+      started,
+      expired,
+      avgScore,
+      avgDuration,
+    };
+  }
+
+  private async getAveragePerformance(startDate?: Date, endDate?: Date) {
+    const where =
+      startDate && endDate
+        ? {
+            status: Status.SUBMITTED,
+            createdAt: { gte: startDate, lt: endDate },
+          }
+        : { status: Status.SUBMITTED };
+
+    const result = await this.prisma.attempt.aggregate({
+      where,
+      _avg: {
+        score: true,
+      },
+    });
+
+    return Math.round(result._avg.score || 0);
+  }
+
+  private async getAverageScore() {
+    const result = await this.prisma.attempt.aggregate({
+      where: { status: Status.SUBMITTED },
+      _avg: {
+        score: true,
+      },
+    });
+
+    return Math.round(result._avg.score || 0);
+  }
+
+  private async getAverageDuration() {
+    const result = await this.prisma.attempt.aggregate({
+      where: { status: Status.SUBMITTED },
+      _avg: {
+        timeTaken: true,
+      },
+    });
+
+    return Math.round(result._avg.timeTaken || 0);
+  }
+}
