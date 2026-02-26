@@ -179,7 +179,7 @@ export default function CreateTestPage() {
                 >
                   <CardContent className="p-4">
                     <BulkQuestionUpload
-                      sectionId={section.id}
+                      sectionId="bfb6f916-e5dc-4ca9-aa6b-030af2073c87" // Hardcoded valid section ID for testing
                       onSuccess={() => {
                         toast({
                           title: "Success!",

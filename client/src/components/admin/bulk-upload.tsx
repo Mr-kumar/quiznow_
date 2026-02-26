@@ -44,10 +44,18 @@ export function BulkQuestionUpload({ sectionId, onSuccess }: BulkUploadProps) {
       });
       if (onSuccess) onSuccess();
       setFile(null); // Reset
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Upload Error:", error.response?.data);
+
+      // Extract the real error message from NestJS
+      const backendError = error.response?.data?.message;
+      const displayError = Array.isArray(backendError)
+        ? backendError[0]
+        : backendError || "Unknown upload error";
+
       toast({
         title: "Upload Failed",
-        description: "Please check your Excel format and try again.",
+        description: `Error: ${displayError}`, // 👈 Now it will tell you EXACTLY what's wrong
         variant: "destructive",
       });
     } finally {
