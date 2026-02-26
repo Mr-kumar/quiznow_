@@ -12,10 +12,9 @@ import { Roles } from '../iam/auth/decorators/roles.decorator';
 import { Role } from '@prisma/client';
 
 @ApiTags('Analytics')
-// TODO: Re-enable authentication once JWT strategy is properly configured
-// @ApiBearerAuth()
-// @UseGuards(JwtAuthGuard, RolesGuard)
-// @Roles(Role.ADMIN)
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(Role.ADMIN)
 @Controller('admin/analytics')
 export class AnalyticsController {
   constructor(private readonly analyticsService: AnalyticsService) {}
