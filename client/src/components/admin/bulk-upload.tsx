@@ -40,13 +40,13 @@ export function BulkQuestionUpload({ sectionId, onSuccess }: BulkUploadProps) {
       if (onSuccess) onSuccess();
       setFile(null); // Reset
     } catch (error: any) {
-      console.error("Upload Error:", error.response?.data);
+      console.error("Upload Error:", error);
 
       // Extract the real error message from NestJS
-      const backendError = error.response?.data?.message;
+      const backendError = error?.response?.data?.message || error?.message;
       const displayError = Array.isArray(backendError)
         ? backendError[0]
-        : backendError || "Unknown upload error";
+        : backendError || error?.toString() || "Unknown upload error";
 
       toast({
         title: "Upload Failed",
