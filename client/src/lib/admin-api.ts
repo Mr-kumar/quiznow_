@@ -296,3 +296,21 @@ export const adminAnalyticsApi = {
   getAttemptStats: () =>
     api.get<ApiResponse<AttemptStats>>("/admin/analytics/attempts"),
 };
+
+export const adminQuestionsApi = {
+  bulkUpload: (file: File, sectionId: string) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("sectionId", sectionId);
+
+    return api.post<{ success: boolean; count: number }>(
+      "/questions/upload",
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      },
+    );
+  },
+};
