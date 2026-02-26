@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { BulkUpload } from "@/components/admin/bulk-upload";
+import { BulkQuestionUpload } from "@/components/admin/bulk-upload";
 import { adminQuestionsApi } from "@/lib/admin-api";
 import { adminTestSeriesApi, adminExamsApi } from "@/lib/admin-api";
 import { toast } from "@/components/ui/use-toast";
@@ -79,10 +79,10 @@ export default function CreateTestPage() {
     try {
       const response = await adminQuestionsApi.bulkUpload(file, sectionId);
 
-      if (response.success) {
+      if (response.data?.success) {
         toast({
           title: "Success!",
-          description: `Successfully uploaded ${response.count || 0} questions`,
+          description: `Successfully uploaded ${response.data?.count || 0} questions`,
         });
       } else {
         throw new Error("Upload failed");
@@ -169,11 +169,30 @@ export default function CreateTestPage() {
 
         {/* Bulk Upload Tab */}
         <TabsContent value="bulk" className="space-y-6">
-          <BulkUpload
-            onUpload={handleBulkUpload}
-            sections={sections}
-            loading={uploadLoading}
-          />
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium">Select Section for Upload</h3>
+            <div className="grid gap-4 md:grid-cols-2">
+              {sections.map((section) => (
+                <Card
+                  key={section.id}
+                  className="cursor-pointer hover:shadow-md transition-shadow"
+                >
+                  <CardContent className="p-4">
+                    <BulkQuestionUpload
+                      sectionId={section.id}
+                      onSuccess={() => {
+                        toast({
+                          title: "Success!",
+                          description: `Questions uploaded to ${section.name}`,
+                        });
+                      }}
+                    />
+                    <h4 className="font-medium mt-2">{section.name}</h4>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
         </TabsContent>
       </Tabs>
 
