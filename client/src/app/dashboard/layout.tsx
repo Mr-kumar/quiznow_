@@ -78,11 +78,15 @@ export default function DashboardLayout({
       icon: PlusCircle,
     },
     {
+      href: "/dashboard/admin/settings",
+      label: "Settings",
+      icon: Settings,
+    },
+    {
       href: "/dashboard/admin/analytics",
       label: "Analytics",
       icon: TrendingUp,
     },
-    { href: "/dashboard/admin/settings", label: "Settings", icon: Settings },
   ];
 
   const links = user.role === "ADMIN" ? adminLinks : studentLinks;

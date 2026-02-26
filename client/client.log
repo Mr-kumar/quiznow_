@@ -2,30 +2,12 @@
 > quiznow@0.1.0 dev
 > next dev
 
+⚠ Port 3000 is in use by process 1278, using available port 3001 instead.
 ▲ Next.js 16.1.6 (Turbopack)
-- Local:         http://localhost:3000
-- Network:       http://192.168.29.65:3000
+- Local:         http://localhost:3001
+- Network:       http://192.168.29.65:3001
 
 ✓ Starting...
-✓ Ready in 835ms
- GET /dashboard/admin/tests/create 200 in 594ms (compile: 435ms, render: 159ms)
- GET /assets/index-4269cba7.js 404 in 264ms (compile: 69ms, render: 195ms)
- GET /assets/index-48d53a4d.js 404 in 271ms (compile: 137ms, render: 134ms)
- GET /assets/transformers.web-d4ee4a3d.js 404 in 281ms (compile: 117ms, render: 164ms)
- GET /assets/routes-e83c81f9.js 404 in 267ms (compile: 175ms, render: 93ms)
- GET /assets/tokens-5f27f274.js 404 in 270ms (compile: 152ms, render: 117ms)
- GET /login 200 in 124ms (compile: 56ms, render: 68ms)
-✓ Compiled in 962ms
- GET /dashboard/admin/tests/create 200 in 153ms (compile: 58ms, render: 95ms)
- GET /assets/routes-e83c81f9.js 404 in 149ms (compile: 73ms, render: 76ms)
- GET /assets/tokens-5f27f274.js 404 in 150ms (compile: 61ms, render: 89ms)
- GET /assets/index-48d53a4d.js 404 in 152ms (compile: 38ms, render: 114ms)
- GET /assets/transformers.web-d4ee4a3d.js 404 in 156ms (compile: 26ms, render: 130ms)
- GET /assets/index-4269cba7.js 404 in 150ms (compile: 80ms, render: 69ms)
- GET /dashboard/admin/tests-hierarchy 200 in 156ms (compile: 87ms, render: 69ms)
- GET /assets/routes-e83c81f9.js 404 in 157ms (compile: 63ms, render: 94ms)
- GET /assets/tokens-5f27f274.js 404 in 158ms (compile: 44ms, render: 114ms)
- GET /assets/index-48d53a4d.js 404 in 159ms (compile: 26ms, render: 133ms)
- GET /assets/transformers.web-d4ee4a3d.js 404 in 162ms (compile: 14ms, render: 148ms)
- GET /assets/index-4269cba7.js 404 in 160ms (compile: 122ms, render: 38ms)
- GET /dashboard/admin 200 in 64ms (compile: 34ms, render: 30ms)
+⨯ Unable to acquire lock at /Users/manishkumar/Desktop/quiznow/client/.next/dev/lock, is another instance of next dev running?
+  Suggestion: If you intended to restart next dev, terminate the other process, and then try again.
+[?25h

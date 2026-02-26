@@ -216,9 +216,21 @@ export default function AdminTestsPage() {
             adminTestSeriesApi.getAll(),
             adminExamsApi.getAll(),
           ]);
-        setTests(testsResponse.data.data);
-        setTestSeries(seriesResponse.data.data);
-        setExams(examsResponse.data.data);
+
+        // Handle different response structures
+        const testsData = Array.isArray(testsResponse.data)
+          ? testsResponse.data
+          : testsResponse.data?.data || [];
+        const seriesData = Array.isArray(seriesResponse.data)
+          ? seriesResponse.data
+          : seriesResponse.data?.data || [];
+        const examsData = Array.isArray(examsResponse.data)
+          ? examsResponse.data
+          : examsResponse.data?.data || [];
+
+        setTests(testsData);
+        setTestSeries(seriesData);
+        setExams(examsData);
       } catch (apiError) {
         console.log("API endpoints not ready, using mock data:", apiError);
         setTests(mockTests);

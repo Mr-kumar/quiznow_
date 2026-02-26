@@ -1,231 +1,204 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/components/ui/use-toast";
+import api from "@/lib/api";
+import { Loader2, ArrowRight, CheckCircle2 } from "lucide-react";
 import { BulkQuestionUpload } from "@/components/admin/bulk-upload";
-import { adminQuestionsApi } from "@/lib/admin-api";
-import { adminTestSeriesApi, adminExamsApi } from "@/lib/admin-api";
-import { toast } from "@/components/ui/use-toast";
-import { Plus, FileText, Upload, BarChart3 } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
+export default function CreateTestWizard() {
+  const router = useRouter();
+  const { toast } = useToast();
 
-interface Section {
-  id: string;
-  name: string;
-}
+  // Wizard State
+  const [step, setStep] = useState<1 | 2>(1);
+  const [isLoading, setIsLoading] = useState(false);
 
-interface TestSeries {
-  id: string;
-  title: string;
-}
+  // Data State
+  const [createdTestId, setCreatedTestId] = useState<string | null>(null);
+  const [createdSectionId, setCreatedSectionId] = useState<string | null>(null);
 
-interface Exam {
-  id: string;
-  name: string;
-}
+  // Form State
+  const [formData, setFormData] = useState({
+    title: "RRB JE Full Mock Test 1",
+    duration: 60,
+    totalMarks: 100,
+    passingMarks: 40,
+    negativeMark: 0.33,
+    testSeriesId: "ea3d49f5-6c18-4f62-931a-b15f606e6938", // Make sure this is a valid Series ID from your DB
+  });
 
-export default function CreateTestPage() {
-  const [activeTab, setActiveTab] = useState("manual");
-  const [sections, setSections] = useState<Section[]>([]);
-  const [testSeries, setTestSeries] = useState<TestSeries[]>([]);
-  const [exams, setExams] = useState<Exam[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [uploadLoading, setUploadLoading] = useState(false);
-
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        const [seriesResponse, examsResponse] = await Promise.all([
-          adminTestSeriesApi.getAll(),
-          adminExamsApi.getAll(),
-        ]);
-
-        const series = Array.isArray(seriesResponse.data)
-          ? seriesResponse.data
-          : seriesResponse.data?.data || [];
-        const exams = Array.isArray(examsResponse.data)
-          ? examsResponse.data
-          : examsResponse.data?.data || [];
-
-        setTestSeries(series);
-        setExams(exams);
-
-        // Extract sections from test series (mock for now)
-        const mockSections: Section[] = series.map((s, index) => ({
-          id: s.id,
-          name: `Section ${index + 1}: ${s.title}`,
-        }));
-
-        setSections(mockSections);
-      } catch (error) {
-        toast({
-          title: "Error",
-          description: "Failed to load test data",
-          variant: "destructive",
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadData();
-  }, []);
-
-  const handleBulkUpload = async (file: File, sectionId: string) => {
-    setUploadLoading(true);
+  const handleCreateTestAndSection = async () => {
+    setIsLoading(true);
     try {
-      const response = await adminQuestionsApi.bulkUpload(file, sectionId);
+      // 1. Create the Test
+      const testPayload = {
+        title: formData.title,
+        duration: Number(formData.duration),
+        totalMarks: Number(formData.totalMarks),
+        passingMarks: Number(formData.passingMarks),
+        negativeMarking: Number(formData.negativeMark),
+        testSeriesId: formData.testSeriesId,
+      };
+      const testRes = await api.post("/tests", testPayload);
+      const testId = testRes.data.id;
+      setCreatedTestId(testId);
 
-      if (response.data?.success) {
-        toast({
-          title: "Success!",
-          description: `Successfully uploaded ${response.data?.count || 0} questions`,
-        });
-      } else {
-        throw new Error("Upload failed");
-      }
-    } catch (error) {
-      console.error("Upload error:", error);
-      throw error;
+      // 2. Automatically Create a Default Section for this Test
+      const sectionPayload = {
+        testId: testId,
+        name: "General Section",
+        order: 1,
+      };
+      const secRes = await api.post("/sections", sectionPayload);
+      const sectionId = secRes.data.id;
+      setCreatedSectionId(sectionId);
+
+      toast({
+        title: "Success",
+        description: "Test container created! Now upload questions.",
+      });
+
+      // 3. Move to Step 2 (Upload)
+      setStep(2);
+    } catch (error: any) {
+      console.error(error);
+      toast({
+        title: "Database Error",
+        description:
+          error.response?.data?.message ||
+          "Failed to create Test. Check your testSeriesId.",
+        variant: "destructive",
+      });
     } finally {
-      setUploadLoading(false);
+      setIsLoading(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Create Test</h1>
-            <p className="text-muted-foreground">
-              Create new tests and manage questions
-            </p>
-          </div>
-        </div>
-        <div className="grid gap-6 md:grid-cols-2">
-          <Skeleton className="h-32" />
-          <Skeleton className="h-32" />
-        </div>
-      </div>
-    );
-  }
+  const handleUploadSuccess = () => {
+    // What happens after Excel is processed!
+    toast({
+      title: "Boom! 🚀",
+      description: "All questions injected successfully!",
+    });
+    router.push("/dashboard/admin/tests"); // Redirect to tests list
+  };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Create Test</h1>
-          <p className="text-muted-foreground">
-            Create new tests and manage questions
-          </p>
+    <div className="max-w-3xl mx-auto space-y-8 py-8">
+      {/* Progress Indicator */}
+      <div className="flex items-center justify-center space-x-4 mb-8">
+        <div
+          className={`flex items-center justify-center w-10 h-10 rounded-full font-bold ${step >= 1 ? "bg-blue-600 text-white" : "bg-zinc-200 text-zinc-500"}`}
+        >
+          1
         </div>
-        <Badge variant="secondary" className="text-sm">
-          <BarChart3 className="w-3 h-3 mr-1" />
-          Test Builder
-        </Badge>
+        <div
+          className={`h-1 w-16 ${step >= 2 ? "bg-blue-600" : "bg-zinc-200"}`}
+        ></div>
+        <div
+          className={`flex items-center justify-center w-10 h-10 rounded-full font-bold ${step >= 2 ? "bg-blue-600 text-white" : "bg-zinc-200 text-zinc-500"}`}
+        >
+          2
+        </div>
       </div>
 
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="manual" className="flex items-center gap-2">
-            <Plus className="w-4 h-4" />
-            Manual Creation
-          </TabsTrigger>
-          <TabsTrigger value="bulk" className="flex items-center gap-2">
-            <Upload className="w-4 h-4" />
-            Bulk Upload
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Manual Creation Tab */}
-        <TabsContent value="manual" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Manual Test Creation</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-12">
-                <FileText className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-2">
-                  Manual Test Builder
-                </h3>
-                <p className="text-muted-foreground mb-6">
-                  Create tests step-by-step with custom questions and sections
-                </p>
-                <Button disabled className="opacity-50">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Coming Soon
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Bulk Upload Tab */}
-        <TabsContent value="bulk" className="space-y-6">
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium">Select Section for Upload</h3>
-            <div className="grid gap-4 md:grid-cols-2">
-              {sections.map((section) => (
-                <Card
-                  key={section.id}
-                  className="cursor-pointer hover:shadow-md transition-shadow"
-                >
-                  <CardContent className="p-4">
-                    <BulkQuestionUpload
-                      sectionId="bfb6f916-e5dc-4ca9-aa6b-030af2073c87" // Hardcoded valid section ID for testing
-                      onSuccess={() => {
-                        toast({
-                          title: "Success!",
-                          description: `Questions uploaded to ${section.name}`,
-                        });
-                      }}
-                    />
-                    <h4 className="font-medium mt-2">{section.name}</h4>
-                  </CardContent>
-                </Card>
-              ))}
+      {step === 1 && (
+        <Card className="border-zinc-200 shadow-lg">
+          <CardHeader>
+            <CardTitle className="text-2xl">Step 1: Test Details</CardTitle>
+            <CardDescription>
+              Create the container for your exam.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-2">
+              <Label>Test Title</Label>
+              <Input
+                value={formData.title}
+                onChange={(e) =>
+                  setFormData({ ...formData, title: e.target.value })
+                }
+              />
             </div>
-          </div>
-        </TabsContent>
-      </Tabs>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label>Duration (Mins)</Label>
+                <Input
+                  type="number"
+                  value={formData.duration}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      duration: Number(e.target.value),
+                    })
+                  }
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>Total Marks</Label>
+                <Input
+                  type="number"
+                  value={formData.totalMarks}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      totalMarks: Number(e.target.value),
+                    })
+                  }
+                />
+              </div>
+            </div>
+          </CardContent>
+          <CardFooter className="flex justify-end border-t p-6 bg-zinc-50 dark:bg-zinc-900/50">
+            <Button
+              onClick={handleCreateTestAndSection}
+              disabled={isLoading || !formData.title}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Create & Continue <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </CardFooter>
+        </Card>
+      )}
 
-      {/* Quick Stats */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Test Series</CardTitle>
+      {step === 2 && createdSectionId && (
+        <Card className="border-green-200 shadow-lg dark:border-green-900/50">
+          <CardHeader className="bg-green-50/50 dark:bg-green-900/10 pb-8 border-b border-green-100 dark:border-green-900/30">
+            <div className="flex items-center gap-3">
+              <CheckCircle2 className="h-8 w-8 text-green-600" />
+              <div>
+                <CardTitle className="text-2xl text-green-800 dark:text-green-400">
+                  Step 2: Inject Questions
+                </CardTitle>
+                <CardDescription className="text-green-600/80">
+                  Test container created successfully. Now upload your Excel
+                  sheet.
+                </CardDescription>
+              </div>
+            </div>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{testSeries.length}</div>
-            <p className="text-xs text-muted-foreground">Available series</p>
+          <CardContent className="pt-8">
+            {/* The Excel Uploader with the REAL Database Section ID */}
+            <BulkQuestionUpload
+              sectionId={createdSectionId}
+              onSuccess={handleUploadSuccess}
+            />
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Exams</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{exams.length}</div>
-            <p className="text-xs text-muted-foreground">Available exams</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Sections</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{sections.length}</div>
-            <p className="text-xs text-muted-foreground">Upload targets</p>
-          </CardContent>
-        </Card>
-      </div>
+      )}
     </div>
   );
 }

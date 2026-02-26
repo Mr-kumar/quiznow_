@@ -7,6 +7,7 @@ import { PrismaService } from 'src/services/prisma/prisma.service';
 import { CreateQuestionDto } from './dto/create-question.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
 import * as XLSX from 'xlsx';
+import { randomUUID } from 'crypto';
 
 @Injectable()
 export class QuestionsService {
@@ -146,7 +147,9 @@ export class QuestionsService {
         await tx.question.create({
           data: {
             correctAnswer: correctIndex,
-            hash: Buffer.from(row['Question'] + Date.now() + count)
+            hash: Buffer.from(
+              `${row['Question']}_${Date.now()}_${Math.random()}_${count}_${randomUUID()}`,
+            )
               .toString('base64')
               .substring(0, 32),
             // Link to Section
