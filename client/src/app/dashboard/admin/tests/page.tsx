@@ -518,11 +518,11 @@ export default function AdminTestsPage() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {testSeries.map((series) => (
+                            {testSeries?.map((series) => (
                               <SelectItem key={series.id} value={series.id}>
                                 {series.title}
                               </SelectItem>
-                            ))}
+                            )) || []}
                           </SelectContent>
                         </Select>
                         <FormMessage />
