@@ -1,9 +1,20 @@
-import { Controller, Get } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { Controller, Get, UseGuards } from '@nestjs/common';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+} from '@nestjs/swagger';
 import { AnalyticsService } from './analytics.service';
+import { JwtAuthGuard } from '../iam/auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../iam/auth/guards/roles.guard';
+import { Roles } from '../iam/auth/decorators/roles.decorator';
 
 @ApiTags('Analytics')
+@ApiBearerAuth()
 @Controller('admin/analytics')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('ADMIN')
 export class AnalyticsController {
   constructor(private readonly analyticsService: AnalyticsService) {}
 

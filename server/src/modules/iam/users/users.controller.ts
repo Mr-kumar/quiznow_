@@ -1,13 +1,32 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+} from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from '@prisma/client';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 
 @ApiTags('Users Management')
 @ApiBearerAuth()
 @Controller('admin/users')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('ADMIN')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
@@ -100,7 +119,10 @@ export class UsersController {
 
   @Get('stats/overview')
   @ApiOperation({ summary: 'Get user statistics' })
-  @ApiResponse({ status: 200, description: 'User statistics retrieved successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'User statistics retrieved successfully',
+  })
   async getStats() {
     const data = await this.usersService.getStats();
     return {
