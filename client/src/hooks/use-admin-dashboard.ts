@@ -1,5 +1,12 @@
-import { useEffect, useState } from 'react';
-import { adminAnalyticsApi, DashboardMetrics, UserStats, TestStats, AttemptStats } from '@/lib/admin-api';
+import { useEffect, useState } from "react";
+import {
+  adminAnalyticsApi,
+  DashboardMetrics,
+  UserStats,
+  TestStats,
+  AttemptStats,
+} from "@/lib/admin-api";
+import { toast } from "@/components/ui/use-toast";
 
 export function useAdminDashboard() {
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
@@ -15,7 +22,12 @@ export function useAdminDashboard() {
         setIsLoading(true);
         setError(null);
 
-        const [metricsResponse, usersResponse, testsResponse, attemptsResponse] = await Promise.all([
+        const [
+          metricsResponse,
+          usersResponse,
+          testsResponse,
+          attemptsResponse,
+        ] = await Promise.all([
           adminAnalyticsApi.getDashboardMetrics(),
           adminAnalyticsApi.getUserStats(),
           adminAnalyticsApi.getTestStats(),
@@ -27,8 +39,13 @@ export function useAdminDashboard() {
         setTestStats(testsResponse.data.data);
         setAttemptStats(attemptsResponse.data.data);
       } catch (err) {
-        setError('Failed to load dashboard data');
-        console.error('Dashboard data loading error:', err);
+        setError("Failed to load dashboard data");
+        console.error("Dashboard data loading error:", err);
+        toast({
+          title: "Error",
+          description: "Failed to load dashboard data",
+          variant: "destructive",
+        });
       } finally {
         setIsLoading(false);
       }
@@ -42,7 +59,12 @@ export function useAdminDashboard() {
       try {
         setError(null);
 
-        const [metricsResponse, usersResponse, testsResponse, attemptsResponse] = await Promise.all([
+        const [
+          metricsResponse,
+          usersResponse,
+          testsResponse,
+          attemptsResponse,
+        ] = await Promise.all([
           adminAnalyticsApi.getDashboardMetrics(),
           adminAnalyticsApi.getUserStats(),
           adminAnalyticsApi.getTestStats(),
@@ -54,21 +76,21 @@ export function useAdminDashboard() {
         setTestStats(testsResponse.data.data);
         setAttemptStats(attemptsResponse.data.data);
       } catch (err) {
-        setError('Failed to refresh dashboard data');
-        console.error('Dashboard refresh error:', err);
+        setError("Failed to refresh dashboard data");
+        console.error("Dashboard refresh error:", err);
       }
     };
 
     await loadData();
   };
 
-  return { 
-    metrics, 
-    userStats, 
-    testStats, 
-    attemptStats, 
-    isLoading, 
-    error, 
-    refresh 
+  return {
+    metrics,
+    userStats,
+    testStats,
+    attemptStats,
+    isLoading,
+    error,
+    refresh,
   };
 }
