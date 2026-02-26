@@ -752,7 +752,7 @@ export default function AdminTestsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">
-              {tests.length}
+              {tests?.length || 0}
             </div>
           </CardContent>
         </Card>
@@ -765,7 +765,7 @@ export default function AdminTestsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-700 dark:text-green-300">
-              {tests.filter((t) => t.isLive).length}
+              {tests?.filter((t) => t.isLive).length || 0}
             </div>
           </CardContent>
         </Card>
@@ -778,7 +778,7 @@ export default function AdminTestsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-yellow-700 dark:text-yellow-300">
-              {tests.filter((t) => t.isPremium).length}
+              {tests?.filter((t) => t.isPremium).length || 0}
             </div>
           </CardContent>
         </Card>
@@ -791,7 +791,7 @@ export default function AdminTestsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-purple-700 dark:text-purple-300">
-              {testSeries.length}
+              {testSeries?.length || 0}
             </div>
           </CardContent>
         </Card>
@@ -800,7 +800,7 @@ export default function AdminTestsPage() {
       {/* Tests Table */}
       <DataTable
         columns={columns}
-        data={tests}
+        data={tests || []}
         searchKey="tests"
         title="All Tests"
         description="Manage test configurations and settings"
