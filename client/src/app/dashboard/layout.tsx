@@ -63,7 +63,11 @@ export default function DashboardLayout({
     },
     { href: "/dashboard/admin/tests", label: "Manage Tests", icon: FileText },
     { href: "/dashboard/admin/users", label: "Manage Users", icon: Users },
-    { href: "/dashboard/admin/create", label: "Create Test", icon: PlusCircle },
+    {
+      href: "/dashboard/admin/tests/create",
+      label: "Create Test",
+      icon: PlusCircle,
+    },
     {
       href: "/dashboard/admin/analytics",
       label: "Analytics",
