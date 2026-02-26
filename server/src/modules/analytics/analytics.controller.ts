@@ -11,10 +11,7 @@ import { RolesGuard } from '../iam/auth/guards/roles.guard';
 import { Roles } from '../iam/auth/decorators/roles.decorator';
 
 @ApiTags('Analytics')
-@ApiBearerAuth()
 @Controller('admin/analytics')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('ADMIN')
 export class AnalyticsController {
   constructor(private readonly analyticsService: AnalyticsService) {}
 
