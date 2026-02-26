@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import api from "@/lib/api";
+import { adminQuestionsApi } from "@/lib/admin-api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
@@ -28,19 +28,14 @@ export function BulkQuestionUpload({ sectionId, onSuccess }: BulkUploadProps) {
     if (!file || !sectionId) return;
 
     setIsUploading(true);
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("sectionId", sectionId);
 
     try {
-      // Direct API call with multipart/form-data
-      await api.post("/questions/upload", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      // Use authenticated admin API call
+      const response = await adminQuestionsApi.bulkUpload(file, sectionId);
 
       toast({
         title: "Success!",
-        description: "Questions uploaded successfully.",
+        description: `Questions uploaded successfully. Created ${response.data?.count || 0} questions.`,
       });
       if (onSuccess) onSuccess();
       setFile(null); // Reset
