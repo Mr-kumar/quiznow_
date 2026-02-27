@@ -7,20 +7,22 @@ import { useAuthStore } from "@/stores/auth-store";
 import { Button } from "@/components/ui/button";
 import {
   LayoutDashboard,
-  BookOpen,
-  Trophy,
-  LogOut,
-  Menu,
-  User,
-  Settings,
-  Bell,
-  Users,
+  FolderTree,
   FileText,
+  BookOpen,
+  Users,
   PlusCircle,
-  Shield,
+  Settings,
+  BarChart3,
   Target,
-  TrendingUp,
-  Folder,
+  Award,
+  Clock,
+  Shield,
+  User,
+  LogOut,
+  Bell,
+  Menu,
+  X,
 } from "lucide-react";
 
 export default function DashboardLayout({
@@ -55,7 +57,7 @@ export default function DashboardLayout({
   const studentLinks = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/dashboard/tests", label: "My Tests", icon: BookOpen },
-    { href: "/dashboard/results", label: "Results", icon: Trophy },
+    { href: "/dashboard/results", label: "Results", icon: Award },
     { href: "/dashboard/leaderboard", label: "Leaderboard", icon: Target },
   ];
 
@@ -67,11 +69,29 @@ export default function DashboardLayout({
     },
     {
       href: "/dashboard/admin/tests-hierarchy",
-      label: "Tests Hierarchy",
-      icon: Folder,
+      label: "Manage Hierarchy",
+      icon: FolderTree,
     },
-    { href: "/dashboard/admin/tests", label: "Manage Tests", icon: FileText },
-    { href: "/dashboard/admin/users", label: "Manage Users", icon: Users },
+    {
+      href: "/dashboard/admin/tests",
+      label: "Manage Tests",
+      icon: FileText,
+    },
+    {
+      href: "/dashboard/admin/question-bank",
+      label: "Question Bank",
+      icon: BookOpen,
+    },
+    {
+      href: "/dashboard/admin/question-bank/create-test",
+      label: "Create from QB",
+      icon: Target,
+    },
+    {
+      href: "/dashboard/admin/users",
+      label: "Users & Analytics",
+      icon: Users,
+    },
     {
       href: "/dashboard/admin/tests/create",
       label: "Create Test",
@@ -81,11 +101,6 @@ export default function DashboardLayout({
       href: "/dashboard/admin/settings",
       label: "Settings",
       icon: Settings,
-    },
-    {
-      href: "/dashboard/admin/analytics",
-      label: "Analytics",
-      icon: TrendingUp,
     },
   ];
 

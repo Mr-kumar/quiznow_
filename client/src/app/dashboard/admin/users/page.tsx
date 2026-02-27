@@ -64,9 +64,21 @@ import {
   Calendar,
   Shield,
   User as UserIcon,
+  TrendingUp,
+  Activity,
+  DollarSign,
+  Search,
+  Filter,
+  RefreshCw,
+  Download,
+  Target,
+  BarChart3,
+  PieChart,
 } from "lucide-react";
 import { ColumnDef } from "@tanstack/react-table";
 import { User as UserType } from "@/lib/admin-api";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CardDescription } from "@/components/ui/card";
 
 // Form validation schema
 const userFormSchema = z.object({
@@ -77,7 +89,7 @@ const userFormSchema = z.object({
 
 type UserFormValues = z.infer<typeof userFormSchema>;
 
-export default function AdminUsersPage() {
+export default function UsersAnalyticsPage() {
   const [users, setUsers] = useState<UserType[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -85,6 +97,9 @@ export default function AdminUsersPage() {
   const [selectedUser, setSelectedUser] = useState<UserType | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<UserType | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [roleFilter, setRoleFilter] = useState<string>("");
+  const [statusFilter, setStatusFilter] = useState<string>("");
   const { toast } = useToast();
 
   // Forms

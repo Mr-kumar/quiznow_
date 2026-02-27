@@ -6,8 +6,9 @@ import {
 import { PrismaService } from 'src/services/prisma/prisma.service';
 import { CreateQuestionDto } from './dto/create-question.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
-import * as XLSX from 'xlsx';
+import * as crypto from 'crypto';
 import { randomUUID } from 'crypto';
+import * as XLSX from 'xlsx';
 
 @Injectable()
 export class QuestionsService {
@@ -93,92 +94,169 @@ export class QuestionsService {
     return this.prisma.question.delete({ where: { id } });
   }
 
+  // Update question topic (for testing)
+  async updateTopic(id: string, topicId?: string) {
+    return this.prisma.question.update({
+      where: { id },
+      data: { topicId },
+    });
+  }
+
   async bulkUpload(file: Express.Multer.File, sectionId: string) {
-    // 1. Validate Section Exists
     const section = await this.prisma.section.findUnique({
       where: { id: sectionId },
     });
     if (!section) throw new NotFoundException('Section not found');
 
-    // 2. Read Excel File
     const workbook = XLSX.read(file.buffer, { type: 'buffer' });
-    const sheetName = workbook.SheetNames[0]; // Take first sheet
-    const sheet = workbook.Sheets[sheetName];
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const rows: any[] = XLSX.utils.sheet_to_json(sheet);
 
     if (!rows || rows.length === 0)
       throw new BadRequestException('Excel sheet is empty');
 
-    // 3. Transaction: Create all questions or fail completely
     return this.prisma.$transaction(async (tx) => {
       let count = 0;
 
       for (const row of rows) {
-        // Expected Columns in Excel:
-        // "Question", "Option A", "Option B", "Option C", "Option D", "Correct Answer", "Marks", "Explanation"
+        if (!row['Question']) continue; // Skip empty rows
 
-        // Prepare Options Array
+        const questionText = row['Question'].toString().trim();
         const options = [
           row['Option A'],
           row['Option B'],
           row['Option C'],
           row['Option D'],
-        ].filter((o) => o !== undefined && o !== null && o !== '');
+        ].filter(Boolean);
 
-        // Determine Correct Answer Index (A=0, B=1, etc.)
         const correctMap: Record<string, number> = {
           A: 0,
           B: 1,
           C: 2,
           D: 3,
-          a: 0,
-          b: 1,
-          c: 2,
-          d: 3,
           '1': 0,
           '2': 1,
           '3': 2,
           '4': 3,
         };
-        const correctKey = row['Correct Answer']?.toString().trim();
-        const correctIndex = correctMap[correctKey] ?? 0; // Default to A if invalid
+        const correctIndex =
+          correctMap[row['Correct Answer']?.toString().trim().toUpperCase()] ??
+          0;
 
-        // Create Question
-        await tx.question.create({
-          data: {
-            correctAnswer: correctIndex,
-            hash: Buffer.from(
-              `${row['Question']}_${Date.now()}_${Math.random()}_${count}_${randomUUID()}`,
-            )
-              .toString('base64')
-              .substring(0, 32),
-            // Link to Section
-            sectionLinks: {
-              create: {
-                sectionId: sectionId,
-                order: count + 1, // Simple ordering
+        // SMART DEDUPLICATION: Hash the exact content
+        const hashContent = questionText + JSON.stringify(options);
+        const uniqueHash = crypto
+          .createHash('md5')
+          .update(hashContent)
+          .digest('hex');
+
+        // 1. Check if this exact question already exists globally in the Question Bank
+        let question = await tx.question.findUnique({
+          where: { hash: uniqueHash },
+        });
+
+        if (!question) {
+          // 2. If it is brand new, create it in the Global Bank
+          question = await tx.question.create({
+            data: {
+              correctAnswer: correctIndex,
+              hash: uniqueHash,
+              translations: {
+                create: {
+                  lang: 'en',
+                  content: questionText,
+                  options: options,
+                  explanation: row['Explanation'] || null,
+                },
               },
             },
-            // Add Content (Translation)
-            translations: {
-              create: {
-                lang: 'en',
-                content: row['Question'],
-                options: options,
-                explanation: row['Explanation'] || null,
-              },
+          });
+        }
+
+        // 3. Connect the question (new or existing) to the specific Test Section safely
+        await tx.sectionQuestion.upsert({
+          where: {
+            sectionId_questionId: {
+              sectionId: sectionId,
+              questionId: question.id,
             },
           },
+          update: {}, // Do nothing if it's already linked to this section
+          create: {
+            sectionId: sectionId,
+            questionId: question.id,
+            order: count + 1,
+          },
         });
+
         count++;
       }
       return { success: true, count };
     });
   }
 
-  // Helper method to generate hash
+  // Helper method to generate MD5 hash
   private generateHash(content: string): string {
-    // Simple hash generation - in production, use crypto
-    return Buffer.from(content).toString('base64').substring(0, 32);
+    return crypto.createHash('md5').update(content).digest('hex');
+  }
+
+  // Inject questions from Question Bank into a section
+  async injectQuestionsIntoSection(sectionId: string, questionIds: string[]) {
+    const section = await this.prisma.section.findUnique({
+      where: { id: sectionId },
+      include: { questions: true },
+    });
+
+    if (!section) throw new NotFoundException('Section not found');
+
+    return this.prisma.$transaction(async (tx) => {
+      let injectedCount = 0;
+
+      for (const questionId of questionIds) {
+        // Verify question exists
+        const question = await tx.question.findUnique({
+          where: { id: questionId },
+        });
+
+        if (!question) {
+          console.warn(`Question ${questionId} not found, skipping`);
+          continue;
+        }
+
+        // Check if already linked to this section
+        const existingLink = await tx.sectionQuestion.findUnique({
+          where: {
+            sectionId_questionId: {
+              sectionId,
+              questionId,
+            },
+          },
+        });
+
+        if (!existingLink) {
+          // Get current max order for this section
+          const maxOrder = await tx.sectionQuestion.findMany({
+            where: { sectionId },
+            orderBy: { order: 'desc' },
+            take: 1,
+          });
+
+          const nextOrder = maxOrder.length > 0 ? maxOrder[0].order + 1 : 1;
+
+          // Create the link
+          await tx.sectionQuestion.create({
+            data: {
+              sectionId,
+              questionId,
+              order: nextOrder,
+            },
+          });
+
+          injectedCount++;
+        }
+      }
+
+      return { success: true, injectedCount };
+    });
   }
 }

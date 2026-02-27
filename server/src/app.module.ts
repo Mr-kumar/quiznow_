@@ -10,6 +10,7 @@ import { TestSeriesModule } from './modules/assessment/test-series/test-series.m
 import { TestsModule } from './modules/assessment/tests/tests.module';
 import { SectionsModule } from './modules/assessment/sections/sections.module';
 import { QuestionsModule } from './modules/assessment/questions/questions.module';
+import { TopicsModule } from './modules/assessment/topics/topics.module';
 import { AttemptsModule } from './modules/assessment/attempts/attempts.module';
 import { LeaderboardModule } from './modules/analytics/leaderboard/leaderboard.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
@@ -24,6 +25,7 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
     TestsModule,
     SectionsModule,
     QuestionsModule,
+    TopicsModule,
     AttemptsModule,
     LeaderboardModule,
     AnalyticsModule,

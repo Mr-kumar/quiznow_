@@ -9,6 +9,7 @@ import {
   UseInterceptors,
   ParseUUIDPipe,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express/multer';
 import { UploadedFile } from '@nestjs/common';
@@ -27,6 +28,11 @@ import { RolesGuard } from '../../iam/auth/guards/roles.guard';
 import { Roles } from '../../iam/auth/decorators/roles.decorator';
 import { Role } from '@prisma/client';
 
+// DTO for question injection
+class InjectQuestionsDto {
+  questionIds: string[];
+}
+
 @ApiTags('Assessment (Questions)')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -35,15 +41,22 @@ import { Role } from '@prisma/client';
 export class QuestionsController {
   constructor(private readonly questionsService: QuestionsService) {}
 
+  @Get()
+  @ApiOperation({ summary: 'List all Questions' })
+  findAll() {
+    return this.questionsService.findAll();
+  }
+
   @Post()
   @ApiOperation({ summary: 'Create a Question within a Section' })
   create(@Body() createQuestionDto: CreateQuestionDto) {
     return this.questionsService.create(createQuestionDto);
   }
 
-  @Get()
-  @ApiOperation({ summary: 'List all Questions' })
-  findAll() {
+  // Public endpoint for testing
+  @Get('public')
+  @ApiOperation({ summary: 'Public list of Questions (for testing)' })
+  publicFindAll() {
     return this.questionsService.findAll();
   }
 
@@ -84,5 +97,37 @@ export class QuestionsController {
     @Body('sectionId', ParseUUIDPipe) sectionId: string,
   ) {
     return this.questionsService.bulkUpload(file, sectionId);
+  }
+
+  @Get('paginated')
+  @ApiOperation({ summary: 'Get paginated questions with filters' })
+  async getPaginatedQuestions(
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '20',
+    @Query('search') search?: string,
+    @Query('subject') subject?: string,
+    @Query('topic') topic?: string,
+  ) {
+    return this.questionsService.getPaginatedQuestions({
+      page: parseInt(page),
+      limit: parseInt(limit),
+      search,
+      subject,
+      topic,
+    });
+  }
+
+  @Post('inject-questions/:sectionId')
+  @ApiOperation({
+    summary: 'Inject questions from Question Bank into a section',
+  })
+  async injectQuestions(
+    @Param('sectionId', ParseUUIDPipe) sectionId: string,
+    @Body() injectQuestionsDto: InjectQuestionsDto,
+  ) {
+    return this.questionsService.injectQuestionsIntoSection(
+      sectionId,
+      injectQuestionsDto.questionIds,
+    );
   }
 }
