@@ -16,7 +16,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface BulkUploadProps {
   sectionId: string;
-  onSuccess?: () => void;
+  onSuccess?: (uploadedCount: number) => void;
 }
 
 export function BulkQuestionUpload({ sectionId, onSuccess }: BulkUploadProps) {
@@ -37,7 +37,7 @@ export function BulkQuestionUpload({ sectionId, onSuccess }: BulkUploadProps) {
         title: "Success!",
         description: `Questions uploaded successfully. Created ${response.data?.count || 0} questions.`,
       });
-      if (onSuccess) onSuccess();
+      if (onSuccess) onSuccess(response.data?.count || 0);
       setFile(null); // Reset
     } catch (error: any) {
       console.error("Upload Error:", error);

@@ -57,6 +57,8 @@ export default function CreateTestWizard() {
   const [createdSectionId, setCreatedSectionId] = useState<string | null>(null);
   const [questionBankSelectedQuestions, setQuestionBankSelectedQuestions] =
     useState<string[]>([]);
+  const [uploadedQuestionsCount, setUploadedQuestionsCount] =
+    useState<number>(0);
 
   // Hierarchy Data States
   const [categories, setCategories] = useState<any[]>([]);
@@ -181,13 +183,20 @@ export default function CreateTestWizard() {
     }
 
     // Check if there are any questions selected or uploaded
-    const hasQuestions = questionBankSelectedQuestions.length > 0;
+    const hasQuestions =
+      questionBankSelectedQuestions.length > 0 || uploadedQuestionsCount > 0;
+
+    console.log("Question counts check:", {
+      questionBankSelectedQuestions: questionBankSelectedQuestions.length,
+      uploadedQuestionsCount: uploadedQuestionsCount,
+      hasQuestions: hasQuestions,
+    });
 
     if (!hasQuestions) {
       toast({
         title: "No Questions",
         description:
-          "Please select questions from Question Bank before creating the test.",
+          "Please select questions from Question Bank or upload questions before creating a test.",
         variant: "destructive",
       });
       return;
@@ -236,9 +245,12 @@ export default function CreateTestWizard() {
         );
       }
 
+      const totalQuestions =
+        questionBankSelectedQuestions.length + uploadedQuestionsCount;
+
       toast({
         title: "Test Created Successfully! 🎉",
-        description: `Test "${formData.title}" created with ${questionBankSelectedQuestions.length > 0 ? questionBankSelectedQuestions.length : 0} questions`,
+        description: `Test "${formData.title}" created with ${totalQuestions} questions`,
       });
 
       router.push("/dashboard/admin/tests"); // Redirect to tests list
@@ -260,13 +272,15 @@ export default function CreateTestWizard() {
     }
   };
 
-  const handleUploadSuccess = () => {
-    // What happens after Excel is processed!
+  const handleUploadSuccess = (uploadedCount: number) => {
+    // Track uploaded questions count
+    setUploadedQuestionsCount(uploadedCount);
+
     toast({
       title: "Boom! 🚀",
-      description: "All questions injected successfully!",
+      description: `${uploadedCount} questions uploaded successfully!`,
     });
-    router.push("/dashboard/admin/tests"); // Redirect to tests list
+    // Don't redirect - let user create the test
   };
 
   const handleQuestionBankInjection = (questionIds: string[]) => {
@@ -549,7 +563,8 @@ export default function CreateTestWizard() {
                 isLoading ||
                 !formData.title ||
                 !formData.seriesId ||
-                questionBankSelectedQuestions.length === 0
+                (questionBankSelectedQuestions.length === 0 &&
+                  uploadedQuestionsCount === 0)
               }
               className="bg-blue-600 hover:bg-blue-700 text-white"
             >
@@ -564,6 +579,11 @@ export default function CreateTestWizard() {
                   {questionBankSelectedQuestions.length > 0 && (
                     <span className="ml-2 text-sm">
                       ({questionBankSelectedQuestions.length} from QB)
+                    </span>
+                  )}
+                  {uploadedQuestionsCount > 0 && (
+                    <span className="ml-2 text-sm">
+                      ({uploadedQuestionsCount} uploaded)
                     </span>
                   )}
                 </>
