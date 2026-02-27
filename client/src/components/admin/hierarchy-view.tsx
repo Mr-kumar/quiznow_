@@ -1,7 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronRight, ChevronDown, Folder, FolderOpen, FileText, Plus, Edit, Trash2 } from "lucide-react";
+import {
+  ChevronRight,
+  ChevronDown,
+  Folder,
+  FolderOpen,
+  FileText,
+  Plus,
+  Edit,
+  Trash2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,7 +24,7 @@ import {
 interface HierarchyItem {
   id: string;
   name: string;
-  type: 'category' | 'exam' | 'series' | 'test';
+  type: "category" | "exam" | "series" | "test";
   children?: HierarchyItem[];
   metadata?: {
     isActive?: boolean;
@@ -35,7 +44,14 @@ interface HierarchyViewProps {
   onItemCreate?: (type: string, parentId?: string) => void;
 }
 
-function TreeNode({ item, level = 0, onSelect, onEdit, onDelete, onCreate }: {
+function TreeNode({
+  item,
+  level = 0,
+  onSelect,
+  onEdit,
+  onDelete,
+  onCreate,
+}: {
   item: HierarchyItem;
   level?: number;
   onSelect?: (item: HierarchyItem) => void;
@@ -47,13 +63,17 @@ function TreeNode({ item, level = 0, onSelect, onEdit, onDelete, onCreate }: {
 
   const getIcon = () => {
     switch (item.type) {
-      case 'category':
-        return isExpanded ? <FolderOpen className="h-4 w-4" /> : <Folder className="h-4 w-4" />;
-      case 'exam':
+      case "category":
+        return isExpanded ? (
+          <FolderOpen className="h-4 w-4" />
+        ) : (
+          <Folder className="h-4 w-4" />
+        );
+      case "exam":
         return <FileText className="h-4 w-4" />;
-      case 'series':
+      case "series":
         return <FileText className="h-4 w-4" />;
-      case 'test':
+      case "test":
         return <FileText className="h-4 w-4" />;
       default:
         return <FileText className="h-4 w-4" />;
@@ -62,31 +82,52 @@ function TreeNode({ item, level = 0, onSelect, onEdit, onDelete, onCreate }: {
 
   const getBadgeColor = () => {
     switch (item.type) {
-      case 'category':
-        return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400';
-      case 'exam':
-        return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
-      case 'series':
-        return 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400';
-      case 'test':
-        return 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400';
+      case "category":
+        return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400";
+      case "exam":
+        return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400";
+      case "series":
+        return "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400";
+      case "test":
+        return "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400";
       default:
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400';
+        return "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400";
     }
   };
 
   const getStatusBadge = () => {
     if (!item.metadata) return null;
-    
+
     const badges = [];
     if (item.metadata.isActive !== false) {
-      badges.push(<Badge key="active" className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">Active</Badge>);
+      badges.push(
+        <Badge
+          key="active"
+          className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+        >
+          Active
+        </Badge>,
+      );
     }
     if (item.metadata.isLive) {
-      badges.push(<Badge key="live" className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">Live</Badge>);
+      badges.push(
+        <Badge
+          key="live"
+          className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
+        >
+          Live
+        </Badge>,
+      );
     }
     if (item.metadata.isPremium) {
-      badges.push(<Badge key="premium" className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">Premium</Badge>);
+      badges.push(
+        <Badge
+          key="premium"
+          className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400"
+        >
+          Premium
+        </Badge>,
+      );
     }
     return badges;
   };
@@ -97,7 +138,11 @@ function TreeNode({ item, level = 0, onSelect, onEdit, onDelete, onCreate }: {
     <div className="select-none">
       <div
         className={`flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer transition-colors`}
-        style={{ paddingLeft: `${level * 20 + 8}px` }}
+        style={
+          {
+            "--indent-level": `${level * 20 + 8}px`,
+          } as React.CSSProperties
+        }
         onClick={() => {
           if (hasChildren) {
             setIsExpanded(!isExpanded);
@@ -115,7 +160,7 @@ function TreeNode({ item, level = 0, onSelect, onEdit, onDelete, onCreate }: {
           </div>
         )}
         {!hasChildren && <div className="w-4" />}
-        
+
         <div className="flex items-center gap-2">
           {getIcon()}
           <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
@@ -138,7 +183,7 @@ function TreeNode({ item, level = 0, onSelect, onEdit, onDelete, onCreate }: {
               {item.metadata.totalMarks}pts
             </span>
           )}
-          
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
@@ -146,23 +191,25 @@ function TreeNode({ item, level = 0, onSelect, onEdit, onDelete, onCreate }: {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              {item.type === 'category' && (
+              {item.type === "category" && (
                 <>
-                  <DropdownMenuItem onClick={() => onCreate?.('exam', item.id)}>
+                  <DropdownMenuItem onClick={() => onCreate?.("exam", item.id)}>
                     <Plus className="h-3 w-3 mr-2" /> Add Exam
                   </DropdownMenuItem>
                 </>
               )}
-              {item.type === 'exam' && (
+              {item.type === "exam" && (
                 <>
-                  <DropdownMenuItem onClick={() => onCreate?.('series', item.id)}>
+                  <DropdownMenuItem
+                    onClick={() => onCreate?.("series", item.id)}
+                  >
                     <Plus className="h-3 w-3 mr-2" /> Add Test Series
                   </DropdownMenuItem>
                 </>
               )}
-              {item.type === 'series' && (
+              {item.type === "series" && (
                 <>
-                  <DropdownMenuItem onClick={() => onCreate?.('test', item.id)}>
+                  <DropdownMenuItem onClick={() => onCreate?.("test", item.id)}>
                     <Plus className="h-3 w-3 mr-2" /> Add Test
                   </DropdownMenuItem>
                 </>
@@ -180,7 +227,10 @@ function TreeNode({ item, level = 0, onSelect, onEdit, onDelete, onCreate }: {
               <DropdownMenuItem onClick={() => onEdit?.(item)}>
                 <Edit className="h-3 w-3 mr-2" /> Edit
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onDelete?.(item)} className="text-red-600">
+              <DropdownMenuItem
+                onClick={() => onDelete?.(item)}
+                className="text-red-600"
+              >
                 <Trash2 className="h-3 w-3 mr-2" /> Delete
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -207,7 +257,13 @@ function TreeNode({ item, level = 0, onSelect, onEdit, onDelete, onCreate }: {
   );
 }
 
-export function HierarchyView({ data, onItemSelect, onItemEdit, onItemDelete, onItemCreate }: HierarchyViewProps) {
+export function HierarchyView({
+  data,
+  onItemSelect,
+  onItemEdit,
+  onItemDelete,
+  onItemCreate,
+}: HierarchyViewProps) {
   return (
     <Card className="border-0 shadow-xl">
       <CardHeader>
@@ -222,7 +278,10 @@ export function HierarchyView({ data, onItemSelect, onItemEdit, onItemDelete, on
             <div className="p-8 text-center text-zinc-500 dark:text-zinc-400">
               <Folder className="h-12 w-12 mx-auto mb-4 text-zinc-300 dark:text-zinc-600" />
               <p className="text-sm">No categories found</p>
-              <Button onClick={() => onItemCreate?.('category')} className="mt-4">
+              <Button
+                onClick={() => onItemCreate?.("category")}
+                className="mt-4"
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 Create First Category
               </Button>

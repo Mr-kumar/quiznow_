@@ -563,9 +563,11 @@ export default function AdminAnalyticsPage() {
               <div className="w-full bg-zinc-200 dark:bg-zinc-700 rounded-full h-2">
                 <div
                   className="bg-linear-to-r from-green-500 to-green-600 h-2 rounded-full transition-all duration-500"
-                  style={{
-                    width: `${attemptStats ? Math.round((attemptStats.completed / attemptStats.total) * 100) : 0}%`,
-                  }}
+                  style={
+                    {
+                      "--progress-width": `${attemptStats ? Math.round((attemptStats.completed / attemptStats.total) * 100) : 0}%`,
+                    } as React.CSSProperties
+                  }
                 />
               </div>
             </div>
@@ -590,9 +592,11 @@ export default function AdminAnalyticsPage() {
               <div className="w-full bg-zinc-200 dark:bg-zinc-700 rounded-full h-2">
                 <div
                   className="bg-linear-to-r from-blue-500 to-blue-600 h-2 rounded-full transition-all duration-500"
-                  style={{
-                    width: `${testStats && attemptStats ? Math.round((testStats.completedThisMonth / Math.max(attemptStats.total, 1)) * 100) : 0}%`,
-                  }}
+                  style={
+                    {
+                      "--progress-width": `${testStats && attemptStats ? Math.round((testStats.completedThisMonth / Math.max(attemptStats.total, 1)) * 100) : 0}%`,
+                    } as React.CSSProperties
+                  }
                 />
               </div>
             </div>
@@ -615,9 +619,11 @@ export default function AdminAnalyticsPage() {
               <div className="w-full bg-zinc-200 dark:bg-zinc-700 rounded-full h-2">
                 <div
                   className="bg-linear-to-r from-purple-500 to-purple-600 h-2 rounded-full transition-all duration-500"
-                  style={{
-                    width: `${userStats ? Math.round((userStats.activeThisMonth / userStats.total) * 100) : 0}%`,
-                  }}
+                  style={
+                    {
+                      "--progress-width": `${userStats ? Math.round((userStats.activeThisMonth / userStats.total) * 100) : 0}%`,
+                    } as React.CSSProperties
+                  }
                 />
               </div>
             </div>
@@ -635,7 +641,11 @@ export default function AdminAnalyticsPage() {
               <div className="w-full bg-zinc-200 dark:bg-zinc-700 rounded-full h-2">
                 <div
                   className="bg-linear-to-r from-orange-500 to-orange-600 h-2 rounded-full transition-all duration-500"
-                  style={{ width: `${dashboardMetrics?.avgPerformance || 0}%` }}
+                  style={
+                    {
+                      "--progress-width": `${dashboardMetrics?.avgPerformance || 0}%`,
+                    } as React.CSSProperties
+                  }
                 />
               </div>
             </div>
