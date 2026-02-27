@@ -5,18 +5,24 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/use-toast";
-import { 
-  Search, 
-  Filter, 
-  ChevronLeft, 
-  ChevronRight, 
+import {
+  Search,
+  Filter,
+  ChevronLeft,
+  ChevronRight,
   CheckCircle2,
   FileText,
-  RefreshCw
+  RefreshCw,
 } from "lucide-react";
 import api from "@/lib/api";
 
@@ -53,11 +59,11 @@ interface PaginatedQuestionTableProps {
 
 const ITEMS_PER_PAGE = 20;
 
-export function PaginatedQuestionTable({ 
-  selectedQuestions, 
-  onQuestionSelect, 
+export function PaginatedQuestionTable({
+  selectedQuestions,
+  onQuestionSelect,
   onSelectAll,
-  maxQuestions 
+  maxQuestions,
 }: PaginatedQuestionTableProps) {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [topics, setTopics] = useState<Topic[]>([]);
@@ -65,7 +71,7 @@ export function PaginatedQuestionTable({
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedSubject, setSelectedSubject] = useState("all");
   const [selectedTopic, setSelectedTopic] = useState("all");
-  
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [totalQuestions, setTotalQuestions] = useState(0);
@@ -74,7 +80,7 @@ export function PaginatedQuestionTable({
 
   // Debounced search
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchTerm);
@@ -91,42 +97,49 @@ export function PaginatedQuestionTable({
     }
   };
 
-  const fetchQuestions = useCallback(async (page = 1, reset = false) => {
-    if (isLoading) return;
-    
-    setIsLoading(true);
-    try {
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: ITEMS_PER_PAGE.toString(),
-        search: debouncedSearch,
-        subject: selectedSubject === "all" ? "" : selectedSubject,
-        topic: selectedTopic === "all" ? "" : selectedTopic,
-      });
+  const fetchQuestions = useCallback(
+    async (page = 1, reset = false) => {
+      if (isLoading) return;
 
-      const res = await api.get(`/questions/paginated?${params}`);
-      const data = res.data;
-      
-      if (reset) {
-        setQuestions(data.questions || []);
-      } else {
-        setQuestions(prev => page === 1 ? data.questions || [] : [...prev, ...(data.questions || [])]);
+      setIsLoading(true);
+      try {
+        const params = new URLSearchParams({
+          page: page.toString(),
+          limit: ITEMS_PER_PAGE.toString(),
+          search: debouncedSearch,
+          subject: selectedSubject === "all" ? "" : selectedSubject,
+          topic: selectedTopic === "all" ? "" : selectedTopic,
+        });
+
+        const res = await api.get(`/questions/paginated?${params}`);
+        const data = res.data;
+
+        if (reset) {
+          setQuestions(data.questions || []);
+        } else {
+          setQuestions((prev) =>
+            page === 1
+              ? data.questions || []
+              : [...prev, ...(data.questions || [])],
+          );
+        }
+
+        setTotalQuestions(data.total || 0);
+        setTotalPages(data.totalPages || 0);
+        setHasMore(data.hasMore || false);
+        setCurrentPage(data.currentPage || 1);
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to fetch questions",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
       }
-      
-      setTotalQuestions(data.total || 0);
-      setTotalPages(data.totalPages || 0);
-      setHasMore(data.hasMore || false);
-      setCurrentPage(data.currentPage || 1);
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to fetch questions",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [debouncedSearch, selectedSubject, selectedTopic, isLoading]);
+    },
+    [debouncedSearch, selectedSubject, selectedTopic, isLoading],
+  );
 
   useEffect(() => {
     fetchTopics();
@@ -174,13 +187,16 @@ export function PaginatedQuestionTable({
   };
 
   const getQuestionPreview = (question: Question) => {
-    const englishTranslation = question.translations.find((t) => t.lang === "en");
+    const englishTranslation = question.translations.find(
+      (t) => t.lang === "en",
+    );
     return englishTranslation || question.translations[0];
   };
 
   const displayedQuestions = questions.slice(0, currentPage * ITEMS_PER_PAGE);
-  const isAllSelected = displayedQuestions.length > 0 && 
-    displayedQuestions.every(q => selectedQuestions.includes(q.id));
+  const isAllSelected =
+    displayedQuestions.length > 0 &&
+    displayedQuestions.every((q) => selectedQuestions.includes(q.id));
 
   return (
     <Card>
@@ -190,13 +206,15 @@ export function PaginatedQuestionTable({
             <FileText className="h-5 w-5" />
             Questions ({totalQuestions.toLocaleString()})
           </div>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             size="sm"
             onClick={() => fetchQuestions(1, true)}
             disabled={isLoading}
           >
-            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`} />
+            <RefreshCw
+              className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`}
+            />
             Refresh
           </Button>
         </CardTitle>
@@ -244,10 +262,7 @@ export function PaginatedQuestionTable({
         {/* Selection Controls */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Checkbox
-              checked={isAllSelected}
-              onCheckedChange={onSelectAll}
-            />
+            <Checkbox checked={isAllSelected} onCheckedChange={onSelectAll} />
             <span className="text-sm text-muted-foreground">
               Select all ({displayedQuestions.length} questions)
             </span>
@@ -257,7 +272,13 @@ export function PaginatedQuestionTable({
               {selectedQuestions.length} selected
             </Badge>
             {maxQuestions && (
-              <Badge variant={selectedQuestions.length >= maxQuestions ? "destructive" : "outline"}>
+              <Badge
+                variant={
+                  selectedQuestions.length >= maxQuestions
+                    ? "destructive"
+                    : "outline"
+                }
+              >
                 {maxQuestions - selectedQuestions.length} remaining
               </Badge>
             )}
@@ -291,8 +312,11 @@ export function PaginatedQuestionTable({
             questions.map((question, index) => {
               const preview = getQuestionPreview(question);
               const isSelected = selectedQuestions.includes(question.id);
-              const isAtLimit = maxQuestions && selectedQuestions.length >= maxQuestions && !isSelected;
-              
+              const isAtLimit =
+                maxQuestions &&
+                selectedQuestions.length >= maxQuestions &&
+                !isSelected;
+
               return (
                 <div
                   key={question.id}
@@ -300,29 +324,32 @@ export function PaginatedQuestionTable({
                     isSelected
                       ? "border-blue-500 bg-blue-50 dark:bg-blue-950/20"
                       : isAtLimit
-                      ? "border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed"
-                      : "border-border hover:bg-muted"
+                        ? "border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed"
+                        : "border-border hover:bg-muted"
                   }`}
                   onClick={() => !isAtLimit && onQuestionSelect(question.id)}
                 >
                   <div className="flex items-start gap-3">
-                    <Checkbox
-                      checked={isSelected}
-                      disabled={isAtLimit}
-                    />
+                    <Checkbox checked={isSelected} disabled={!!isAtLimit} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-4 mb-2">
                         <p className="font-medium text-sm line-clamp-2">
                           {preview.content}
                         </p>
-                        <Badge variant="outline" className="text-xs whitespace-nowrap">
+                        <Badge
+                          variant="outline"
+                          className="text-xs whitespace-nowrap"
+                        >
                           #{index + 1}
                         </Badge>
                       </div>
-                      
+
                       <div className="space-y-1 mb-2">
                         {preview.options.slice(0, 2).map((option, optIndex) => (
-                          <div key={optIndex} className="text-xs text-muted-foreground">
+                          <div
+                            key={optIndex}
+                            className="text-xs text-muted-foreground"
+                          >
                             {String.fromCharCode(65 + optIndex)}. {option}
                           </div>
                         ))}
@@ -332,7 +359,7 @@ export function PaginatedQuestionTable({
                           </div>
                         )}
                       </div>
-                      
+
                       {question.topic && (
                         <div className="flex items-center gap-2">
                           <Badge variant="outline" className="text-xs">
@@ -343,7 +370,7 @@ export function PaginatedQuestionTable({
                           </Badge>
                         </div>
                       )}
-                      
+
                       {isAtLimit && (
                         <p className="text-xs text-red-600 mt-2">
                           Maximum limit reached ({maxQuestions} questions)
@@ -361,10 +388,12 @@ export function PaginatedQuestionTable({
         {totalPages > 1 && (
           <div className="flex items-center justify-between">
             <div className="text-sm text-muted-foreground">
-              Showing {Math.min((currentPage - 1) * ITEMS_PER_PAGE + 1, totalQuestions)} to{" "}
-              {Math.min(currentPage * ITEMS_PER_PAGE, totalQuestions)} of {totalQuestions} questions
+              Showing{" "}
+              {Math.min((currentPage - 1) * ITEMS_PER_PAGE + 1, totalQuestions)}{" "}
+              to {Math.min(currentPage * ITEMS_PER_PAGE, totalQuestions)} of{" "}
+              {totalQuestions} questions
             </div>
-            
+
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
@@ -375,7 +404,7 @@ export function PaginatedQuestionTable({
                 <ChevronLeft className="h-4 w-4" />
                 Previous
               </Button>
-              
+
               <div className="flex items-center gap-1">
                 {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                   let pageNum;
@@ -388,7 +417,7 @@ export function PaginatedQuestionTable({
                   } else {
                     pageNum = currentPage - 2 + i;
                   }
-                  
+
                   return (
                     <Button
                       key={pageNum}
@@ -402,7 +431,7 @@ export function PaginatedQuestionTable({
                   );
                 })}
               </div>
-              
+
               <Button
                 variant="outline"
                 size="sm"
@@ -425,7 +454,9 @@ export function PaginatedQuestionTable({
               disabled={isLoading}
               className="w-full"
             >
-              {isLoading ? "Loading..." : `Load More (${questions.length}/${totalQuestions})`}
+              {isLoading
+                ? "Loading..."
+                : `Load More (${questions.length}/${totalQuestions})`}
             </Button>
           </div>
         )}

@@ -55,6 +55,8 @@ export default function CreateTestWizard() {
   // Data State
   const [createdTestId, setCreatedTestId] = useState<string | null>(null);
   const [createdSectionId, setCreatedSectionId] = useState<string | null>(null);
+  const [questionBankSelectedQuestions, setQuestionBankSelectedQuestions] =
+    useState<string[]>([]);
 
   // Hierarchy Data States
   const [categories, setCategories] = useState<any[]>([]);
@@ -178,6 +180,19 @@ export default function CreateTestWizard() {
       return;
     }
 
+    // Check if there are any questions selected or uploaded
+    const hasQuestions = questionBankSelectedQuestions.length > 0;
+
+    if (!hasQuestions) {
+      toast({
+        title: "No Questions",
+        description:
+          "Please select questions from Question Bank before creating the test.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
       // 1. Create the Test
@@ -210,13 +225,23 @@ export default function CreateTestWizard() {
       console.log("Section created with ID:", sectionId);
       setCreatedSectionId(sectionId);
 
+      // 3. Inject Question Bank questions if any were selected
+      if (questionBankSelectedQuestions.length > 0) {
+        await api.post(`/questions/inject-questions/${sectionId}`, {
+          questionIds: questionBankSelectedQuestions,
+        });
+        console.log(
+          "Injected Question Bank questions:",
+          questionBankSelectedQuestions.length,
+        );
+      }
+
       toast({
-        title: "Success",
-        description: "Test container created! Now upload questions.",
+        title: "Test Created Successfully! 🎉",
+        description: `Test "${formData.title}" created with ${questionBankSelectedQuestions.length > 0 ? questionBankSelectedQuestions.length : 0} questions`,
       });
 
-      // 3. Move to Step 2 (Upload)
-      setStep(2);
+      router.push("/dashboard/admin/tests"); // Redirect to tests list
     } catch (error: any) {
       console.error("Full error:", error);
       console.error("Error response:", error.response?.data);
@@ -244,33 +269,9 @@ export default function CreateTestWizard() {
     router.push("/dashboard/admin/tests"); // Redirect to tests list
   };
 
-  const handleQuestionBankInjection = async (questionIds: string[]) => {
-    if (!createdSectionId) return;
-
-    setIsLoading(true);
-    try {
-      // Inject selected questions into the section
-      await api.post(`/sections/${createdSectionId}/inject-questions`, {
-        questionIds,
-      });
-
-      toast({
-        title: "Success! 🚀",
-        description: `${questionIds.length} questions injected from Question Bank!`,
-      });
-
-      router.push("/dashboard/admin/tests"); // Redirect to tests list
-    } catch (error: any) {
-      console.error("Question Bank injection error:", error);
-      toast({
-        title: "Injection Failed",
-        description:
-          error.response?.data?.message || "Failed to inject questions",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
+  const handleQuestionBankInjection = (questionIds: string[]) => {
+    // Store selected questions in state for validation
+    setQuestionBankSelectedQuestions(questionIds);
   };
 
   return (
@@ -544,12 +545,29 @@ export default function CreateTestWizard() {
             <Button
               size="lg"
               onClick={handleCreateTestAndSection}
-              disabled={isLoading || !formData.title || !formData.seriesId}
+              disabled={
+                isLoading ||
+                !formData.title ||
+                !formData.seriesId ||
+                questionBankSelectedQuestions.length === 0
+              }
               className="bg-blue-600 hover:bg-blue-700 text-white"
             >
-              {isLoading && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
-              Create Hierarchy & Continue{" "}
-              <ArrowRight className="ml-2 h-5 w-5" />
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating Test...
+                </>
+              ) : (
+                <>
+                  Create Test
+                  {questionBankSelectedQuestions.length > 0 && (
+                    <span className="ml-2 text-sm">
+                      ({questionBankSelectedQuestions.length} from QB)
+                    </span>
+                  )}
+                </>
+              )}
             </Button>
           </CardFooter>
         </Card>

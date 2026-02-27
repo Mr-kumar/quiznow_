@@ -102,6 +102,76 @@ export class QuestionsService {
     });
   }
 
+  // Paginated questions with filters
+  async getPaginatedQuestions(params: {
+    page: number;
+    limit: number;
+    search?: string;
+    subject?: string;
+    topic?: string;
+  }) {
+    const { page, limit, search, subject, topic } = params;
+    const skip = (page - 1) * limit;
+
+    // Build where clause
+    const where: any = {
+      isActive: true,
+    };
+
+    if (search) {
+      where.OR = [
+        {
+          translations: {
+            some: {
+              content: {
+                contains: search,
+                mode: 'insensitive',
+              },
+            },
+          },
+        },
+      ];
+    }
+
+    if (topic) {
+      where.topicId = topic;
+    } else if (subject) {
+      where.topic = {
+        subject: subject,
+      };
+    }
+
+    // Get total count
+    const total = await this.prisma.question.count({ where });
+
+    // Get questions with pagination
+    const questions = await this.prisma.question.findMany({
+      where,
+      include: {
+        topic: true,
+        translations: {
+          where: { lang: 'en' },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      skip,
+      take: limit,
+    });
+
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      questions,
+      currentPage: page,
+      totalPages,
+      total,
+      hasMore: page < totalPages,
+      limit,
+    };
+  }
+
   async bulkUpload(file: Express.Multer.File, sectionId: string) {
     const section = await this.prisma.section.findUnique({
       where: { id: sectionId },
