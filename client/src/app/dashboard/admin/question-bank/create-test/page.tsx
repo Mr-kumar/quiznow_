@@ -183,39 +183,43 @@ export default function QuestionBankCreateTestPage() {
       console.log("Starting test creation process...");
 
       // Step 1: Create category if needed
-      let category = null;
-      const existingCategories = await api.get("/categories");
-      const existingCategory = existingCategories.data.data?.find(
+      let category: any = null;
+      const existingCategoriesRes = await api.get("/categories");
+      const existingCategories = existingCategoriesRes.data.data || existingCategoriesRes.data;
+      const existingCategory = existingCategories.find(
         (c: any) => c.name === testCategory,
       );
 
       if (!existingCategory) {
         console.log("Creating new category:", testCategory);
-        category = await api.post("/categories", {
+        const categoryRes = await api.post("/categories", {
           name: testCategory,
           isActive: true,
         });
-        console.log("Category created:", category.data);
+        category = categoryRes.data.data || categoryRes.data;
+        console.log("Category created:", category);
       } else {
         category = existingCategory;
         console.log("Using existing category:", existingCategory);
       }
 
       // Step 2: Create exam if needed
-      let exam = null;
-      const existingExams = await api.get("/exams");
-      const existingExam = existingExams.data.data?.find(
+      let exam: any = null;
+      const existingExamsRes = await api.get("/exams");
+      const existingExams = existingExamsRes.data.data || existingExamsRes.data;
+      const existingExam = existingExams.find(
         (e: any) => e.name === testExam,
       );
 
       if (!existingExam) {
         console.log("Creating new exam:", testExam);
-        exam = await api.post("/exams", {
+        const examRes = await api.post("/exams", {
           name: testExam,
-          categoryId: category.id || existingCategory.id,
+          categoryId: category.id,
           isActive: true,
         });
-        console.log("Exam created:", exam.data);
+        exam = examRes.data.data || examRes.data;
+        console.log("Exam created:", exam);
       } else {
         exam = existingExam;
         console.log("Using existing exam:", existingExam);
@@ -223,36 +227,40 @@ export default function QuestionBankCreateTestPage() {
 
       // Step 3: Create test series
       console.log("Creating test series:", testSeries);
-      const series = await api.post("/test-series", {
+      const seriesRes = await api.post("/test-series", {
         title: testSeries,
-        examId: exam.id || existingExam.id,
+        examId: exam.id,
         isActive: true,
       });
-      console.log("Test series created:", series.data);
+      const series = seriesRes.data.data || seriesRes.data;
+      console.log("Test series created:", series);
 
       // Step 4: Create test
       console.log("Creating test:", testName);
-      const test = await api.post("/tests", {
+      const testRes = await api.post("/tests", {
         title: testName,
-        seriesId: series.data.id,
-        durationMins: testDuration,
+        testSeriesId: series.id,
+        duration: Number(testDuration),
         totalMarks: calculateTotalMarks(),
-        isActive: true,
+        passingMarks: 0,
+        negativeMarking: 0,
       });
-      console.log("Test created:", test.data);
+      const test = testRes.data.data || testRes.data;
+      console.log("Test created:", test);
 
       // Step 5: Create section
       console.log("Creating section...");
-      const section = await api.post("/sections", {
-        testId: test.data.id,
+      const sectionRes = await api.post("/sections", {
+        testId: test.id,
         name: "Main Section",
         order: 1,
       });
-      console.log("Section created:", section.data);
+      const section = sectionRes.data.data || sectionRes.data;
+      console.log("Section created:", section);
 
       // Step 6: Inject questions into section
       console.log("Injecting questions:", selectedQuestions.length);
-      await api.post(`/questions/inject-questions/${section.data.id}`, {
+      await api.post(`/questions/inject-questions/${section.id}`, {
         questionIds: selectedQuestions,
       });
       console.log("Questions injected successfully");

@@ -17,6 +17,7 @@ import {
   type TestSeries,
   type Exam,
 } from "@/lib/admin-api";
+import api from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -255,10 +256,18 @@ export default function AdminTestsPage() {
   // Create test
   const handleCreateTest = async (data: TestFormValues) => {
     try {
-      await adminTestsApi.create(data as CreateTestRequest);
+      // Align with backend /tests/wizard DTO
+      await api.post("/tests/wizard", {
+        title: data.title,
+        testSeriesId: data.seriesId,
+        duration: Number(data.durationMins),
+        totalMarks: Number(data.totalMarks),
+        passingMarks: Number(data.passMarks),
+        negativeMarking: Number(data.negativeMark),
+      });
       toast({
         title: "Success",
-        description: "Test created successfully",
+        description: "Test structure created successfully",
       });
       setIsCreateDialogOpen(false);
       createForm.reset();

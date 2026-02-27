@@ -28,11 +28,6 @@ import { RolesGuard } from '../../iam/auth/guards/roles.guard';
 import { Roles } from '../../iam/auth/decorators/roles.decorator';
 import { Role } from '@prisma/client';
 
-// DTO for question injection
-class InjectQuestionsDto {
-  questionIds: string[];
-}
-
 @ApiTags('Assessment (Questions)')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -123,11 +118,12 @@ export class QuestionsController {
   })
   async injectQuestions(
     @Param('sectionId', ParseUUIDPipe) sectionId: string,
-    @Body() injectQuestionsDto: InjectQuestionsDto,
+    @Body() body: any,
   ) {
+    const questionIds = Array.isArray(body?.questionIds) ? body.questionIds : [];
     return this.questionsService.injectQuestionsIntoSection(
       sectionId,
-      injectQuestionsDto.questionIds,
+      questionIds,
     );
   }
 }

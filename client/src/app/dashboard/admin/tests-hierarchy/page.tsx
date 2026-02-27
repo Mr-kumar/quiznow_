@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { HierarchyView } from "@/components/admin/hierarchy-view";
+import { SectionsEditor } from "@/components/admin/sections-editor";
 import { useTestHierarchy } from "@/hooks/use-test-hierarchy";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -412,6 +413,13 @@ export default function TestsHierarchyPage() {
               )}
             </CardContent>
           </Card>
+
+          {selectedItem?.type === "test" && (
+            <SectionsEditor
+              testId={selectedItem.id}
+              testTitle={selectedItem.name}
+            />
+          )}
         </div>
       </div>
 

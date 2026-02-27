@@ -193,49 +193,12 @@ export default function CreateTestWizard() {
     }
   };
 
+  // --- MAIN WIZARD SUBMIT (NOW ATOMIC & SAFE) ---
   const handleCreateTestAndSection = async () => {
-    // Check if there are any questions selected or uploaded
-    const hasQuestions =
-      questionBankSelectedQuestions.length > 0 || uploadedQuestionsCount > 0;
-
     if (!formData.seriesId || !formData.title) {
-      console.log("Incomplete form data:", formData);
       toast({
         title: "Incomplete",
         description: "Select Hierarchy and enter a title.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    console.log("=== CREATE TEST DEBUG ===");
-    console.log("Current form data:", formData);
-    console.log("Question Bank questions:", questionBankSelectedQuestions);
-    console.log("Uploaded questions count:", uploadedQuestionsCount);
-    console.log("Injection method:", injectionMethod);
-    console.log("Has questions:", hasQuestions);
-
-    if (!formData.seriesId || !formData.title) {
-      console.log("Incomplete form data:", formData);
-      toast({
-        title: "Incomplete",
-        description: "Select Hierarchy and enter a title.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    console.log("Question counts check:", {
-      questionBankSelectedQuestions: questionBankSelectedQuestions.length,
-      uploadedQuestionsCount: uploadedQuestionsCount,
-      hasQuestions: hasQuestions,
-    });
-
-    if (!hasQuestions) {
-      toast({
-        title: "No Questions",
-        description:
-          "Please select questions from Question Bank or upload questions before creating a test.",
         variant: "destructive",
       });
       return;
@@ -243,67 +206,43 @@ export default function CreateTestWizard() {
 
     setIsLoading(true);
     try {
-      // 1. Create the Test
-      const testPayload = {
+      // 🌟 Calling the NEW Atomic Endpoint!
+      const wizardRes = await api.post("/tests/wizard", {
         title: formData.title,
+        // Aligning with backend CreateTestDto
         duration: Number(formData.duration),
         totalMarks: Number(formData.totalMarks),
         passingMarks: Number(formData.passingMarks),
         negativeMarking: Number(formData.negativeMark),
         testSeriesId: formData.seriesId,
-      };
-
-      console.log("Creating test with payload:", testPayload);
-      console.log("Series ID from formData:", formData.seriesId);
-      console.log("Current formData state:", formData);
-
-      const testRes = await api.post("/tests", testPayload);
-      const testId = testRes.data.data?.id || testRes.data.id;
-      console.log("Test created with ID:", testId);
-      setCreatedTestId(testId);
-
-      // 2. Automatically Create a Default Section for this Test
-      const sectionPayload = {
-        testId: testId,
-        name: "General Section",
-        order: 1,
-      };
-      const secRes = await api.post("/sections", sectionPayload);
-      const sectionId = secRes.data.data?.id || secRes.data.id;
-      console.log("Section created with ID:", sectionId);
-      setCreatedSectionId(sectionId);
-
-      // 3. Inject Question Bank questions if any were selected
-      if (questionBankSelectedQuestions.length > 0) {
-        await api.post(`/questions/inject-questions/${sectionId}`, {
-          questionIds: questionBankSelectedQuestions,
-        });
-        console.log(
-          "Injected Question Bank questions:",
-          questionBankSelectedQuestions.length,
-        );
-      }
-
-      const totalQuestions =
-        questionBankSelectedQuestions.length + uploadedQuestionsCount;
-
-      toast({
-        title: "Test Created Successfully! 🎉",
-        description: `Test "${formData.title}" created with ${totalQuestions} questions`,
       });
 
-      router.push("/dashboard/admin/tests"); // Redirect to tests list
-    } catch (error: any) {
-      console.error("Full error:", error);
-      console.error("Error response:", error.response?.data);
-      console.error("Error occurred during test creation");
+      // The backend returns { test: {...}, section: {...} }
+      const testId = wizardRes.data.data?.test?.id || wizardRes.data.test?.id;
+      const sectionId =
+        wizardRes.data.data?.section?.id || wizardRes.data.section?.id;
+
+      console.log(
+        "Atomic creation successful - Test ID:",
+        testId,
+        "Section ID:",
+        sectionId,
+      );
+      setCreatedTestId(testId);
+      setCreatedSectionId(sectionId);
+      setStep(2);
 
       toast({
-        title: "Database Error",
+        title: "Structure Created",
         description:
-          error.response?.data?.message ||
-          error.message ||
-          "Failed to create Test. Check your testSeriesId.",
+          "Safe atomic creation successful! Now add questions in Step 2.",
+      });
+    } catch (error: any) {
+      console.error("Wizard creation error:", error);
+      toast({
+        title: "Error",
+        description:
+          error.response?.data?.message || "Failed to create Test structure.",
         variant: "destructive",
       });
     } finally {
@@ -599,13 +538,7 @@ export default function CreateTestWizard() {
               size="lg"
               onClick={handleCreateTestAndSection}
               disabled={
-                isLoading ||
-                !formData.title ||
-                !formData.seriesId ||
-                !(
-                  questionBankSelectedQuestions.length > 0 ||
-                  uploadedQuestionsCount > 0
-                )
+                isLoading || !formData.title || !formData.seriesId
               }
               className="bg-blue-600 hover:bg-blue-700 text-white"
             >
@@ -702,6 +635,40 @@ export default function CreateTestWizard() {
                   onQuestionsSelected={handleQuestionBankInjection}
                   maxQuestions={200}
                 />
+                <div className="flex justify-end">
+                  <Button
+                    disabled={
+                      !createdSectionId || questionBankSelectedQuestions.length === 0
+                    }
+                    onClick={async () => {
+                      if (!createdSectionId) return;
+                      try {
+                        await api.post(
+                          `/questions/inject-questions/${createdSectionId}`,
+                          {
+                            questionIds: questionBankSelectedQuestions,
+                          },
+                        );
+                        toast({
+                          title: "Questions Injected",
+                          description: `${questionBankSelectedQuestions.length} questions added to this test.`,
+                        });
+                      } catch (error: any) {
+                        console.error("Question-bank injection error:", error);
+                        toast({
+                          title: "Error",
+                          description:
+                            error.response?.data?.message ||
+                            "Failed to inject questions from Question Bank.",
+                          variant: "destructive",
+                        });
+                      }
+                    }}
+                    className="bg-purple-600 hover:bg-purple-700 text-white"
+                  >
+                    Inject Selected Questions
+                  </Button>
+                </div>
               </div>
             )}
           </CardContent>

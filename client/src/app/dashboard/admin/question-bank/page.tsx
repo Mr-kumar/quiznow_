@@ -68,7 +68,7 @@ interface Question {
   }>;
   isActive: boolean;
   createdAt: string;
-  sectionLinks: Array<{
+  sectionLinks?: Array<{
     section: { test: { title: string } };
   }>;
 }
@@ -144,9 +144,24 @@ export default function QuestionBankPage() {
         },
       });
 
-      const { data, pagination } = res.data;
-      setQuestions(data);
-      setPagination(pagination);
+      const {
+        questions: pageQuestions,
+        currentPage,
+        totalPages,
+        total,
+        hasMore,
+        limit,
+      } = res.data;
+
+      setQuestions(pageQuestions || []);
+      setPagination({
+        page: currentPage,
+        limit,
+        total,
+        pages: totalPages,
+        hasNext: hasMore,
+        hasPrev: currentPage > 1,
+      });
     } catch (error) {
       toast({
         title: "Error",
@@ -310,7 +325,9 @@ export default function QuestionBankPage() {
             />
             Refresh
           </Button>
-          <Button>
+          <Button
+            onClick={() => router.push("/dashboard/admin/questions")}
+          >
             <Upload className="h-4 w-4 mr-2" />
             Import Questions
           </Button>
@@ -321,7 +338,7 @@ export default function QuestionBankPage() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="border-0 shadow-xl">
           <CardContent className="p-6">
-            <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
                   Total Questions
@@ -337,7 +354,7 @@ export default function QuestionBankPage() {
 
         <Card className="border-0 shadow-xl">
           <CardContent className="p-6">
-            <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
                   Active Questions
@@ -576,7 +593,7 @@ export default function QuestionBankPage() {
                               {question.isActive ? "Active" : "Inactive"}
                             </Badge>
                             <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                              {question.sectionLinks.length} tests
+                              {(question.sectionLinks?.length ?? 0)} tests
                             </span>
                           </div>
 
