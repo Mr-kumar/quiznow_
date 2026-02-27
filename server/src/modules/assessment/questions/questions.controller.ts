@@ -92,6 +92,14 @@ export class QuestionsController {
     return this.questionsService.remove(id);
   }
 
+  @Patch(':id/soft-delete')
+  @ApiOperation({
+    summary: 'Soft delete question (hides but preserves history)',
+  })
+  softDelete(@Param('id') id: string) {
+    return this.questionsService.softDelete(id);
+  }
+
   @Post('upload')
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
@@ -120,7 +128,9 @@ export class QuestionsController {
     @Param('sectionId', ParseUUIDPipe) sectionId: string,
     @Body() body: any,
   ) {
-    const questionIds = Array.isArray(body?.questionIds) ? body.questionIds : [];
+    const questionIds = Array.isArray(body?.questionIds)
+      ? body.questionIds
+      : [];
     return this.questionsService.injectQuestionsIntoSection(
       sectionId,
       questionIds,

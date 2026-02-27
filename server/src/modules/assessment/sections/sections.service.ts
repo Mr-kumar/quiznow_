@@ -58,4 +58,19 @@ export class SectionsService {
   remove(id: string) {
     return this.prisma.section.delete({ where: { id } });
   }
+
+  // 🗝️ NEW: Vault Linking API (Fixes "Missing Linker" issue)
+  async linkExistingQuestions(sectionId: string, questionIds: string[]) {
+    // This creates lightweight links without duplicating questions!
+    const links = questionIds.map((qId, index) => ({
+      sectionId,
+      questionId: qId,
+      order: index + 1, // Keep them in order
+    }));
+
+    return this.prisma.sectionQuestion.createMany({
+      data: links,
+      skipDuplicates: true, // If already linked, ignore!
+    });
+  }
 }

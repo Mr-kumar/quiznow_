@@ -52,4 +52,13 @@ export class SectionsController {
   remove(@Param('id') id: string) {
     return this.sectionsService.remove(id);
   }
+
+  @Post(':id/link-questions')
+  @ApiOperation({ summary: 'Link existing questions from Vault to Section' })
+  linkQuestions(
+    @Param('id') id: string,
+    @Body() dto: { questionIds: string[] },
+  ) {
+    return this.sectionsService.linkExistingQuestions(id, dto.questionIds);
+  }
 }

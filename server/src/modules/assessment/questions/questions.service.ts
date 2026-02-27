@@ -94,6 +94,14 @@ export class QuestionsService {
     return this.prisma.question.delete({ where: { id } });
   }
 
+  // 🛡️ NEW: Soft Delete (Fixes "Data Corruption" issue)
+  async softDelete(id: string) {
+    return this.prisma.question.update({
+      where: { id },
+      data: { isActive: false }, // 👈 Hides it, but keeps student history intact!
+    });
+  }
+
   // Update question topic (for testing)
   async updateTopic(id: string, topicId?: string) {
     return this.prisma.question.update({
