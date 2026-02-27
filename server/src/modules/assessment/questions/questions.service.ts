@@ -188,7 +188,7 @@ export class QuestionsService {
     return this.prisma.$transaction(async (tx) => {
       let count = 0;
 
-      for (const row of rows) {
+      for (const [index, row] of rows.entries()) {
         if (!row['Question']) continue; // Skip empty rows
 
         const questionText = row['Question'].toString().trim();
@@ -198,6 +198,32 @@ export class QuestionsService {
           row['Option C'],
           row['Option D'],
         ].filter(Boolean);
+
+        // 🚀 NEW: Validation Layer (Fixes "Blind Trust" issue)
+        const validAnswers = ['A', 'B', 'C', 'D', '1', '2', '3', '4'];
+        const correctAnswer = row['Correct Answer']
+          ?.toString()
+          .trim()
+          .toUpperCase();
+
+        if (!correctAnswer || !validAnswers.includes(correctAnswer)) {
+          throw new BadRequestException(
+            `Invalid answer "${correctAnswer}" in row ${index + 2}. Valid answers: A, B, C, D, 1, 2, 3, 4`,
+          );
+        }
+
+        // Validate required fields
+        if (!questionText?.trim()) {
+          throw new BadRequestException(
+            `Empty question text in row ${index + 2}`,
+          );
+        }
+
+        if (!options || options.length < 2) {
+          throw new BadRequestException(
+            `At least 2 options required in row ${index + 2}`,
+          );
+        }
 
         const correctMap: Record<string, number> = {
           A: 0,
@@ -209,9 +235,7 @@ export class QuestionsService {
           '3': 2,
           '4': 3,
         };
-        const correctIndex =
-          correctMap[row['Correct Answer']?.toString().trim().toUpperCase()] ??
-          0;
+        const correctIndex = correctMap[correctAnswer] ?? 0;
 
         // SMART DEDUPLICATION: Hash the exact content
         const hashContent = questionText + JSON.stringify(options);

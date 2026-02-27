@@ -41,6 +41,24 @@ class InjectQuestionsDto {
 export class QuestionsController {
   constructor(private readonly questionsService: QuestionsService) {}
 
+  @Get('paginated')
+  @ApiOperation({ summary: 'Get paginated questions (Memory Safe)' })
+  async getPaginatedQuestions(
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 50,
+    @Query('search') search?: string,
+    @Query('subject') subject?: string,
+    @Query('topic') topic?: string,
+  ) {
+    return this.questionsService.getPaginatedQuestions({
+      page,
+      limit,
+      search,
+      subject,
+      topic,
+    });
+  }
+
   @Get()
   @ApiOperation({ summary: 'List all Questions' })
   findAll() {
@@ -97,24 +115,6 @@ export class QuestionsController {
     @Body('sectionId', ParseUUIDPipe) sectionId: string,
   ) {
     return this.questionsService.bulkUpload(file, sectionId);
-  }
-
-  @Get('paginated')
-  @ApiOperation({ summary: 'Get paginated questions with filters' })
-  async getPaginatedQuestions(
-    @Query('page') page: string = '1',
-    @Query('limit') limit: string = '20',
-    @Query('search') search?: string,
-    @Query('subject') subject?: string,
-    @Query('topic') topic?: string,
-  ) {
-    return this.questionsService.getPaginatedQuestions({
-      page: parseInt(page),
-      limit: parseInt(limit),
-      search,
-      subject,
-      topic,
-    });
   }
 
   @Post('inject-questions/:sectionId')

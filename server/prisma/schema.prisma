@@ -102,6 +102,7 @@ model QuestionTranslation {
   content     String
   options     Json
   explanation String?
+  imageUrl    String?  // For images/diagrams in questions
   question    Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
 
   @@unique([questionId, lang])
@@ -197,6 +198,7 @@ model AttemptAnswer {
   questionId     String
   selectedOption Int?
   isCorrect      Boolean  @default(false)
+  marksAwarded   Float?   // Immutable: marks awarded at time of test
   isMarked       Boolean  @default(false)
   answeredAt     DateTime?
   attempt        Attempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)

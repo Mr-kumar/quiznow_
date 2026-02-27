@@ -7,6 +7,44 @@ import { UpdateTestDto } from './dto/update-test.dto';
 export class TestsService {
   constructor(private prisma: PrismaService) {}
 
+  // 🚀 NEW: Atomic Test + Section Creation (Fixes "Orphan Test" issue)
+  async createTestWithSection(dto: CreateTestDto) {
+    return this.prisma.$transaction(async (tx) => {
+      // 1. Validate Series exists
+      const series = await tx.testSeries.findUnique({
+        where: { id: dto.testSeriesId },
+      });
+      if (!series) throw new NotFoundException('Test Series not found');
+
+      // 2. Create Test
+      const test = await tx.test.create({
+        data: {
+          title: dto.title,
+          seriesId: dto.testSeriesId,
+          durationMins: dto.duration,
+          totalMarks: dto.totalMarks,
+          passMarks: dto.passingMarks,
+          negativeMark: dto.negativeMarking,
+          isActive: true,
+        },
+      });
+
+      // 3. Create Default Section (Atomic - if this fails, test creation rolls back)
+      const section = await tx.section.create({
+        data: {
+          testId: test.id,
+          name: 'General Section',
+          order: 1,
+        },
+      });
+
+      return {
+        test,
+        section,
+      };
+    });
+  }
+
   // 1. Create Test
   async create(dto: CreateTestDto) {
     // Validate Series exists

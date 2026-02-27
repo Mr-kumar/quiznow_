@@ -25,6 +25,12 @@ import { Role } from '@prisma/client';
 export class TestsController {
   constructor(private readonly testsService: TestsService) {}
 
+  @Post('wizard')
+  @ApiOperation({ summary: 'Create Test and Section in single transaction' })
+  async createTestWithSection(@Body() createTestDto: CreateTestDto) {
+    return this.testsService.createTestWithSection(createTestDto);
+  }
+
   @Post()
   @ApiOperation({ summary: 'Create a specific Test Paper' })
   create(@Body() createTestDto: CreateTestDto) {

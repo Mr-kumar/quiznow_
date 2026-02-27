@@ -87,6 +87,16 @@ export default function QuestionBankPage() {
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [topics, setTopics] = useState<any[]>([]);
 
+  // 🚀 NEW: Pagination state (Fixes "Memory Crash" issue)
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 50,
+    total: 0,
+    pages: 0,
+    hasNext: false,
+    hasPrev: false,
+  });
+
   // Fetch questions and topics
   useEffect(() => {
     fetchQuestions();
@@ -95,7 +105,7 @@ export default function QuestionBankPage() {
 
   // Filter questions based on search and filters
   useEffect(() => {
-    let filtered = questions;
+    let filtered = questions || [];
 
     if (searchTerm) {
       filtered = filtered.filter((q) =>
@@ -120,11 +130,23 @@ export default function QuestionBankPage() {
     setFilteredQuestions(filtered);
   }, [questions, searchTerm, selectedTopic, selectedSubject, showInactive]);
 
-  const fetchQuestions = async () => {
+  const fetchQuestions = async (page: number = 1) => {
     setIsLoading(true);
     try {
-      const res = await api.get("/questions");
-      setQuestions(res.data.data || res.data);
+      // 🚀 Use paginated endpoint (Fixes "Memory Crash" issue)
+      const res = await api.get("/questions/paginated", {
+        params: {
+          page,
+          limit: 50,
+          search: searchTerm,
+          topic: selectedTopic === "all" ? undefined : selectedTopic,
+          subject: selectedSubject === "all" ? undefined : selectedSubject,
+        },
+      });
+
+      const { data, pagination } = res.data;
+      setQuestions(data);
+      setPagination(pagination);
     } catch (error) {
       toast({
         title: "Error",
@@ -154,10 +176,10 @@ export default function QuestionBankPage() {
   };
 
   const handleSelectAll = () => {
-    if (selectedQuestions.length === filteredQuestions.length) {
+    if (selectedQuestions.length === (filteredQuestions?.length || 0)) {
       setSelectedQuestions([]);
     } else {
-      setSelectedQuestions(filteredQuestions.map((q) => q.id));
+      setSelectedQuestions((filteredQuestions || []).map((q) => q.id));
     }
   };
 
@@ -280,7 +302,7 @@ export default function QuestionBankPage() {
           </Button>
           <Button
             variant="outline"
-            onClick={fetchQuestions}
+            onClick={() => fetchQuestions()}
             disabled={isLoading}
           >
             <RefreshCw
@@ -305,7 +327,7 @@ export default function QuestionBankPage() {
                   Total Questions
                 </p>
                 <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
-                  {questions.length}
+                  {questions?.length || 0}
                 </p>
               </div>
               <Hash className="h-8 w-8 text-blue-500" />
@@ -321,7 +343,7 @@ export default function QuestionBankPage() {
                   Active Questions
                 </p>
                 <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
-                  {questions.filter((q) => q.isActive).length}
+                  {(questions || []).filter((q) => q.isActive).length}
                 </p>
               </div>
               <CheckCircle2 className="h-8 w-8 text-green-500" />
@@ -473,13 +495,14 @@ export default function QuestionBankPage() {
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">
               <Hash className="h-5 w-5" />
-              Questions ({filteredQuestions.length})
+              Questions ({filteredQuestions?.length || 0})
             </CardTitle>
             <div className="flex items-center gap-2">
               <Checkbox
                 checked={
-                  selectedQuestions.length === filteredQuestions.length &&
-                  filteredQuestions.length > 0
+                  selectedQuestions.length ===
+                    (filteredQuestions?.length || 0) &&
+                  (filteredQuestions?.length || 0) > 0
                 }
                 onCheckedChange={handleSelectAll}
               />
@@ -499,7 +522,7 @@ export default function QuestionBankPage() {
                 </div>
               ))}
             </div>
-          ) : filteredQuestions.length === 0 ? (
+          ) : (filteredQuestions?.length || 0) === 0 ? (
             <div className="text-center py-12">
               <Hash className="h-12 w-12 text-zinc-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-zinc-900 dark:text-zinc-50 mb-2">

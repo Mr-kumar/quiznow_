@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   # 1. The Database
@@ -8,9 +8,9 @@ services:
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_USER: admin             # 👈 User
+      POSTGRES_USER: admin # 👈 User
       POSTGRES_PASSWORD: adminpassword # 👈 Password
-      POSTGRES_DB: quiznow             # 👈 Database Name
+      POSTGRES_DB: quiznow # 👈 Database Name
     volumes:
       - pg_data:/var/lib/postgresql/data
 
