@@ -37,6 +37,11 @@ import {
   BookOpen,
   Layers,
   Plus,
+  Target,
+  FileText,
+  Settings,
+  Clock,
+  Award,
 } from "lucide-react";
 import { BulkQuestionUpload } from "@/components/admin/bulk-upload";
 import { QuestionBankSelector } from "@/components/admin/question-bank-selector";
@@ -48,13 +53,10 @@ export default function CreateTestWizard() {
   // Wizard State
   const [step, setStep] = useState<1 | 2>(1);
   const [isLoading, setIsLoading] = useState(false);
-  const [injectionMethod, setInjectionMethod] = useState<
-    "excel" | "question-bank"
-  >("excel");
-
-  // Data State
   const [createdTestId, setCreatedTestId] = useState<string | null>(null);
   const [createdSectionId, setCreatedSectionId] = useState<string | null>(null);
+
+  // Question Selection States
   const [questionBankSelectedQuestions, setQuestionBankSelectedQuestions] =
     useState<string[]>([]);
   const [uploadedQuestionsCount, setUploadedQuestionsCount] =
@@ -82,6 +84,9 @@ export default function CreateTestWizard() {
     negativeMark: 0.33,
   });
 
+  // Test Mode: "full" or "section"
+  const [testMode, setTestMode] = useState<"full" | "section">("full");
+
   // Fetch functions
   const fetchCategories = () =>
     api
@@ -99,58 +104,29 @@ export default function CreateTestWizard() {
       .then((res) => setSeries(res.data.data || res.data))
       .catch(console.error);
 
+  // Load initial data
   useEffect(() => {
     fetchCategories();
   }, []);
 
+  // Cascade loads
   useEffect(() => {
-    if (formData.categoryId) {
-      fetchExams(formData.categoryId);
-      setFormData((prev) => ({ ...prev, examId: "", seriesId: "" }));
-    }
+    if (formData.categoryId) fetchExams(formData.categoryId);
   }, [formData.categoryId]);
 
   useEffect(() => {
-    if (formData.examId) {
-      fetchSeries(formData.examId);
-      setFormData((prev) => ({ ...prev, seriesId: "" }));
-    }
+    if (formData.examId) fetchSeries(formData.examId);
   }, [formData.examId]);
 
-  // Monitor form changes for debugging
-  useEffect(() => {
-    console.log("Form data changed:", formData);
-    const hasQuestions =
-      questionBankSelectedQuestions.length > 0 || uploadedQuestionsCount > 0;
-    const buttonEnabled =
-      formData.title && formData.seriesId && hasQuestions && !isLoading;
-    console.log("Button enabled state:", buttonEnabled);
-  }, [
-    formData,
-    questionBankSelectedQuestions,
-    uploadedQuestionsCount,
-    isLoading,
-  ]);
-
-  // --- ON-THE-FLY CREATION HANDLERS ---
+  // New entity creation handlers
   const handleCreateCategory = async () => {
-    console.log("Creating category:", newCatName);
+    if (!newCatName) return;
     try {
-      const res = await api.post("/categories", {
-        name: newCatName,
-        isActive: true,
-      });
-      const newCat = res.data.data || res.data;
-      console.log("Category created:", newCat);
-      setCategories([...categories, newCat]);
-      setFormData({ ...formData, categoryId: newCat.id });
+      const res = await api.post("/categories", { name: newCatName });
+      const newCategory = res.data.data || res.data;
+      setCategories([...categories, newCategory]);
+      setFormData({ ...formData, categoryId: newCategory.id });
       setNewCatName("");
-
-      // Small delay to ensure state updates
-      setTimeout(() => {
-        console.log("Form data after category creation:", formData);
-      }, 100);
-
       toast({ title: "Category Created!" });
     } catch (e) {
       console.error("Error creating category:", e);
@@ -159,11 +135,11 @@ export default function CreateTestWizard() {
   };
 
   const handleCreateExam = async () => {
+    if (!newExamName || !formData.categoryId) return;
     try {
       const res = await api.post("/exams", {
         name: newExamName,
         categoryId: formData.categoryId,
-        isActive: true,
       });
       const newExam = res.data.data || res.data;
       setExams([...exams, newExam]);
@@ -171,16 +147,17 @@ export default function CreateTestWizard() {
       setNewExamName("");
       toast({ title: "Exam Created!" });
     } catch (e) {
+      console.error("Error creating exam:", e);
       toast({ title: "Failed", variant: "destructive" });
     }
   };
 
   const handleCreateSeries = async () => {
+    if (!newSeriesTitle || !formData.examId) return;
     try {
       const res = await api.post("/test-series", {
         title: newSeriesTitle,
         examId: formData.examId,
-        isActive: true,
       });
       const newSeries = res.data.data || res.data;
       setSeries([...series, newSeries]);
@@ -193,8 +170,8 @@ export default function CreateTestWizard() {
     }
   };
 
-  // --- MAIN WIZARD SUBMIT (NOW ATOMIC & SAFE) ---
-  const handleCreateTestAndSection = async () => {
+  // --- MAIN WIZARD SUBMIT (HANDLES BOTH MODES) ---
+  const handleCreateTest = async () => {
     if (!formData.seriesId || !formData.title) {
       toast({
         title: "Incomplete",
@@ -206,10 +183,9 @@ export default function CreateTestWizard() {
 
     setIsLoading(true);
     try {
-      // 🌟 Calling the NEW Atomic Endpoint!
-      const wizardRes = await api.post("/tests/wizard", {
+      // 🌟 Create test first
+      const testRes = await api.post("/tests/wizard", {
         title: formData.title,
-        // Aligning with backend CreateTestDto
         duration: Number(formData.duration),
         totalMarks: Number(formData.totalMarks),
         passingMarks: Number(formData.passingMarks),
@@ -217,32 +193,31 @@ export default function CreateTestWizard() {
         testSeriesId: formData.seriesId,
       });
 
-      // The backend returns { test: {...}, section: {...} }
-      const testId = wizardRes.data.data?.test?.id || wizardRes.data.test?.id;
-      const sectionId =
-        wizardRes.data.data?.section?.id || wizardRes.data.section?.id;
-
-      console.log(
-        "Atomic creation successful - Test ID:",
-        testId,
-        "Section ID:",
-        sectionId,
-      );
-      setCreatedTestId(testId);
-      setCreatedSectionId(sectionId);
-      setStep(2);
+      const testId = testRes.data?.test?.id || testRes.data?.test?.id;
+      const sectionId = testRes.data?.section?.id || testRes.data?.section?.id;
 
       toast({
-        title: "Structure Created",
+        title: "Test Created!",
         description:
-          "Safe atomic creation successful! Now add questions in Step 2.",
+          testMode === "full"
+            ? "Upload your Excel file below."
+            : "Redirecting to Test Assembly Dashboard...",
       });
+
+      if (testMode === "full") {
+        // Full Mode: Stay on page, show upload
+        setCreatedTestId(testId);
+        setCreatedSectionId(sectionId);
+        setStep(2);
+      } else {
+        // Section Mode: Redirect to Test Assembly Dashboard
+        router.push(`/dashboard/admin/tests/${testId}`);
+      }
     } catch (error: any) {
-      console.error("Wizard creation error:", error);
+      console.error("Test creation error:", error);
       toast({
         title: "Error",
-        description:
-          error.response?.data?.message || "Failed to create Test structure.",
+        description: error.response?.data?.message || "Failed to create test.",
         variant: "destructive",
       });
     } finally {
@@ -253,281 +228,362 @@ export default function CreateTestWizard() {
   const handleUploadSuccess = (uploadedCount: number) => {
     // Track uploaded questions count
     setUploadedQuestionsCount(uploadedCount);
-
-    toast({
-      title: "Boom! 🚀",
-      description: `${uploadedCount} questions uploaded successfully!`,
-    });
-    // Don't redirect - let user create the test
   };
 
-  const handleQuestionBankInjection = (questionIds: string[]) => {
-    // Store selected questions in state for validation
-    setQuestionBankSelectedQuestions(questionIds);
+  const handleQuestionBankSuccess = (selectedCount: number) => {
+    // Track selected questions count
+    setQuestionBankSelectedQuestions(Array(selectedCount).fill("dummy"));
   };
+
+  const isFormValid = formData.title && formData.seriesId;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 py-8">
-      {/* Progress Bar */}
-      <div className="flex items-center justify-center space-x-4 mb-8">
-        <div
-          className={`flex flex-col items-center gap-2 ${step >= 1 ? "text-blue-600" : "text-zinc-400"}`}
-        >
-          <div
-            className={`flex items-center justify-center w-12 h-12 rounded-full font-bold shadow-md ${step >= 1 ? "bg-blue-600 text-white" : "bg-zinc-100"}`}
-          >
+    <div className="max-w-4xl mx-auto p-6 space-y-8">
+      {/* Header */}
+      <div className="text-center space-y-2">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+          Create New Test
+        </h1>
+        <p className="text-gray-600 dark:text-gray-400">
+          Build your exam with our step-by-step wizard
+        </p>
+      </div>
+
+      {/* Progress Indicator */}
+      <div className="flex items-center justify-center gap-4">
+        <div className="flex items-center gap-2 text-blue-600">
+          <div className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-600 text-white font-bold">
             1
           </div>
-          <span className="text-xs font-semibold">Hierarchy & Rules</span>
+          <span className="font-medium">Setup</span>
         </div>
+        <ArrowRight className="w-5 h-5 text-gray-400" />
         <div
-          className={`h-1 w-24 rounded ${step >= 2 ? "bg-blue-600" : "bg-zinc-200"}`}
-        ></div>
-        <div
-          className={`flex flex-col items-center gap-2 ${step >= 2 ? "text-blue-600" : "text-zinc-400"}`}
+          className={`flex items-center gap-2 ${step === 2 ? "text-blue-600" : "text-gray-400"}`}
         >
           <div
-            className={`flex items-center justify-center w-12 h-12 rounded-full font-bold shadow-md ${step >= 2 ? "bg-blue-600 text-white" : "bg-zinc-100"}`}
+            className={`flex items-center justify-center w-10 h-10 rounded-full font-bold ${
+              step === 2
+                ? "bg-blue-600 text-white"
+                : "bg-gray-200 text-gray-600"
+            }`}
           >
             2
           </div>
-          <span className="text-xs font-semibold">Inject Excel</span>
+          <span className="font-medium">Questions</span>
         </div>
       </div>
 
       {step === 1 && (
-        <Card className="shadow-xl">
-          <div className="bg-linear-to-r from-blue-600 to-indigo-600 p-6 text-white rounded-t-xl">
-            <CardTitle className="text-2xl flex items-center gap-2">
-              <FolderTree /> Step 1: Content Hierarchy
+        <Card className="shadow-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Target className="w-5 h-5" />
+              Test Configuration
             </CardTitle>
-            <CardDescription className="text-blue-100 mt-2">
-              Place this test exactly where it belongs, or create new categories
-              instantly.
+            <CardDescription>
+              Choose your test mode and configure basic settings
             </CardDescription>
-          </div>
-          <CardDescription>Create the container for your exam.</CardDescription>
-          <CardContent className="space-y-8 p-6">
-            {/* CASCADING SELECTION BOX */}
-            <div className="grid md:grid-cols-3 gap-6 p-6 bg-zinc-50 dark:bg-zinc-900 rounded-xl border">
-              {/* CATEGORY */}
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
+          </CardHeader>
+          <CardContent className="space-y-8">
+            {/* TEST MODE SELECTOR */}
+            <div className="bg-blue-50 dark:bg-blue-950/20 p-6 rounded-lg border border-blue-200">
+              <div className="flex items-center gap-2 mb-4">
+                <Target className="w-5 h-5 text-blue-600" />
+                <Label className="text-blue-700 font-semibold text-lg">
+                  Choose Test Mode
+                </Label>
+              </div>
+              <div className="grid md:grid-cols-2 gap-4">
+                <div
+                  className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                    testMode === "full"
+                      ? "border-blue-500 bg-blue-100 text-blue-700 shadow-md"
+                      : "border-gray-200 hover:border-gray-300 bg-white"
+                  }`}
+                  onClick={() => setTestMode("full")}
+                >
+                  <div className="flex items-center gap-3 mb-2">
+                    <FileText className="w-6 h-6" />
+                    <span className="font-semibold text-lg">Full Test</span>
+                  </div>
+                  <p className="text-sm opacity-75">
+                    Single Excel file upload, no sections needed
+                  </p>
+                  <div className="mt-3 flex items-center gap-2 text-xs">
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>Quick and simple</span>
+                  </div>
+                </div>
+                <div
+                  className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                    testMode === "section"
+                      ? "border-blue-500 bg-blue-100 text-blue-700 shadow-md"
+                      : "border-gray-200 hover:border-gray-300 bg-white"
+                  }`}
+                  onClick={() => setTestMode("section")}
+                >
+                  <div className="flex items-center gap-3 mb-2">
+                    <Layers className="w-6 h-6" />
+                    <span className="font-semibold text-lg">Section Test</span>
+                  </div>
+                  <p className="text-sm opacity-75">
+                    Multiple sections with visual dashboard
+                  </p>
+                  <div className="mt-3 flex items-center gap-2 text-xs">
+                    <Settings className="w-4 h-4" />
+                    <span>Advanced control</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* HIERARCHY SELECTION */}
+            <div className="space-y-6">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <FolderTree className="w-5 h-5" />
+                Test Organization
+              </h3>
+
+              <div className="grid md:grid-cols-3 gap-4">
+                {/* CATEGORY */}
+                <div className="space-y-2">
                   <Label className="flex items-center gap-2 text-indigo-600">
                     <Layers className="w-4 h-4" /> Category
                   </Label>
+                  <Select
+                    value={formData.categoryId}
+                    onValueChange={(val) =>
+                      setFormData({ ...formData, categoryId: val })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <Dialog>
                     <DialogTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 px-2 text-xs"
-                      >
+                      <Button variant="ghost" size="sm" className="w-full">
                         <Plus className="w-3 h-3 mr-1" />
-                        New
+                        New Category
                       </Button>
                     </DialogTrigger>
                     <DialogContent>
                       <DialogHeader>
-                        <DialogTitle>Create Category</DialogTitle>
+                        <DialogTitle>Create New Category</DialogTitle>
                       </DialogHeader>
-                      <Input
-                        placeholder="e.g. Railways, SSC"
-                        value={newCatName}
-                        onChange={(e) => setNewCatName(e.target.value)}
-                      />
-                      <Button onClick={handleCreateCategory}>Create</Button>
+                      <div className="space-y-4">
+                        <Input
+                          placeholder="Category name"
+                          value={newCatName}
+                          onChange={(e) => setNewCatName(e.target.value)}
+                        />
+                        <Button
+                          onClick={handleCreateCategory}
+                          disabled={!newCatName}
+                        >
+                          Create Category
+                        </Button>
+                      </div>
                     </DialogContent>
                   </Dialog>
                 </div>
-                <Select
-                  value={formData.categoryId}
-                  onValueChange={(val) =>
-                    setFormData({ ...formData, categoryId: val })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
 
-              {/* EXAM */}
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
+                {/* EXAM */}
+                <div className="space-y-2">
                   <Label className="flex items-center gap-2 text-indigo-600">
                     <BookOpen className="w-4 h-4" /> Exam
                   </Label>
+                  <Select
+                    value={formData.examId}
+                    onValueChange={(val) =>
+                      setFormData({ ...formData, examId: val })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select exam" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {exams.map((e) => (
+                        <SelectItem key={e.id} value={e.id}>
+                          {e.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <Dialog>
                     <DialogTrigger asChild>
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-6 px-2 text-xs"
+                        className="w-full"
                         disabled={!formData.categoryId}
                       >
                         <Plus className="w-3 h-3 mr-1" />
-                        New
+                        New Exam
                       </Button>
                     </DialogTrigger>
                     <DialogContent>
                       <DialogHeader>
-                        <DialogTitle>Create Exam</DialogTitle>
+                        <DialogTitle>Create New Exam</DialogTitle>
                       </DialogHeader>
-                      <Input
-                        placeholder="e.g. RRB JE"
-                        value={newExamName}
-                        onChange={(e) => setNewExamName(e.target.value)}
-                      />
-                      <Button onClick={handleCreateExam}>Create</Button>
+                      <div className="space-y-4">
+                        <Input
+                          placeholder="Exam name"
+                          value={newExamName}
+                          onChange={(e) => setNewExamName(e.target.value)}
+                        />
+                        <Button
+                          onClick={handleCreateExam}
+                          disabled={!newExamName}
+                        >
+                          Create Exam
+                        </Button>
+                      </div>
                     </DialogContent>
                   </Dialog>
                 </div>
-                <Select
-                  value={formData.examId}
-                  disabled={!formData.categoryId}
-                  onValueChange={(val) =>
-                    setFormData({ ...formData, examId: val })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Exam" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {exams.map((e) => (
-                      <SelectItem key={e.id} value={e.id}>
-                        {e.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
 
-              {/* SERIES */}
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
+                {/* SERIES */}
+                <div className="space-y-2">
                   <Label className="flex items-center gap-2 text-indigo-600">
-                    <FolderTree className="w-4 h-4" /> Series
+                    <Award className="w-4 h-4" /> Test Series
                   </Label>
+                  <Select
+                    value={formData.seriesId}
+                    onValueChange={(val) =>
+                      setFormData({ ...formData, seriesId: val })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select series" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {series.map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <Dialog>
                     <DialogTrigger asChild>
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-6 px-2 text-xs"
+                        className="w-full"
                         disabled={!formData.examId}
                       >
                         <Plus className="w-3 h-3 mr-1" />
-                        New
+                        New Series
                       </Button>
                     </DialogTrigger>
                     <DialogContent>
                       <DialogHeader>
-                        <DialogTitle>Create Test Series</DialogTitle>
+                        <DialogTitle>Create New Test Series</DialogTitle>
                       </DialogHeader>
-                      <Input
-                        placeholder="e.g. 2025 Mock Tests"
-                        value={newSeriesTitle}
-                        onChange={(e) => setNewSeriesTitle(e.target.value)}
-                      />
-                      <Button onClick={handleCreateSeries}>Create</Button>
+                      <div className="space-y-4">
+                        <Input
+                          placeholder="Series title"
+                          value={newSeriesTitle}
+                          onChange={(e) => setNewSeriesTitle(e.target.value)}
+                        />
+                        <Button
+                          onClick={handleCreateSeries}
+                          disabled={!newSeriesTitle}
+                        >
+                          Create Series
+                        </Button>
+                      </div>
                     </DialogContent>
                   </Dialog>
                 </div>
-                <Select
-                  value={formData.seriesId}
-                  disabled={!formData.examId}
-                  onValueChange={(val) =>
-                    setFormData({ ...formData, seriesId: val })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Series" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {series.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.title}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
               </div>
             </div>
 
             {/* TEST DETAILS */}
-            <div className="space-y-4">
-              <Label className="text-lg font-semibold">Test Details</Label>
-              <div className="grid gap-4">
-                <Input
-                  placeholder="Test Title (e.g., Civil Engineering Mock 1)"
-                  value={formData.title}
-                  onChange={(e) =>
-                    setFormData({ ...formData, title: e.target.value })
-                  }
-                  className="text-lg py-6"
-                />
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div>
-                    <Label>Duration (Mins)</Label>
-                    <Input
-                      type="number"
-                      value={formData.duration}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          duration: Number(e.target.value),
-                        })
-                      }
-                    />
-                  </div>
-                  <div>
-                    <Label>Total Marks</Label>
-                    <Input
-                      type="number"
-                      value={formData.totalMarks}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          totalMarks: Number(e.target.value),
-                        })
-                      }
-                    />
-                  </div>
-                  <div>
-                    <Label>Pass Marks</Label>
-                    <Input
-                      type="number"
-                      value={formData.passingMarks}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          passingMarks: Number(e.target.value),
-                        })
-                      }
-                    />
-                  </div>
-                  <div>
-                    <Label>Negative Mark</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={formData.negativeMark}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          negativeMark: Number(e.target.value),
-                        })
-                      }
-                    />
-                  </div>
+            <div className="space-y-6">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <Settings className="w-5 h-5" />
+                Test Details
+              </h3>
+
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label>Test Title</Label>
+                  <Input
+                    placeholder="e.g., RRB JE Full Mock 1"
+                    value={formData.title}
+                    onChange={(e) =>
+                      setFormData({ ...formData, title: e.target.value })
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Clock className="w-4 h-4" /> Duration (minutes)
+                  </Label>
+                  <Input
+                    type="number"
+                    value={formData.duration}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        duration: Number(e.target.value),
+                      })
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Total Marks</Label>
+                  <Input
+                    type="number"
+                    value={formData.totalMarks}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        totalMarks: Number(e.target.value),
+                      })
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Pass Marks</Label>
+                  <Input
+                    type="number"
+                    value={formData.passingMarks}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        passingMarks: Number(e.target.value),
+                      })
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Negative Marking</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={formData.negativeMark}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        negativeMark: Number(e.target.value),
+                      })
+                    }
+                  />
                 </div>
               </div>
             </div>
@@ -536,11 +592,9 @@ export default function CreateTestWizard() {
           <CardFooter className="flex justify-end p-6 border-t">
             <Button
               size="lg"
-              onClick={handleCreateTestAndSection}
-              disabled={
-                isLoading || !formData.title || !formData.seriesId
-              }
-              className="bg-blue-600 hover:bg-blue-700 text-white"
+              onClick={handleCreateTest}
+              disabled={isLoading || !isFormValid}
+              className="bg-blue-600 hover:bg-blue-700 text-white min-w-[200px]"
             >
               {isLoading ? (
                 <>
@@ -549,17 +603,9 @@ export default function CreateTestWizard() {
                 </>
               ) : (
                 <>
-                  Create Test
-                  {questionBankSelectedQuestions.length > 0 && (
-                    <span className="ml-2 text-sm">
-                      ({questionBankSelectedQuestions.length} from QB)
-                    </span>
-                  )}
-                  {uploadedQuestionsCount > 0 && (
-                    <span className="ml-2 text-sm">
-                      ({uploadedQuestionsCount} uploaded)
-                    </span>
-                  )}
+                  {testMode === "full"
+                    ? "Create Test & Upload Excel"
+                    : "Create Test & Build Sections"}
                 </>
               )}
             </Button>
@@ -568,109 +614,21 @@ export default function CreateTestWizard() {
       )}
 
       {step === 2 && createdSectionId && (
-        <Card className="border-green-200 shadow-xl">
-          <CardHeader className="bg-green-50/50 pb-8 border-b">
-            <CardTitle className="flex items-center gap-2 text-green-700">
-              <CheckCircle2 /> Step 2: Inject Questions
+        <Card className="shadow-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="w-5 h-5" />
+              Upload Questions
             </CardTitle>
             <CardDescription>
-              Choose your injection method: Excel upload for bulk data entry, or
-              Question Bank for curated selection.
+              Add questions to your test using Excel upload
             </CardDescription>
           </CardHeader>
-          <CardContent className="pt-8">
-            {/* Injection Method Selection */}
-            <div className="flex gap-4 mb-8">
-              <Button
-                variant={injectionMethod === "excel" ? "default" : "outline"}
-                onClick={() => setInjectionMethod("excel")}
-                className="flex-1"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Excel Upload
-              </Button>
-              <Button
-                variant={
-                  injectionMethod === "question-bank" ? "default" : "outline"
-                }
-                onClick={() => setInjectionMethod("question-bank")}
-                className="flex-1"
-              >
-                <BookOpen className="h-4 w-4 mr-2" />
-                Question Bank
-              </Button>
-            </div>
-
-            {/* Content based on selected method */}
-            {injectionMethod === "excel" ? (
-              <div className="space-y-4">
-                <div className="bg-blue-50 dark:bg-blue-950/20 p-4 rounded-lg">
-                  <h4 className="font-medium text-blue-700 dark:text-blue-300 mb-2">
-                    📥 Direct Excel Flow
-                  </h4>
-                  <p className="text-sm text-blue-600 dark:text-blue-400">
-                    Upload your Excel file and we'll automatically parse, hash,
-                    and deduplicate questions. New questions get added to the
-                    Question Bank, duplicates get linked.
-                  </p>
-                </div>
-                <BulkQuestionUpload
-                  sectionId={createdSectionId}
-                  onSuccess={handleUploadSuccess}
-                />
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="bg-purple-50 dark:bg-purple-950/20 p-4 rounded-lg">
-                  <h4 className="font-medium text-purple-700 dark:text-purple-300 mb-2">
-                    🏦 Question Bank Selection
-                  </h4>
-                  <p className="text-sm text-purple-600 dark:text-purple-400">
-                    Select from your existing Question Bank. Perfect for
-                    creating premium tests from your curated question
-                    collection.
-                  </p>
-                </div>
-                <QuestionBankSelector
-                  onQuestionsSelected={handleQuestionBankInjection}
-                  maxQuestions={200}
-                />
-                <div className="flex justify-end">
-                  <Button
-                    disabled={
-                      !createdSectionId || questionBankSelectedQuestions.length === 0
-                    }
-                    onClick={async () => {
-                      if (!createdSectionId) return;
-                      try {
-                        await api.post(
-                          `/questions/inject-questions/${createdSectionId}`,
-                          {
-                            questionIds: questionBankSelectedQuestions,
-                          },
-                        );
-                        toast({
-                          title: "Questions Injected",
-                          description: `${questionBankSelectedQuestions.length} questions added to this test.`,
-                        });
-                      } catch (error: any) {
-                        console.error("Question-bank injection error:", error);
-                        toast({
-                          title: "Error",
-                          description:
-                            error.response?.data?.message ||
-                            "Failed to inject questions from Question Bank.",
-                          variant: "destructive",
-                        });
-                      }
-                    }}
-                    className="bg-purple-600 hover:bg-purple-700 text-white"
-                  >
-                    Inject Selected Questions
-                  </Button>
-                </div>
-              </div>
-            )}
+          <CardContent>
+            <BulkQuestionUpload
+              sectionId={createdSectionId}
+              onSuccess={handleUploadSuccess}
+            />
           </CardContent>
         </Card>
       )}
