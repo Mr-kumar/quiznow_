@@ -96,6 +96,14 @@ export class TestsService {
     });
   }
 
+  // 🚀 NEW: Publish Toggle (God Mode Feature)
+  async togglePublish(id: string, isLive: boolean) {
+    return this.prisma.test.update({
+      where: { id },
+      data: { isLive },
+    });
+  }
+
   // 5. Delete
   remove(id: string) {
     return this.prisma.test.delete({ where: { id } });

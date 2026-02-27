@@ -100,6 +100,14 @@ export class QuestionsController {
     return this.questionsService.softDelete(id);
   }
 
+  @Patch('bulk-tag')
+  @ApiOperation({
+    summary: 'Bulk tag questions with topic (God Mode feature)',
+  })
+  bulkTagQuestions(@Body() dto: { questionIds: string[]; topicId: string }) {
+    return this.questionsService.bulkTagQuestions(dto.questionIds, dto.topicId);
+  }
+
   @Post('upload')
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')

@@ -73,4 +73,24 @@ export class SectionsService {
       skipDuplicates: true, // If already linked, ignore!
     });
   }
+
+  // 🔄 NEW: Question Reordering (God Mode Feature)
+  async reorderQuestions(
+    sectionId: string,
+    questionOrders: { questionId: string; order: number }[],
+  ) {
+    const updates = questionOrders.map(({ questionId, order }) =>
+      this.prisma.sectionQuestion.updateMany({
+        where: {
+          sectionId,
+          questionId,
+        },
+        data: {
+          order,
+        },
+      }),
+    );
+
+    return this.prisma.$transaction(updates);
+  }
 }

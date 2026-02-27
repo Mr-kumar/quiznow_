@@ -102,6 +102,18 @@ export class QuestionsService {
     });
   }
 
+  // 🏷️ NEW: Bulk Tagging (God Mode Feature)
+  async bulkTagQuestions(questionIds: string[], topicId: string) {
+    return this.prisma.question.updateMany({
+      where: {
+        id: { in: questionIds },
+      },
+      data: {
+        topicId,
+      },
+    });
+  }
+
   // Update question topic (for testing)
   async updateTopic(id: string, topicId?: string) {
     return this.prisma.question.update({
@@ -192,6 +204,13 @@ export class QuestionsService {
 
     if (!rows || rows.length === 0)
       throw new BadRequestException('Excel sheet is empty');
+
+    // 🚨 NEW: Excel Upload Limit (God Mode Feature)
+    if (rows.length > 500) {
+      throw new BadRequestException(
+        'For system stability, please upload a maximum of 500 questions per Excel file.',
+      );
+    }
 
     return this.prisma.$transaction(async (tx) => {
       let count = 0;

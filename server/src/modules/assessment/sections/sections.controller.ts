@@ -61,4 +61,13 @@ export class SectionsController {
   ) {
     return this.sectionsService.linkExistingQuestions(id, dto.questionIds);
   }
+
+  @Patch(':id/reorder-questions')
+  @ApiOperation({ summary: 'Reorder questions in section (God Mode feature)' })
+  reorderQuestions(
+    @Param('id') id: string,
+    @Body() dto: { questionOrders: { questionId: string; order: number }[] },
+  ) {
+    return this.sectionsService.reorderQuestions(id, dto.questionOrders);
+  }
 }

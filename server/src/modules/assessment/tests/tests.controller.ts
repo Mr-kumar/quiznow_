@@ -54,6 +54,14 @@ export class TestsController {
     return this.testsService.update(id, updateTestDto);
   }
 
+  @Patch(':id/publish')
+  @ApiOperation({
+    summary: 'Toggle test publish status (God Mode feature)',
+  })
+  togglePublish(@Param('id') id: string, @Body() dto: { isLive: boolean }) {
+    return this.testsService.togglePublish(id, dto.isLive);
+  }
+
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.testsService.remove(id);
