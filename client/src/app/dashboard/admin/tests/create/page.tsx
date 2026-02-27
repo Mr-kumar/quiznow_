@@ -117,19 +117,43 @@ export default function CreateTestWizard() {
     }
   }, [formData.examId]);
 
+  // Monitor form changes for debugging
+  useEffect(() => {
+    console.log("Form data changed:", formData);
+    const hasQuestions =
+      questionBankSelectedQuestions.length > 0 || uploadedQuestionsCount > 0;
+    const buttonEnabled =
+      formData.title && formData.seriesId && hasQuestions && !isLoading;
+    console.log("Button enabled state:", buttonEnabled);
+  }, [
+    formData,
+    questionBankSelectedQuestions,
+    uploadedQuestionsCount,
+    isLoading,
+  ]);
+
   // --- ON-THE-FLY CREATION HANDLERS ---
   const handleCreateCategory = async () => {
+    console.log("Creating category:", newCatName);
     try {
       const res = await api.post("/categories", {
         name: newCatName,
         isActive: true,
       });
       const newCat = res.data.data || res.data;
+      console.log("Category created:", newCat);
       setCategories([...categories, newCat]);
       setFormData({ ...formData, categoryId: newCat.id });
       setNewCatName("");
+
+      // Small delay to ensure state updates
+      setTimeout(() => {
+        console.log("Form data after category creation:", formData);
+      }, 100);
+
       toast({ title: "Category Created!" });
     } catch (e) {
+      console.error("Error creating category:", e);
       toast({ title: "Failed", variant: "destructive" });
     }
   };
@@ -164,16 +188,18 @@ export default function CreateTestWizard() {
       setNewSeriesTitle("");
       toast({ title: "Series Created!" });
     } catch (e) {
+      console.error("Error creating series:", e);
       toast({ title: "Failed", variant: "destructive" });
     }
   };
 
   const handleCreateTestAndSection = async () => {
-    console.log("Function called. Current formData:", formData);
-    console.log("Series ID check:", formData.seriesId);
-    console.log("Title check:", formData.title);
+    // Check if there are any questions selected or uploaded
+    const hasQuestions =
+      questionBankSelectedQuestions.length > 0 || uploadedQuestionsCount > 0;
 
     if (!formData.seriesId || !formData.title) {
+      console.log("Incomplete form data:", formData);
       toast({
         title: "Incomplete",
         description: "Select Hierarchy and enter a title.",
@@ -182,9 +208,22 @@ export default function CreateTestWizard() {
       return;
     }
 
-    // Check if there are any questions selected or uploaded
-    const hasQuestions =
-      questionBankSelectedQuestions.length > 0 || uploadedQuestionsCount > 0;
+    console.log("=== CREATE TEST DEBUG ===");
+    console.log("Current form data:", formData);
+    console.log("Question Bank questions:", questionBankSelectedQuestions);
+    console.log("Uploaded questions count:", uploadedQuestionsCount);
+    console.log("Injection method:", injectionMethod);
+    console.log("Has questions:", hasQuestions);
+
+    if (!formData.seriesId || !formData.title) {
+      console.log("Incomplete form data:", formData);
+      toast({
+        title: "Incomplete",
+        description: "Select Hierarchy and enter a title.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     console.log("Question counts check:", {
       questionBankSelectedQuestions: questionBankSelectedQuestions.length,
@@ -563,8 +602,10 @@ export default function CreateTestWizard() {
                 isLoading ||
                 !formData.title ||
                 !formData.seriesId ||
-                (questionBankSelectedQuestions.length === 0 &&
-                  uploadedQuestionsCount === 0)
+                !(
+                  questionBankSelectedQuestions.length > 0 ||
+                  uploadedQuestionsCount > 0
+                )
               }
               className="bg-blue-600 hover:bg-blue-700 text-white"
             >

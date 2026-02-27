@@ -314,3 +314,180 @@ export const adminQuestionsApi = {
     );
   },
 };
+
+// Plans Management API
+export interface Plan {
+  id: string;
+  name: string;
+  price: number;
+  durationDays: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreatePlanRequest {
+  name: string;
+  price: number;
+  durationDays: number;
+}
+
+export interface UpdatePlanRequest {
+  name?: string;
+  price?: number;
+  durationDays?: number;
+}
+
+export const adminPlansApi = {
+  getAll: (page = 1, limit = 10, search?: string) =>
+    api.get<PaginatedResponse<Plan>>("/admin/plans", {
+      params: { page, limit, search },
+    }),
+
+  getById: (id: string) => api.get<ApiResponse<Plan>>(`/admin/plans/${id}`),
+
+  create: (planData: CreatePlanRequest) =>
+    api.post<ApiResponse<Plan>>("/admin/plans", planData),
+
+  update: (id: string, planData: UpdatePlanRequest) =>
+    api.patch<ApiResponse<Plan>>(`/admin/plans/${id}`, planData),
+
+  delete: (id: string) => api.delete<ApiResponse<void>>(`/admin/plans/${id}`),
+};
+
+// Subscriptions Management API
+export interface Subscription {
+  id: string;
+  userId: string;
+  planId: string;
+  startAt: string;
+  expiresAt: string;
+  status: "ACTIVE" | "EXPIRED" | "CANCELLED";
+  createdAt: string;
+  updatedAt: string;
+  plan?: Plan;
+  user?: User;
+}
+
+export interface CreateSubscriptionRequest {
+  userId: string;
+  planId: string;
+}
+
+export interface UpdateSubscriptionRequest {
+  status?: "ACTIVE" | "EXPIRED" | "CANCELLED";
+}
+
+export const adminSubscriptionsApi = {
+  getAll: (page = 1, limit = 10, search?: string, userId?: string) =>
+    api.get<PaginatedResponse<Subscription>>("/admin/subscriptions", {
+      params: { page, limit, search, userId },
+    }),
+
+  getById: (id: string) =>
+    api.get<ApiResponse<Subscription>>(`/admin/subscriptions/${id}`),
+
+  create: (subscriptionData: CreateSubscriptionRequest) =>
+    api.post<ApiResponse<Subscription>>(
+      "/admin/subscriptions",
+      subscriptionData,
+    ),
+
+  update: (id: string, subscriptionData: UpdateSubscriptionRequest) =>
+    api.patch<ApiResponse<Subscription>>(
+      `/admin/subscriptions/${id}`,
+      subscriptionData,
+    ),
+
+  delete: (id: string) =>
+    api.delete<ApiResponse<void>>(`/admin/subscriptions/${id}`),
+};
+
+// Settings Management API
+export interface AdminSetting {
+  id: string;
+  key: string;
+  value: any;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const adminSettingsApi = {
+  getAll: () => api.get<Record<string, any>>("/admin/settings"),
+
+  get: (key: string) =>
+    api.get<ApiResponse<AdminSetting>>(`/admin/settings/${key}`),
+
+  update: (key: string, value: any) =>
+    api.post<ApiResponse<AdminSetting>>("/admin/settings", { key, value }),
+
+  updateBatch: (settings: Array<{ key: string; value: any }>) =>
+    api.post<ApiResponse<AdminSetting[]>>("/admin/settings/batch", settings),
+
+  delete: (key: string) =>
+    api.delete<ApiResponse<void>>(`/admin/settings/${key}`),
+};
+
+// Audit Logs API
+export interface AuditLog {
+  id: string;
+  actorId?: string;
+  actorRole?: string;
+  action: string;
+  targetType?: string;
+  targetId?: string;
+  metadata?: any;
+  createdAt: string;
+}
+
+export const adminAuditLogsApi = {
+  getAll: (page = 1, limit = 10, search?: string, action?: string) =>
+    api.get<PaginatedResponse<AuditLog>>("/admin/audit-logs", {
+      params: { page, limit, search, action },
+    }),
+
+  getByActor: (actorId: string, page = 1, limit = 10) =>
+    api.get<PaginatedResponse<AuditLog>>(`/admin/audit-logs/actor/${actorId}`, {
+      params: { page, limit },
+    }),
+
+  cleanup: (daysOld = 90) => api.post("/admin/audit-logs/cleanup", { daysOld }),
+};
+
+// Topics Management API
+export interface Topic {
+  id: string;
+  name: string;
+  subject?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateTopicRequest {
+  name: string;
+  subject?: string;
+}
+
+export interface UpdateTopicRequest {
+  name?: string;
+  subject?: string;
+}
+
+export const adminTopicsApi = {
+  getAll: (page = 1, limit = 10, search?: string) =>
+    api.get<PaginatedResponse<Topic>>("/topics", {
+      params: { page, limit, search },
+    }),
+
+  getById: (id: string) => api.get<ApiResponse<Topic>>(`/topics/${id}`),
+
+  create: (topicData: CreateTopicRequest) =>
+    api.post<ApiResponse<Topic>>("/topics", topicData),
+
+  update: (id: string, topicData: UpdateTopicRequest) =>
+    api.patch<ApiResponse<Topic>>(`/topics/${id}`, topicData),
+
+  delete: (id: string) => api.delete<ApiResponse<void>>(`/topics/${id}`),
+
+  getUniqueSubjects: () =>
+    api.get<ApiResponse<string[]>>("/topics/subjects/unique"),
+};

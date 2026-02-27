@@ -14,6 +14,11 @@ import { TopicsModule } from './modules/assessment/topics/topics.module';
 import { AttemptsModule } from './modules/assessment/attempts/attempts.module';
 import { LeaderboardModule } from './modules/analytics/leaderboard/leaderboard.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
+import { PlansModule } from './modules/catalog/plans/plans.module';
+import { SubscriptionsModule } from './modules/catalog/subscriptions/subscriptions.module';
+import { SettingsModule } from './modules/admin/settings/settings.module';
+import { AuditLogsModule } from './modules/admin/audit-logs/audit-logs.module';
+import { CacheModule } from './cache/cache.module';
 
 @Module({
   imports: [
@@ -29,6 +34,11 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
     AttemptsModule,
     LeaderboardModule,
     AnalyticsModule,
+    PlansModule,
+    SubscriptionsModule,
+    SettingsModule,
+    AuditLogsModule,
+    CacheModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService],

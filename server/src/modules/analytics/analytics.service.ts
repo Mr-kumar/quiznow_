@@ -1,12 +1,22 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../services/prisma/prisma.service';
+import { CacheService } from '../../cache/cache.service';
 import { Status } from '@prisma/client';
 
 @Injectable()
 export class AnalyticsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cacheService: CacheService,
+  ) {}
 
   async getDashboardMetrics() {
+    // Try to get from cache first
+    const cached = await this.cacheService.get('dashboard:metrics');
+    if (cached) {
+      return cached;
+    }
+
     const now = new Date();
     const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -74,16 +84,24 @@ export class AnalyticsService {
           )
         : 0;
 
-    return {
+    const metrics = {
       totalUsers,
       activeTests,
       completedAttempts,
       avgPerformance,
+      lastMonthUsers,
+      lastMonthTests,
+      lastMonthAttempts,
+      lastMonthPerformance,
       userGrowth,
       testGrowth,
       attemptGrowth,
       performanceGrowth,
     };
+
+    // Cache for 5 minutes
+    await this.cacheService.set('dashboard:metrics', metrics, 300);
+    return metrics;
   }
 
   async getUserStats() {

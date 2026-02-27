@@ -21,6 +21,7 @@ model User {
   topicStats    UserTopicStat[]
 
   @@index([role])
+  @@index([email])  // For login performance
 }
 
 model Category {
@@ -91,6 +92,7 @@ model Question {
   sectionLinks   SectionQuestion[]
 
   @@index([topicId])
+  @@index([hash])  // For deduplication lookups
 }
 
 model QuestionTranslation {
@@ -128,8 +130,9 @@ model Test {
   sections     Section[]
   series       TestSeries         @relation(fields: [seriesId], references: [id], onDelete: Cascade)
 
-  @@index([seriesId])
-  @@index([startAt])
+  @@index([seriesId])  // For series queries
+  @@index([isActive, isLive])  // For filtering active/live tests
+  @@index([startAt])  // For scheduling
 }
 
 model Section {
@@ -185,6 +188,7 @@ model Attempt {
   @@index([userId])
   @@index([testId])
   @@index([status])
+  @@index([status, createdAt])  // For analytics queries
 }
 
 model AttemptAnswer {
@@ -288,6 +292,16 @@ model AuditLog {
 
   @@index([actorId])
   @@index([action])
+}
+
+model AdminSettings {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([key])
 }
 
 enum Role {
