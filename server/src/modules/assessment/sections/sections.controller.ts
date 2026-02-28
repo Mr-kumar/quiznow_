@@ -70,4 +70,13 @@ export class SectionsController {
   ) {
     return this.sectionsService.reorderQuestions(id, dto.questionOrders);
   }
+
+  @Delete(':id/questions/:questionId')
+  @ApiOperation({ summary: 'Unlink question from section (God Mode feature)' })
+  unlinkQuestion(
+    @Param('id') id: string,
+    @Param('questionId') questionId: string,
+  ) {
+    return this.sectionsService.unlinkQuestion(id, questionId);
+  }
 }

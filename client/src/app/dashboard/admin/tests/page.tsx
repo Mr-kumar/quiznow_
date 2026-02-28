@@ -1,658 +1,268 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
-  DataTable,
-  ActionDropdown,
-  StatusBadge,
-} from "@/components/admin/admin-data-table";
-import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import {
-  adminTestsApi,
-  adminTestSeriesApi,
-  adminExamsApi,
-  type Test,
-  type TestSeries,
-  type Exam,
-} from "@/lib/admin-api";
-import api from "@/lib/api";
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
 import {
-  FileText,
+  Loader2,
   Plus,
-  Edit,
+  Layers,
   Trash2,
-  Eye,
-  EyeOff,
   Clock,
-  Trophy,
-  Users,
-  DollarSign,
-  Zap,
-  Play,
-  Pause,
-  Settings,
-  BarChart3,
-  Copy,
-  Download,
-  Upload,
+  Award,
   Search,
-  Filter,
-  RefreshCw,
+  LayoutDashboard,
 } from "lucide-react";
-import { ColumnDef } from "@tanstack/react-table";
+import api from "@/lib/api";
 
-export default function AdminTestsPage() {
-  const router = useRouter();
-  const [tests, setTests] = useState<Test[]>([]);
-  const [testSeries, setTestSeries] = useState<TestSeries[]>([]);
-  const [exams, setExams] = useState<Exam[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [testToDelete, setTestToDelete] = useState<Test | null>(null);
-  const [publishDialogOpen, setPublishDialogOpen] = useState(false);
-  const [testToPublish, setTestToPublish] = useState<Test | null>(null);
-  const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
-  const [testToDuplicate, setTestToDuplicate] = useState<Test | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedSeries, setSelectedSeries] = useState<string>("all");
-  const [selectedStatus, setSelectedStatus] = useState<string>("all");
-  const [isRefreshing, setIsRefreshing] = useState(false);
+export default function ManageTestsCommandCenter() {
   const { toast } = useToast();
+  const [tests, setTests] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
 
-  // Load data
-  const loadData = async () => {
+  const fetchTests = async () => {
+    setIsLoading(true);
     try {
-      const [testsRes, seriesRes, examsRes] = await Promise.all([
-        adminTestsApi.getAll(
-          1,
-          100,
-          searchTerm,
-          selectedSeries !== "all" ? selectedSeries : undefined,
-        ),
-        adminTestSeriesApi.getAll(1, 100),
-        adminExamsApi.getAll(1, 100),
-      ]);
-      setTests(testsRes.data.data || []);
-      setTestSeries(seriesRes.data.data || []);
-      setExams(examsRes.data.data || []);
+      const res = await api.get("/tests");
+      let fetchedTests = res.data.data || res.data;
+
+      // Filter out soft-deleted tests (Data Armor)
+      fetchedTests = fetchedTests.filter((t: any) => t.isActive !== false);
+
+      // Sort by newest first
+      fetchedTests.sort(
+        (a: any, b: any) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      );
+
+      setTests(fetchedTests);
     } catch (error) {
       toast({
-        title: "Error",
-        description: "Failed to load data",
+        title: "Failed to load master test list",
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    loadData();
-  }, [searchTerm, selectedSeries]);
+    fetchTests();
+  }, []);
 
-  // Refresh data
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    await loadData();
-    setIsRefreshing(false);
-    toast({
-      title: "Refreshed",
-      description: "Test data has been updated",
-    });
-  };
-
-  // Toggle publish status
-  const handleTogglePublish = async (test: Test) => {
+  // 🟢 The Safety Switch (Live vs Draft)
+  const toggleLiveStatus = async (id: string, currentStatus: boolean) => {
     try {
-      const newStatus = !test.isLive;
-      await api.patch(`/tests/${test.id}/publish`, { isLive: newStatus });
-
-      setTests(
-        tests.map((t) => (t.id === test.id ? { ...t, isLive: newStatus } : t)),
-      );
-
+      await api.patch(`/tests/${id}`, { isLive: !currentStatus });
       toast({
-        title: newStatus ? "Test Published!" : "Test Unpublished",
-        description: newStatus
+        title: !currentStatus ? "Test Published! 🟢" : "Test moved to Draft ⚪",
+        description: !currentStatus
           ? "Students can now see and take this test."
-          : "Test is now hidden from students.",
+          : "This test is now hidden from students.",
       });
-    } catch (error: any) {
-      toast({
-        title: "Failed to toggle publish status",
-        description: error?.response?.data?.message || "Please try again",
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Duplicate test
-  const handleDuplicateTest = async () => {
-    if (!testToDuplicate) return;
-
-    try {
-      const response = await api.post(`/tests/${testToDuplicate.id}/duplicate`);
-      const newTest = response.data.data || response.data;
-
-      toast({
-        title: "Test Duplicated!",
-        description: `"${testToDuplicate.title}" has been duplicated successfully.`,
-      });
-
-      setDuplicateDialogOpen(false);
-      setTestToDuplicate(null);
-      loadData();
-    } catch (error: any) {
-      toast({
-        title: "Failed to duplicate test",
-        description: error?.response?.data?.message || "Please try again",
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Delete test
-  const handleDeleteTest = async () => {
-    if (!testToDelete) return;
-
-    try {
-      await adminTestsApi.delete(testToDelete.id);
-      toast({
-        title: "Success",
-        description: "Test deleted successfully",
-      });
-      setDeleteDialogOpen(false);
-      setTestToDelete(null);
-      loadData();
+      fetchTests();
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to delete test",
-        variant: "destructive",
-      });
+      toast({ title: "Failed to update status", variant: "destructive" });
     }
   };
 
-  // Export test data
-  const handleExportTest = async (test: Test) => {
+  // 🛡️ Data Armor (Soft Delete)
+  const handleSoftDelete = async (id: string) => {
+    if (
+      !confirm(
+        "Archive this test? It will be hidden, but student attempt history will be preserved perfectly.",
+      )
+    )
+      return;
+
     try {
-      const response = await api.get(`/tests/${test.id}/export`, {
-        responseType: "blob",
-      });
-
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute(
-        "download",
-        `${test.title.replace(/\s+/g, "_")}_export.xlsx`,
-      );
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-
+      await api.patch(`/tests/${id}`, { isActive: false });
       toast({
-        title: "Export Successful",
-        description: "Test data has been exported to Excel",
+        title: "Test Archived",
+        description: "Safely removed without corrupting data.",
       });
-    } catch (error: any) {
-      toast({
-        title: "Export Failed",
-        description: error?.response?.data?.message || "Please try again",
-        variant: "destructive",
-      });
+      fetchTests();
+    } catch (error) {
+      toast({ title: "Failed to archive test", variant: "destructive" });
     }
   };
 
-  const openDeleteDialog = (test: Test) => {
-    setTestToDelete(test);
-    setDeleteDialogOpen(true);
-  };
-
-  const openPublishDialog = (test: Test) => {
-    setTestToPublish(test);
-    setPublishDialogOpen(true);
-  };
-
-  const openDuplicateDialog = (test: Test) => {
-    setTestToDuplicate(test);
-    setDuplicateDialogOpen(true);
-  };
-
-  // Filter tests
-  const filteredTests = tests.filter((test) => {
-    const matchesSearch = test.title
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase());
-    const matchesSeries =
-      selectedSeries === "all" || test.seriesId === selectedSeries;
-    const matchesStatus =
-      selectedStatus === "all" ||
-      (selectedStatus === "live" && test.isLive) ||
-      (selectedStatus === "draft" && !test.isLive);
-
-    return matchesSearch && matchesSeries && matchesStatus;
-  });
-
-  // Calculate stats
-  const stats = {
-    total: tests.length,
-    live: tests.filter((t) => t.isLive).length,
-    draft: tests.filter((t) => !t.isLive).length,
-    premium: tests.filter((t) => t.isPremium).length,
-    free: tests.filter((t) => !t.isPremium).length,
-  };
-
-  // Table columns
-  const columns: ColumnDef<Test>[] = [
-    {
-      accessorKey: "title",
-      header: "Test Name",
-      cell: ({ row }) => (
-        <div className="font-medium">{row.getValue("title")}</div>
-      ),
-    },
-    {
-      accessorKey: "series.title",
-      header: "Series",
-      cell: ({ row }) => (
-        <div className="text-sm">
-          <Badge variant="outline" className="text-xs">
-            {row.original.series?.title || "N/A"}
-          </Badge>
-        </div>
-      ),
-    },
-    {
-      accessorKey: "durationMins",
-      header: "Duration",
-      cell: ({ row }) => (
-        <div className="flex items-center gap-1">
-          <Clock className="h-4 w-4" />
-          {row.getValue("durationMins")} mins
-        </div>
-      ),
-    },
-    {
-      accessorKey: "totalMarks",
-      header: "Marks",
-      cell: ({ row }) => (
-        <div className="font-medium">{row.getValue("totalMarks")}</div>
-      ),
-    },
-    {
-      accessorKey: "passMarks",
-      header: "Pass Marks",
-      cell: ({ row }) => (
-        <div className="text-sm text-gray-600">{row.getValue("passMarks")}</div>
-      ),
-    },
-    {
-      accessorKey: "isLive",
-      header: "Status",
-      cell: ({ row }) => (
-        <StatusBadge
-          status={row.getValue("isLive") ? "ACTIVE" : "PENDING"}
-          variant={row.getValue("isLive") ? "default" : "secondary"}
-        />
-      ),
-    },
-    {
-      accessorKey: "isPremium",
-      header: "Type",
-      cell: ({ row }) => (
-        <Badge variant={row.getValue("isPremium") ? "default" : "secondary"}>
-          {row.getValue("isPremium") ? "Premium" : "Free"}
-        </Badge>
-      ),
-    },
-    {
-      accessorKey: "createdAt",
-      header: "Created",
-      cell: ({ row }) => (
-        <div className="text-sm text-gray-600">
-          {new Date(row.getValue("createdAt")).toLocaleDateString()}
-        </div>
-      ),
-    },
-    {
-      id: "actions",
-      header: "Actions",
-      cell: ({ row }) => {
-        const test = row.original;
-
-        return (
-          <div className="flex items-center gap-2">
-            {/* Quick Actions */}
-            <Button
-              size="sm"
-              variant={test.isLive ? "outline" : "default"}
-              onClick={() => handleTogglePublish(test)}
-              className="h-8 px-3"
-            >
-              {test.isLive ? (
-                <>
-                  <EyeOff className="w-3 h-3 mr-1" />
-                  Unpublish
-                </>
-              ) : (
-                <>
-                  <Eye className="w-3 h-3 mr-1" />
-                  Publish
-                </>
-              )}
-            </Button>
-
-            {/* Action Dropdown */}
-            <ActionDropdown>
-              <DropdownMenuItem
-                onClick={() => router.push(`/dashboard/admin/tests/${test.id}`)}
-              >
-                <Settings className="mr-2 h-4 w-4" />
-                Test Assembly
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => openDuplicateDialog(test)}>
-                <Copy className="mr-2 h-4 w-4" />
-                Duplicate
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleExportTest(test)}>
-                <Download className="mr-2 h-4 w-4" />
-                Export
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => openDeleteDialog(test)}
-                className="text-red-600"
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete
-              </DropdownMenuItem>
-            </ActionDropdown>
-          </div>
-        );
-      },
-    },
-  ];
-
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
+  const filteredTests = tests.filter((t) =>
+    t.title?.toLowerCase().includes(searchTerm.toLowerCase()),
+  );
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
+    <div className="max-w-7xl mx-auto py-8 space-y-6">
+      {/* HEADER SECTION */}
+      <div className="flex flex-col md:flex-row justify-between md:items-end gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            Test Management Center
+          <h1 className="text-3xl font-bold text-zinc-900 dark:text-white">
+            Master Test Directory
           </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Complete control over your test series and assessments
+          <p className="text-zinc-500 mt-1">
+            Manage rules, visibility, and assembly for all platform tests.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            className="flex items-center gap-2"
-          >
-            <RefreshCw
-              className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`}
-            />
-            Refresh
+        <Link href="/dashboard/admin/tests/create">
+          <Button className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md">
+            <Plus className="w-5 h-5 mr-2" /> Create New Test Shell
           </Button>
-          <Button
-            onClick={() => router.push("/dashboard/admin/tests/create")}
-            className="bg-linear-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Create Test
-          </Button>
-        </div>
+        </Link>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-        <Card className="border-0 bg-linear-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-blue-700 dark:text-blue-300">
-              Total Tests
+      <Card className="border-indigo-100 shadow-lg">
+        <CardHeader className="bg-zinc-50 border-b pb-4">
+          <div className="flex justify-between items-center">
+            <CardTitle className="text-xl flex items-center gap-2">
+              <Layers className="text-indigo-600 w-5 h-5" /> All Tests
             </CardTitle>
-            <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">
-              {stats.total}
-            </div>
-            <p className="text-xs text-blue-600 dark:text-blue-400">
-              All tests in system
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-0 bg-linear-to-r from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-green-700 dark:text-green-300">
-              Live Tests
-            </CardTitle>
-            <Play className="h-4 w-4 text-green-600 dark:text-green-400" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-700 dark:text-green-300">
-              {stats.live}
-            </div>
-            <p className="text-xs text-green-600 dark:text-green-400">
-              Available to students
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-0 bg-linear-to-r from-yellow-50 to-yellow-100 dark:from-yellow-900/20 dark:to-yellow-800/20">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-yellow-700 dark:text-yellow-300">
-              Draft Tests
-            </CardTitle>
-            <Pause className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-yellow-700 dark:text-yellow-300">
-              {stats.draft}
-            </div>
-            <p className="text-xs text-yellow-600 dark:text-yellow-400">
-              Hidden from students
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-0 bg-linear-to-r from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-purple-700 dark:text-purple-300">
-              Premium Tests
-            </CardTitle>
-            <DollarSign className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-purple-700 dark:text-purple-300">
-              {stats.premium}
-            </div>
-            <p className="text-xs text-purple-600 dark:text-purple-400">
-              Paid content
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-0 bg-linear-to-r from-indigo-50 to-indigo-100 dark:from-indigo-900/20 dark:to-indigo-800/20">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-indigo-700 dark:text-indigo-300">
-              Free Tests
-            </CardTitle>
-            <Users className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-indigo-700 dark:text-indigo-300">
-              {stats.free}
-            </div>
-            <p className="text-xs text-indigo-600 dark:text-indigo-400">
-              Free content
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="w-5 h-5" />
-            Filters & Search
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col lg:flex-row gap-4">
-            <div className="flex-1">
-              <Label>Search Tests</Label>
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="Search by test name..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </div>
-            <div className="w-full lg:w-48">
-              <Label>Test Series</Label>
-              <Select value={selectedSeries} onValueChange={setSelectedSeries}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All Series" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Series</SelectItem>
-                  {testSeries.map((series) => (
-                    <SelectItem key={series.id} value={series.id}>
-                      {series.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="w-full lg:w-48">
-              <Label>Status</Label>
-              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="live">Live</SelectItem>
-                  <SelectItem value="draft">Draft</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="relative w-72">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-zinc-400" />
+              <Input
+                placeholder="Search by test name..."
+                className="pl-9 border-zinc-300"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
             </div>
           </div>
+        </CardHeader>
+
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="flex justify-center p-12">
+              <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+            </div>
+          ) : filteredTests.length === 0 ? (
+            <div className="text-center p-12 text-zinc-500">
+              No tests found. Create your first one!
+            </div>
+          ) : (
+            <Table>
+              <TableHeader className="bg-zinc-100/50">
+                <TableRow>
+                  <TableHead className="w-[300px]">Test Details</TableHead>
+                  <TableHead className="text-center">Vital Signs</TableHead>
+                  <TableHead className="text-center">
+                    Visibility (Publish)
+                  </TableHead>
+                  <TableHead className="text-right pr-6">
+                    Master Actions
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredTests.map((test) => (
+                  <TableRow
+                    key={test.id}
+                    className="group hover:bg-zinc-50/80 transition-colors"
+                  >
+                    {/* COLUMN 1: DETAILS */}
+                    <TableCell className="py-4">
+                      <div className="font-bold text-zinc-900 text-base">
+                        {test.title}
+                      </div>
+                      <div className="text-xs text-zinc-500 mt-1 flex items-center gap-2">
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] bg-zinc-100 text-zinc-600"
+                        >
+                          ID: {test.id.slice(0, 8)}
+                        </Badge>
+                        {test.series?.name && (
+                          <span>📂 {test.series.name}</span>
+                        )}
+                      </div>
+                    </TableCell>
+
+                    {/* COLUMN 2: VITAL SIGNS */}
+                    <TableCell className="text-center py-4">
+                      <div className="flex flex-col items-center justify-center gap-1">
+                        <span className="flex items-center text-sm font-medium text-zinc-700">
+                          <Clock className="w-4 h-4 mr-1 text-blue-500" />{" "}
+                          {test.durationMins} Mins
+                        </span>
+                        <span className="flex items-center text-sm font-medium text-zinc-700">
+                          <Award className="w-4 h-4 mr-1 text-amber-500" />{" "}
+                          {test.totalMarks} Marks
+                        </span>
+                      </div>
+                    </TableCell>
+
+                    {/* COLUMN 3: SAFETY SWITCH */}
+                    <TableCell className="text-center py-4">
+                      <div className="flex flex-col items-center gap-2">
+                        <Switch
+                          checked={test.isLive}
+                          onCheckedChange={() =>
+                            toggleLiveStatus(test.id, test.isLive)
+                          }
+                          className={
+                            test.isLive ? "bg-green-500!" : "bg-zinc-300!"
+                          }
+                        />
+                        <span
+                          className={`text-xs font-bold ${test.isLive ? "text-green-600" : "text-zinc-500"}`}
+                        >
+                          {test.isLive ? "LIVE" : "DRAFT"}
+                        </span>
+                      </div>
+                    </TableCell>
+
+                    {/* COLUMN 4: MASTER ACTIONS */}
+                    <TableCell className="text-right py-4 pr-6">
+                      <div className="flex justify-end gap-3 items-center">
+                        {/* 🌟 The Gateway to Assembly Line */}
+                        <Link href={`/dashboard/admin/tests/${test.id}`}>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="border-indigo-300 text-indigo-700 hover:bg-indigo-50"
+                          >
+                            <LayoutDashboard className="w-4 h-4 mr-2" />
+                            Build Content
+                          </Button>
+                        </Link>
+
+                        {/* 🛡️ Soft Delete Armor */}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleSoftDelete(test.id)}
+                          className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                          title="Archive Test safely"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
-
-      {/* Tests Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <span>All Tests ({filteredTests.length})</span>
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <BarChart3 className="w-4 h-4" />
-              Real-time data
-            </div>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <DataTable columns={columns} data={filteredTests} />
-        </CardContent>
-      </Card>
-
-      {/* Delete Dialog */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently delete the test "{testToDelete?.title}".
-              This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteTest}
-              className="bg-red-600"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Duplicate Dialog */}
-      <Dialog open={duplicateDialogOpen} onOpenChange={setDuplicateDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Duplicate Test</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <p>
-              Are you sure you want to duplicate "{testToDuplicate?.title}"?
-            </p>
-            <p className="text-sm text-gray-600">
-              This will create a complete copy of the test including all
-              sections and questions.
-            </p>
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setDuplicateDialogOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button onClick={handleDuplicateTest}>Duplicate Test</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

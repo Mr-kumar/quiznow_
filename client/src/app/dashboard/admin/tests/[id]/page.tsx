@@ -24,6 +24,10 @@ import {
   EyeOff,
   ToggleLeft,
   ToggleRight,
+  GripVertical,
+  Trash2,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import api from "@/lib/api";
 import { BulkQuestionUpload } from "@/components/admin/bulk-upload";
@@ -36,6 +40,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 
 export default function TestAssemblyDashboard() {
   const params = useParams();
@@ -67,6 +72,26 @@ export default function TestAssemblyDashboard() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUnlinkQuestion = async (
+    sectionId: string,
+    questionId: string,
+  ) => {
+    if (
+      !confirm(
+        "Remove this question from this section? (It will stay in the Vault)",
+      )
+    )
+      return;
+    try {
+      // Assuming you have this endpoint to delete the SectionQuestion link
+      await api.delete(`/sections/${sectionId}/questions/${questionId}`);
+      toast({ title: "Question Unlinked" });
+      fetchTestDetails(); // Refresh the UI
+    } catch (e) {
+      toast({ title: "Failed to unlink", variant: "destructive" });
     }
   };
 
@@ -332,74 +357,135 @@ export default function TestAssemblyDashboard() {
                   </Card>
                 </div>
 
-                {/* QUESTIONS TABLE */}
-                <Card className="border-gray-200 dark:border-gray-700">
-                  <CardHeader className="bg-gray-50 dark:bg-gray-800/50 pb-4">
-                    <CardTitle className="text-gray-700 dark:text-gray-300 text-lg flex items-center gap-2">
-                      <Database className="w-5 h-5" />
-                      Questions in {section.name}
-                    </CardTitle>
-                    <CardDescription>
-                      {section.questions?.length || 0} questions in this section
-                    </CardDescription>
+                {/* 🌟 THE LINKED QUESTIONS TABLE */}
+                <Card className="mt-8 shadow-md border-zinc-200">
+                  <CardHeader className="bg-white border-b pb-4 flex flex-row justify-between items-center">
+                    <div>
+                      <CardTitle className="text-xl font-bold text-zinc-800">
+                        Exam Paper: {section.name}
+                      </CardTitle>
+                      <CardDescription>
+                        Drag or use arrows to reorder. Unlinking does not delete
+                        from Vault.
+                      </CardDescription>
+                    </div>
+                    <Badge
+                      variant="secondary"
+                      className="bg-indigo-100 text-indigo-800 text-sm"
+                    >
+                      Total Linked: {section.questions?.length || 0}
+                    </Badge>
                   </CardHeader>
-                  <CardContent>
-                    {section.questions && section.questions.length > 0 ? (
-                      <div className="overflow-x-auto">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Question</TableHead>
-                              <TableHead>Subject</TableHead>
-                              <TableHead>Topic</TableHead>
-                              <TableHead>Options</TableHead>
-                              <TableHead>Answer</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {section.questions
-                              .slice(0, 5)
-                              .map((question: any, index: number) => (
+                  <CardContent className="p-0">
+                    {section.questions?.length > 0 ? (
+                      <Table>
+                        <TableHeader className="bg-zinc-50">
+                          <TableRow>
+                            <TableHead className="w-16 text-center">
+                              Order
+                            </TableHead>
+                            <TableHead>Question Text (English)</TableHead>
+                            <TableHead className="w-32 text-center">
+                              Subject
+                            </TableHead>
+                            <TableHead className="w-24 text-right pr-6">
+                              Actions
+                            </TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {section.questions.map(
+                            (linkedQ: any, index: number) => {
+                              // Safely extract the master question data
+                              const masterQ = linkedQ.question;
+                              const translation =
+                                masterQ?.translations?.find(
+                                  (t: any) => t.lang === "en",
+                                ) || masterQ?.translations?.[0];
+
+                              return (
                                 <TableRow
-                                  key={`question-${question.id || index}`}
+                                  key={`question-${index}`}
+                                  className="group hover:bg-zinc-50 transition-colors"
                                 >
-                                  <TableCell className="font-medium">
-                                    {index + 1}.{" "}
-                                    {question.translations?.[0]?.content?.substring(
-                                      0,
-                                      80,
-                                    )}
-                                    ...
+                                  {/* ORDER & DRAG ICON */}
+                                  <TableCell className="text-center font-medium text-zinc-500 flex items-center justify-center gap-2">
+                                    <GripVertical className="w-4 h-4 text-zinc-300 group-hover:text-zinc-500 cursor-grab" />
+                                    {index + 1}
                                   </TableCell>
+
+                                  {/* QUESTION TEXT */}
                                   <TableCell>
-                                    {question.topic?.subject?.name || "-"}
+                                    <div className="font-medium text-zinc-800 line-clamp-2">
+                                      {translation?.content || (
+                                        <span className="text-red-500 italic">
+                                          Content Missing
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="text-xs text-zinc-400 mt-1">
+                                      Vault ID: {masterQ?.id?.slice(0, 8)}
+                                    </div>
                                   </TableCell>
-                                  <TableCell>
-                                    {question.topic?.name || "-"}
+
+                                  {/* SUBJECT BADGE */}
+                                  <TableCell className="text-center">
+                                    <Badge
+                                      variant="outline"
+                                      className="text-[10px] bg-zinc-100"
+                                    >
+                                      {masterQ?.topic?.subject || "Mixed"}
+                                    </Badge>
                                   </TableCell>
-                                  <TableCell>
-                                    {question.translations?.[0]?.options
-                                      ?.length || 0}{" "}
-                                    options
-                                  </TableCell>
-                                  <TableCell>
-                                    <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded">
-                                      {["A", "B", "C", "D"][
-                                        question.correctAnswer
-                                      ] || "-"}
-                                    </span>
+
+                                  {/* ACTIONS */}
+                                  <TableCell className="text-right pr-6">
+                                    <div className="flex justify-end gap-1 items-center opacity-50 group-hover:opacity-100 transition-opacity">
+                                      {/* Reorder Arrows (Requires Backend Update for logic) */}
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-zinc-400 hover:text-indigo-600"
+                                      >
+                                        <ArrowUp className="w-4 h-4" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-zinc-400 hover:text-indigo-600"
+                                      >
+                                        <ArrowDown className="w-4 h-4" />
+                                      </Button>
+                                      {/* Unlink Button */}
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-red-400 hover:text-red-600 hover:bg-red-50"
+                                        onClick={() =>
+                                          handleUnlinkQuestion(
+                                            section.id,
+                                            masterQ.id,
+                                          )
+                                        }
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </Button>
+                                    </div>
                                   </TableCell>
                                 </TableRow>
-                              ))}
-                          </TableBody>
-                        </Table>
-                      </div>
+                              );
+                            },
+                          )}
+                        </TableBody>
+                      </Table>
                     ) : (
-                      <div className="text-center py-8">
-                        <Database className="w-8 h-8 text-gray-300 mx-auto mb-3" />
-                        <p className="text-gray-500 italic text-sm">
-                          No questions yet. Upload Excel or select from Vault to
-                          get started.
+                      <div className="p-12 text-center text-zinc-500 flex flex-col items-center">
+                        <div className="w-16 h-16 bg-zinc-100 rounded-full flex items-center justify-center mb-3">
+                          <Trash2 className="w-8 h-8 text-zinc-300" />
+                        </div>
+                        <p>This section is empty.</p>
+                        <p className="text-sm">
+                          Use buttons above to inject questions.
                         </p>
                       </div>
                     )}

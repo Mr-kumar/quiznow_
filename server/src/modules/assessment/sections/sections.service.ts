@@ -93,4 +93,16 @@ export class SectionsService {
 
     return this.prisma.$transaction(updates);
   }
+
+  // 🗑️ NEW: Unlink Question from Section (God Mode Feature)
+  async unlinkQuestion(sectionId: string, questionId: string) {
+    return this.prisma.sectionQuestion.delete({
+      where: {
+        sectionId_questionId: {
+          sectionId,
+          questionId,
+        },
+      },
+    });
+  }
 }

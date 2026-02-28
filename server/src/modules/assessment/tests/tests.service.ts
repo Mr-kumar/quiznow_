@@ -82,11 +82,35 @@ export class TestsService {
   }
 
   // 3. Find One
-  findOne(id: string) {
-    return this.prisma.test.findUnique({
+  async findOne(id: string) {
+    const test = await this.prisma.test.findUnique({
       where: { id },
-      include: { series: true, sections: { include: { questions: true } } },
+      include: {
+        series: true, // Optional: gets series info
+        sections: {
+          orderBy: { order: 'asc' },
+          include: {
+            // 🌟 CRITICAL: This pulls the linked questions AND their text!
+            questions: {
+              orderBy: { order: 'asc' }, // Keeps them in the correct sequence
+              include: {
+                question: {
+                  include: {
+                    translations: true, // We need the text to show Admin
+                    topic: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
     });
+
+    if (!test) {
+      throw new NotFoundException(`Test with ID ${id} not found`);
+    }
+    return test;
   }
 
   // 4. Update
