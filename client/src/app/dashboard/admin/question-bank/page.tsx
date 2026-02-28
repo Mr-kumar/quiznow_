@@ -49,6 +49,7 @@ import {
   FileText,
   Users,
   Settings,
+  Loader2,
 } from "lucide-react";
 import api from "@/lib/api";
 
@@ -86,6 +87,9 @@ export default function QuestionBankPage() {
   const [showInactive, setShowInactive] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [topics, setTopics] = useState<any[]>([]);
+  const [showBulkTagDialog, setShowBulkTagDialog] = useState(false);
+  const [selectedBulkTagTopic, setSelectedBulkTagTopic] = useState<string>("");
+  const [isBulkTagging, setIsBulkTagging] = useState(false);
 
   // 🚀 NEW: Pagination state (Fixes "Memory Crash" issue)
   const [pagination, setPagination] = useState({
@@ -247,6 +251,44 @@ export default function QuestionBankPage() {
     }
   };
 
+  const handleBulkTag = async () => {
+    if (!selectedBulkTagTopic) {
+      toast({
+        title: "Topic Required",
+        description: "Please select a topic to assign",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsBulkTagging(true);
+    try {
+      await api.patch("/questions/bulk-tag", {
+        questionIds: selectedQuestions,
+        topicId: selectedBulkTagTopic,
+      });
+
+      toast({
+        title: "Success",
+        description: `${selectedQuestions.length} questions tagged with the selected topic`,
+      });
+
+      setSelectedQuestions([]);
+      setShowBulkTagDialog(false);
+      setSelectedBulkTagTopic("");
+      fetchQuestions();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description:
+          error?.response?.data?.message || "Failed to bulk tag questions",
+        variant: "destructive",
+      });
+    } finally {
+      setIsBulkTagging(false);
+    }
+  };
+
   const handleInjectIntoTest = async (testId: string) => {
     if (selectedQuestions.length === 0) {
       toast({
@@ -325,9 +367,7 @@ export default function QuestionBankPage() {
             />
             Refresh
           </Button>
-          <Button
-            onClick={() => router.push("/dashboard/admin/questions")}
-          >
+          <Button onClick={() => router.push("/dashboard/admin/questions")}>
             <Upload className="h-4 w-4 mr-2" />
             Import Questions
           </Button>
@@ -338,7 +378,7 @@ export default function QuestionBankPage() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="border-0 shadow-xl">
           <CardContent className="p-6">
-              <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
                   Total Questions
@@ -354,7 +394,7 @@ export default function QuestionBankPage() {
 
         <Card className="border-0 shadow-xl">
           <CardContent className="p-6">
-              <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
                   Active Questions
@@ -492,6 +532,69 @@ export default function QuestionBankPage() {
                 </Button>
               </div>
               <div className="flex gap-2">
+                <Dialog
+                  open={showBulkTagDialog}
+                  onOpenChange={setShowBulkTagDialog}
+                >
+                  <Button onClick={() => setShowBulkTagDialog(true)}>
+                    <Target className="h-4 w-4 mr-2" />
+                    Bulk Tag
+                  </Button>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>
+                        Assign Topic to {selectedQuestions.length} Questions
+                      </DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div>
+                        <Label htmlFor="topic-select" className="mb-2 block">
+                          Select Topic
+                        </Label>
+                        <Select
+                          value={selectedBulkTagTopic}
+                          onValueChange={setSelectedBulkTagTopic}
+                        >
+                          <SelectTrigger id="topic-select">
+                            <SelectValue placeholder="Choose a topic..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {topics.map((topic) => (
+                              <SelectItem key={topic.id} value={topic.id}>
+                                {topic.name}{" "}
+                                {topic.subject && `(${topic.subject})`}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex gap-2 justify-end">
+                        <Button
+                          variant="outline"
+                          onClick={() => setShowBulkTagDialog(false)}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          onClick={handleBulkTag}
+                          disabled={isBulkTagging || !selectedBulkTagTopic}
+                        >
+                          {isBulkTagging ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Tagging...
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle2 className="h-4 w-4 mr-2" />
+                              Apply Tag
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
                 <Button variant="outline">
                   <Download className="h-4 w-4 mr-2" />
                   Export
@@ -512,7 +615,7 @@ export default function QuestionBankPage() {
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">
               <Hash className="h-5 w-5" />
-              Questions ({filteredQuestions?.length || 0})
+              Questions ({pagination.total || 0})
             </CardTitle>
             <div className="flex items-center gap-2">
               <Checkbox
@@ -593,7 +696,7 @@ export default function QuestionBankPage() {
                               {question.isActive ? "Active" : "Inactive"}
                             </Badge>
                             <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                              {(question.sectionLinks?.length ?? 0)} tests
+                              {question.sectionLinks?.length ?? 0} tests
                             </span>
                           </div>
 

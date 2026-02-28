@@ -2,7 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +25,7 @@ import { toast } from "@/components/ui/use-toast";
 import {
   Search,
   Filter,
+  CheckCircle,
   CheckCircle2,
   ArrowRight,
   ArrowLeft,
@@ -27,6 +34,7 @@ import {
   Target,
   FileText,
   Plus,
+  BarChart3,
 } from "lucide-react";
 import api from "@/lib/api";
 
@@ -185,7 +193,8 @@ export default function QuestionBankCreateTestPage() {
       // Step 1: Create category if needed
       let category: any = null;
       const existingCategoriesRes = await api.get("/categories");
-      const existingCategories = existingCategoriesRes.data.data || existingCategoriesRes.data;
+      const existingCategories =
+        existingCategoriesRes.data.data || existingCategoriesRes.data;
       const existingCategory = existingCategories.find(
         (c: any) => c.name === testCategory,
       );
@@ -207,9 +216,7 @@ export default function QuestionBankCreateTestPage() {
       let exam: any = null;
       const existingExamsRes = await api.get("/exams");
       const existingExams = existingExamsRes.data.data || existingExamsRes.data;
-      const existingExam = existingExams.find(
-        (e: any) => e.name === testExam,
-      );
+      const existingExam = existingExams.find((e: any) => e.name === testExam);
 
       if (!existingExam) {
         console.log("Creating new exam:", testExam);
@@ -298,74 +305,101 @@ export default function QuestionBankCreateTestPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold flex items-center gap-3">
-            <BookOpen className="h-8 w-8 text-blue-600" />
+          <h1 className="text-4xl font-bold flex items-center gap-3 text-zinc-900 dark:text-white">
+            <div className="h-12 w-12 rounded-xl bg-linear-to-br from-blue-600 to-blue-700 flex items-center justify-center">
+              <BookOpen className="h-7 w-7 text-white" />
+            </div>
             Create Test from Question Bank
           </h1>
-          <p className="text-muted-foreground">
-            Select questions from your Question Bank and create a complete test
+          <p className="text-zinc-600 dark:text-zinc-400 mt-2 text-lg">
+            Select questions and configure test settings
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Badge variant="outline" className="px-3 py-1">
+          <Badge variant="secondary" className="px-4 py-1 text-base">
+            <div
+              className={`h-2 w-2 rounded-full mr-2 ${step >= 1 ? "bg-blue-600" : "bg-zinc-300"}`}
+            ></div>
             Step {step} of 2
           </Badge>
         </div>
       </div>
 
-      {/* Progress */}
-      <div className="flex items-center gap-4">
-        <div
-          className={`flex items-center gap-2 ${step >= 1 ? "text-blue-600" : "text-muted-foreground"}`}
-        >
-          <div
-            className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 1 ? "bg-blue-600 text-white" : "bg-muted"}`}
-          >
-            1
+      {/* Progress Indicator */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-4">
+          {/* Step 1 */}
+          <div className="flex flex-col items-center">
+            <div
+              className={`h-10 w-10 rounded-full flex items-center justify-center font-bold transition-all ${
+                step >= 1
+                  ? "bg-blue-600 text-white shadow-lg"
+                  : "bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-400"
+              }`}
+            >
+              1
+            </div>
+            <span className="text-xs mt-2 font-medium text-center">
+              Select Questions
+            </span>
           </div>
-          <span className="font-medium">Select Questions</span>
-        </div>
-        <div
-          className={`flex-1 h-1 ${step >= 2 ? "bg-blue-600" : "bg-muted"}`}
-        />
-        <div
-          className={`flex items-center gap-2 ${step >= 2 ? "text-blue-600" : "text-muted-foreground"}`}
-        >
-          <div
-            className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 2 ? "bg-blue-600 text-white" : "bg-muted"}`}
-          >
-            2
+
+          {/* Progress Line */}
+          <div className="flex-1 h-1 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden">
+            <div
+              className={`h-full bg-blue-600 transition-all duration-300 ${
+                step >= 2 ? "w-full" : "w-0"
+              }`}
+            ></div>
           </div>
-          <span className="font-medium">Test Details</span>
+
+          {/* Step 2 */}
+          <div className="flex flex-col items-center">
+            <div
+              className={`h-10 w-10 rounded-full flex items-center justify-center font-bold transition-all ${
+                step >= 2
+                  ? "bg-blue-600 text-white shadow-lg"
+                  : "bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-400"
+              }`}
+            >
+              2
+            </div>
+            <span className="text-xs mt-2 font-medium text-center">
+              Test Details
+            </span>
+          </div>
         </div>
       </div>
 
       {step === 1 && (
         <div className="space-y-6">
-          {/* Filters */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Filter className="h-5 w-5" />
-                Filter Questions
+          {/* Filters Card */}
+          <Card className="border-0 shadow-lg">
+            <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 rounded-t-lg">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Filter className="h-5 w-5 text-blue-600" />
+                <span>Filter Questions</span>
               </CardTitle>
+              <CardDescription>
+                Refine questions by subject and topic
+              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 pt-6">
               <div className="grid gap-4 md:grid-cols-3">
                 <div className="relative">
-                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-zinc-400" />
                   <Input
                     placeholder="Search questions..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
+                    className="pl-10 bg-white dark:bg-zinc-900"
                   />
                 </div>
                 <Select
                   value={selectedSubject}
                   onValueChange={setSelectedSubject}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="bg-white dark:bg-zinc-900">
                     <SelectValue placeholder="Select Subject" />
                   </SelectTrigger>
                   <SelectContent>
@@ -378,7 +412,7 @@ export default function QuestionBankCreateTestPage() {
                   </SelectContent>
                 </Select>
                 <Select value={selectedTopic} onValueChange={setSelectedTopic}>
-                  <SelectTrigger>
+                  <SelectTrigger className="bg-white dark:bg-zinc-900">
                     <SelectValue placeholder="Select Topic" />
                   </SelectTrigger>
                   <SelectContent>
@@ -392,8 +426,8 @@ export default function QuestionBankCreateTestPage() {
                 </Select>
               </div>
 
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-900/50 rounded-lg border border-zinc-200 dark:border-zinc-800">
+                <div className="flex items-center gap-3">
                   <Checkbox
                     checked={
                       selectedQuestions.length === filteredQuestions.length &&
@@ -401,15 +435,15 @@ export default function QuestionBankCreateTestPage() {
                     }
                     onCheckedChange={handleSelectAll}
                   />
-                  <span className="text-sm text-muted-foreground">
+                  <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
                     Select all ({filteredQuestions.length} questions)
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Badge variant="secondary">
+                  <Badge className="bg-blue-600 hover:bg-blue-700">
                     {selectedQuestions.length} selected
                   </Badge>
-                  <Badge variant="outline">
+                  <Badge variant="secondary">
                     {filteredQuestions.length} filtered
                   </Badge>
                 </div>
@@ -417,57 +451,81 @@ export default function QuestionBankCreateTestPage() {
             </CardContent>
           </Card>
 
-          {/* Questions List */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Questions ({filteredQuestions.length})</CardTitle>
+          {/* Questions List Card */}
+          <Card className="border-0 shadow-lg">
+            <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 rounded-t-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <BookOpen className="h-5 w-5 text-blue-600" />
+                    Questions
+                  </CardTitle>
+                  <CardDescription>
+                    {filteredQuestions.length} available •{" "}
+                    {selectedQuestions.length} selected
+                  </CardDescription>
+                </div>
+              </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-6">
               {isLoading ? (
-                <div className="text-center py-8">Loading questions...</div>
+                <div className="text-center py-12">
+                  <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-zinc-300 border-t-blue-600"></div>
+                  <p className="mt-4 text-zinc-600 dark:text-zinc-400">
+                    Loading questions...
+                  </p>
+                </div>
               ) : filteredQuestions.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  No questions found matching your filters
+                <div className="text-center py-12">
+                  <BookOpen className="h-12 w-12 text-zinc-300 dark:text-zinc-700 mx-auto mb-3" />
+                  <p className="text-zinc-600 dark:text-zinc-400 font-medium">
+                    No questions found matching your filters
+                  </p>
                 </div>
               ) : (
-                <div className="space-y-4 max-h-96 overflow-y-auto">
+                <div className="space-y-3 max-h-[600px] overflow-y-auto">
                   {filteredQuestions.map((question) => {
                     const preview = getQuestionPreview(question);
+                    const isSelected = selectedQuestions.includes(question.id);
                     return (
                       <div
                         key={question.id}
-                        className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                          selectedQuestions.includes(question.id)
-                            ? "border-blue-500 bg-blue-50 dark:bg-blue-950/20"
-                            : "border-border hover:bg-muted"
+                        className={`p-4 border-2 rounded-xl transition-all cursor-pointer ${
+                          isSelected
+                            ? "border-blue-500 bg-blue-50/50 dark:bg-blue-950/30 shadow-md"
+                            : "border-zinc-200 dark:border-zinc-700 hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-md"
                         }`}
                         onClick={() => handleQuestionSelect(question.id)}
                       >
                         <div className="flex items-start gap-3">
                           <Checkbox
-                            checked={selectedQuestions.includes(question.id)}
+                            checked={isSelected}
                             onChange={() => handleQuestionSelect(question.id)}
+                            className="mt-1"
                           />
                           <div className="flex-1">
-                            <p className="font-medium mb-2">
+                            <p className="font-medium text-zinc-900 dark:text-white mb-2 leading-relaxed">
                               {preview.content}
                             </p>
-                            <div className="space-y-1">
+                            <div className="space-y-1.5 mb-3">
                               {preview.options.map((option, index) => (
                                 <div
                                   key={index}
-                                  className="text-sm text-muted-foreground"
+                                  className="text-sm text-zinc-600 dark:text-zinc-400"
                                 >
-                                  {String.fromCharCode(65 + index)}. {option}
+                                  <span className="font-semibold text-blue-600 dark:text-blue-400">
+                                    {String.fromCharCode(65 + index)}.
+                                  </span>{" "}
+                                  {option}
                                 </div>
                               ))}
                             </div>
                             {question.topic && (
-                              <div className="flex items-center gap-2 mt-2">
-                                <Badge variant="outline" className="text-xs">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <Badge variant="secondary" className="text-xs">
                                   {question.topic.subject}
                                 </Badge>
-                                <Badge variant="outline" className="text-xs">
+                                <Badge variant="secondary" className="text-xs">
                                   {question.topic.name}
                                 </Badge>
                               </div>
@@ -483,11 +541,18 @@ export default function QuestionBankCreateTestPage() {
           </Card>
 
           {/* Navigation */}
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-3">
+            <Button
+              variant="outline"
+              onClick={() => router.back()}
+              className="px-6"
+            >
+              Cancel
+            </Button>
             <Button
               onClick={() => setStep(2)}
               disabled={selectedQuestions.length === 0}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
             >
               Continue to Test Details
               <ArrowRight className="h-4 w-4" />
@@ -498,119 +563,159 @@ export default function QuestionBankCreateTestPage() {
 
       {step === 2 && (
         <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Test Details</CardTitle>
+          {/* Test Details Card */}
+          <Card className="border-0 shadow-lg">
+            <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 rounded-t-lg">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <FileText className="h-5 w-5 text-blue-600" />
+                Test Details
+              </CardTitle>
+              <CardDescription>
+                Configure basic test information
+              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
+            <CardContent className="space-y-6 pt-6">
+              <div className="grid gap-6 md:grid-cols-2">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Test Name *</label>
+                  <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300 flex items-center gap-2">
+                    Test Name
+                    <span className="text-red-500">*</span>
+                  </label>
                   <Input
-                    placeholder="e.g. Top 100 Hardest Math Questions"
+                    placeholder="e.g. Physics Mock Test 1"
                     value={testName}
                     onChange={(e) => setTestName(e.target.value)}
+                    className="bg-white dark:bg-zinc-900"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">
-                    Duration (minutes) *
+                  <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300 flex items-center gap-2">
+                    Duration (minutes)
+                    <span className="text-red-500">*</span>
                   </label>
                   <Input
                     type="number"
                     placeholder="60"
                     value={testDuration}
                     onChange={(e) => setTestDuration(Number(e.target.value))}
+                    className="bg-white dark:bg-zinc-900"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Category *</label>
+                  <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300 flex items-center gap-2">
+                    Category
+                    <span className="text-red-500">*</span>
+                  </label>
                   <Input
-                    placeholder="e.g. Railways, SSC, Banking"
+                    placeholder="e.g. JEE Main, NEET"
                     value={testCategory}
                     onChange={(e) => setTestCategory(e.target.value)}
+                    className="bg-white dark:bg-zinc-900"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Exam *</label>
+                  <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300 flex items-center gap-2">
+                    Exam
+                    <span className="text-red-500">*</span>
+                  </label>
                   <Input
-                    placeholder="e.g. RRB JE, SSC CGL, IBPS PO"
+                    placeholder="e.g. JEE Main June 2024"
                     value={testExam}
                     onChange={(e) => setTestExam(e.target.value)}
+                    className="bg-white dark:bg-zinc-900"
                   />
                 </div>
                 <div className="space-y-2 md:col-span-2">
-                  <label className="text-sm font-medium">Test Series *</label>
+                  <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300 flex items-center gap-2">
+                    Test Series
+                    <span className="text-red-500">*</span>
+                  </label>
                   <Input
-                    placeholder="e.g. 2025 Mock Tests, Premium Masterclasses"
+                    placeholder="e.g. JEE Foundation Series"
                     value={testSeries}
                     onChange={(e) => setTestSeries(e.target.value)}
+                    className="bg-white dark:bg-zinc-900"
                   />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Summary */}
-          <Card>
+          {/* Summary Card */}
+          <Card className="border-0 shadow-lg bg-linear-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30">
             <CardHeader>
-              <CardTitle>Test Summary</CardTitle>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <BarChart3 className="h-5 w-5 text-blue-600" />
+                Test Summary
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                    <FileText className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            <CardContent>
+              <div className="grid gap-4 md:grid-cols-4">
+                <div className="p-4 bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800">
+                  <div className="text-sm text-zinc-600 dark:text-zinc-400 mb-1">
+                    Total Questions
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">
-                      Total Questions
-                    </p>
-                    <p className="text-lg font-semibold">
-                      {selectedQuestions.length}
-                    </p>
+                  <div className="text-3xl font-bold text-blue-600">
+                    {selectedQuestions.length}
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                    <Target className="h-5 w-5 text-green-600 dark:text-green-400" />
+                <div className="p-4 bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800">
+                  <div className="text-sm text-zinc-600 dark:text-zinc-400 mb-1">
+                    Total Marks
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Total Marks</p>
-                    <p className="text-lg font-semibold">
-                      {calculateTotalMarks()}
-                    </p>
+                  <div className="text-3xl font-bold text-blue-600">
+                    {calculateTotalMarks()}
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
-                    <Clock className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+                <div className="p-4 bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800">
+                  <div className="text-sm text-zinc-600 dark:text-zinc-400 mb-1">
+                    Duration
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Duration</p>
-                    <p className="text-lg font-semibold">{testDuration} min</p>
+                  <div className="text-3xl font-bold text-blue-600">
+                    {testDuration || "—"}
+                    <span className="text-sm text-zinc-600 dark:text-zinc-400 ml-1">
+                      min
+                    </span>
+                  </div>
+                </div>
+                <div className="p-4 bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800">
+                  <div className="text-sm text-zinc-600 dark:text-zinc-400 mb-1">
+                    Time/Question
+                  </div>
+                  <div className="text-3xl font-bold text-blue-600">
+                    {testDuration && selectedQuestions.length > 0
+                      ? (testDuration / selectedQuestions.length).toFixed(1)
+                      : "—"}
+                    <span className="text-sm text-zinc-600 dark:text-zinc-400 ml-1">
+                      sec
+                    </span>
                   </div>
                 </div>
               </div>
 
-              <Separator />
+              <Separator className="my-4" />
 
               <div className="space-y-2">
-                <h4 className="font-medium">Selected Questions Preview:</h4>
-                <div className="text-sm text-muted-foreground">
+                <h4 className="font-bold text-zinc-700 dark:text-zinc-300">
+                  Selected Questions Preview:
+                </h4>
+                <div className="text-sm text-zinc-600 dark:text-zinc-400 space-y-1">
                   {selectedQuestions.slice(0, 3).map((questionId, index) => {
                     const question = questions.find((q) => q.id === questionId);
                     const preview = question
                       ? getQuestionPreview(question)
                       : null;
                     return (
-                      <div key={questionId} className="mb-1">
+                      <div
+                        key={questionId}
+                        className="text-zinc-700 dark:text-zinc-300"
+                      >
                         {index + 1}. {preview?.content.substring(0, 80)}...
                       </div>
                     );
                   })}
                   {selectedQuestions.length > 3 && (
-                    <div className="text-muted-foreground">
+                    <div className="text-zinc-500 dark:text-zinc-500 font-medium">
                       ... and {selectedQuestions.length - 3} more questions
                     </div>
                   )}
@@ -620,23 +725,47 @@ export default function QuestionBankCreateTestPage() {
           </Card>
 
           {/* Navigation */}
-          <div className="flex justify-between">
+          <div className="flex justify-between gap-3">
             <Button
               variant="outline"
               onClick={() => setStep(1)}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 px-6"
             >
               <ArrowLeft className="h-4 w-4" />
               Back to Questions
             </Button>
-            <Button
-              onClick={handleCreateTest}
-              disabled={isLoading}
-              className="flex items-center gap-2"
-            >
-              {isLoading ? "Creating Test..." : "Create Test"}
-              <Plus className="h-4 w-4" />
-            </Button>
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={() => router.back()}
+                className="px-6"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleCreateTest}
+                disabled={
+                  isLoading ||
+                  !testName ||
+                  !testCategory ||
+                  !testExam ||
+                  !testSeries
+                }
+                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 px-6"
+              >
+                {isLoading ? (
+                  <>
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="h-4 w-4" />
+                    Create Test
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </div>
       )}

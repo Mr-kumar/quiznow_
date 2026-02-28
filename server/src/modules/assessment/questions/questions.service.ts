@@ -94,23 +94,11 @@ export class QuestionsService {
     return this.prisma.question.delete({ where: { id } });
   }
 
-  // 🛡️ NEW: Soft Delete (Fixes "Data Corruption" issue)
+  // NEW: Soft Delete (Fixes "Data Corruption" issue)
   async softDelete(id: string) {
     return this.prisma.question.update({
       where: { id },
-      data: { isActive: false }, // 👈 Hides it, but keeps student history intact!
-    });
-  }
-
-  // 🏷️ NEW: Bulk Tagging (God Mode Feature)
-  async bulkTagQuestions(questionIds: string[], topicId: string) {
-    return this.prisma.question.updateMany({
-      where: {
-        id: { in: questionIds },
-      },
-      data: {
-        topicId,
-      },
+      data: { isActive: false }, // Hides it, but keeps student history intact!
     });
   }
 
@@ -378,6 +366,18 @@ export class QuestionsService {
       }
 
       return { success: true, injectedCount };
+    });
+  }
+
+  // 🏷️ NEW: Bulk Tagging (God Mode Feature)
+  async bulkTagQuestions(questionIds: string[], topicId: string) {
+    return this.prisma.question.updateMany({
+      where: {
+        id: { in: questionIds },
+      },
+      data: {
+        topicId: topicId,
+      },
     });
   }
 }

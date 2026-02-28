@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from 'src/services/prisma/prisma.service';
 import { CreateSectionDto } from './dto/create-section.dto';
 import { UpdateSectionDto } from './dto/update-section.dto';
@@ -94,15 +98,41 @@ export class SectionsService {
     return this.prisma.$transaction(updates);
   }
 
-  // 🗑️ NEW: Unlink Question from Section (God Mode Feature)
+  // NEW: Unlink Question from Section (God Mode Feature)
   async unlinkQuestion(sectionId: string, questionId: string) {
-    return this.prisma.sectionQuestion.delete({
-      where: {
-        sectionId_questionId: {
-          sectionId,
-          questionId,
+    try {
+      return await this.prisma.sectionQuestion.delete({
+        where: {
+          sectionId_questionId: {
+            sectionId,
+            questionId,
+          },
         },
-      },
-    });
+      });
+    } catch (error) {
+      throw new BadRequestException(
+        'Failed to unlink question. It might not exist in this section.',
+      );
+    }
+  }
+
+  // NEW: Reorder Questions in Section (God Mode Feature)
+  async reorderQuestionsInSection(
+    sectionId: string,
+    orderedQuestionIds: string[],
+  ) {
+    // We use a massive transaction to update all orders instantly
+    const updates = orderedQuestionIds.map((qId, index) =>
+      this.prisma.sectionQuestion.update({
+        where: {
+          sectionId_questionId: { sectionId, questionId: qId },
+        },
+        data: {
+          order: index + 1, // 1st item gets order 1, 2nd gets order 2, etc.
+        },
+      }),
+    );
+
+    return this.prisma.$transaction(updates);
   }
 }

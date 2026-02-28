@@ -93,6 +93,11 @@ export default function DashboardLayout({
       icon: Users,
     },
     {
+      href: "/dashboard/admin/analytics",
+      label: "Analytics",
+      icon: BarChart3,
+    },
+    {
       href: "/dashboard/admin/tests/create",
       label: "Create Test",
       icon: PlusCircle,

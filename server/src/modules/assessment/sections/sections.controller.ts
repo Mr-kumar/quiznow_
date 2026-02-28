@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   UseGuards,
+  BadRequestException,
 } from '@nestjs/common';
 import { SectionsService } from './sections.service';
 import { CreateSectionDto } from './dto/create-section.dto';
@@ -62,21 +63,31 @@ export class SectionsController {
     return this.sectionsService.linkExistingQuestions(id, dto.questionIds);
   }
 
-  @Patch(':id/reorder-questions')
-  @ApiOperation({ summary: 'Reorder questions in section (God Mode feature)' })
-  reorderQuestions(
-    @Param('id') id: string,
-    @Body() dto: { questionOrders: { questionId: string; order: number }[] },
-  ) {
-    return this.sectionsService.reorderQuestions(id, dto.questionOrders);
-  }
-
   @Delete(':id/questions/:questionId')
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Unlink question from section (God Mode feature)' })
-  unlinkQuestion(
+  async unlinkQuestion(
     @Param('id') id: string,
     @Param('questionId') questionId: string,
-  ) {
-    return this.sectionsService.unlinkQuestion(id, questionId);
+  ): Promise<{ success: boolean; message: string }> {
+    await this.sectionsService.unlinkQuestion(id, questionId);
+    return {
+      success: true,
+      message: 'Question successfully unlinked from section',
+    };
+  }
+
+  @Patch(':id/reorder-questions')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Reorder questions in section (God Mode feature)' })
+  async reorderQuestions(
+    @Param('id') id: string,
+    @Body('questionIds') questionIds: string[],
+  ): Promise<{ success: boolean; message: string }> {
+    if (!questionIds || !Array.isArray(questionIds)) {
+      throw new BadRequestException('Must provide an array of questionIds');
+    }
+    await this.sectionsService.reorderQuestionsInSection(id, questionIds);
+    return { success: true, message: 'Section order saved perfectly.' };
   }
 }

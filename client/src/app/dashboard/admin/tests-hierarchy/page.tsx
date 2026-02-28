@@ -5,10 +5,23 @@ import { HierarchyView } from "@/components/admin/hierarchy-view";
 import { SectionsEditor } from "@/components/admin/sections-editor";
 import { useTestHierarchy } from "@/hooks/use-test-hierarchy";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, FileText, Folder, RefreshCw } from "lucide-react";
+import {
+  Plus,
+  BookOpen,
+  BarChart3,
+  RefreshCw,
+  Edit2,
+  Trash2,
+} from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import {
   Dialog,
@@ -213,49 +226,31 @@ export default function TestsHierarchyPage() {
     }
   };
 
-  function HierarchySkeleton() {
-    return (
-      <Card className="border-0 shadow-xl">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Folder className="h-5 w-5" />
-            Test Hierarchy
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <div className="max-h-96 overflow-y-auto p-4 space-y-2">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="flex items-center gap-2 p-2">
-                <Skeleton className="h-4 w-4" />
-                <Skeleton className="h-4 w-32" />
-                <Skeleton className="h-4 w-16" />
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">
-            📂 Manage Hierarchy
+          <h1 className="text-4xl font-bold flex items-center gap-3 text-zinc-900 dark:text-white">
+            <div className="h-12 w-12 rounded-xl bg-linear-to-br from-indigo-600 to-indigo-700 flex items-center justify-center shadow-lg">
+              <BarChart3 className="h-7 w-7 text-white" />
+            </div>
+            Manage Hierarchy
           </h1>
-          <p className="text-muted-foreground">
-            Build your content structure: Categories → Exams → Test Series
+          <p className="text-zinc-600 dark:text-zinc-400 mt-2 text-base">
+            Organize your test structure: Categories → Exams → Test Series
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button onClick={refresh} variant="outline" size="sm">
-            <RefreshCw className="h-4 w-4 mr-2" />
+        <div className="flex items-center gap-3">
+          <Button onClick={refresh} variant="outline" className="gap-2 h-11">
+            <RefreshCw className="h-4 w-4" />
             Refresh
           </Button>
-          <Button onClick={() => handleItemCreate("category")}>
-            <Plus className="h-4 w-4 mr-2" />
+          <Button
+            onClick={() => handleItemCreate("category")}
+            className="bg-linear-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 gap-2 h-11 px-6 text-white shadow-lg"
+          >
+            <Plus className="h-5 w-5" />
             New Category
           </Button>
         </div>
@@ -266,18 +261,47 @@ export default function TestsHierarchyPage() {
         {/* Hierarchy View */}
         <div className="lg:col-span-2">
           {isLoading ? (
-            <HierarchySkeleton />
+            <Card className="border-0 shadow-xl">
+              <CardHeader className="bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-950/30 dark:to-blue-950/30 rounded-t-lg border-b border-indigo-100 dark:border-indigo-800/30">
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5 text-indigo-600" />
+                  Test Hierarchy
+                </CardTitle>
+                <CardDescription>
+                  Loading your test structure...
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="max-h-96 overflow-y-auto p-6 space-y-3">
+                  {[...Array(5)].map((_, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center gap-3 p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg"
+                    >
+                      <Skeleton className="h-4 w-4 rounded" />
+                      <Skeleton className="h-4 w-40 rounded" />
+                      <Skeleton className="h-6 w-20 rounded" />
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           ) : error ? (
             <Card className="border-0 shadow-xl">
-              <CardContent className="p-8 text-center">
-                <div className="text-red-600 mb-4">
-                  <Folder className="h-12 w-12 mx-auto" />
+              <CardContent className="p-12 text-center">
+                <div className="h-12 w-12 rounded-lg bg-red-100 dark:bg-red-900/20 flex items-center justify-center mx-auto mb-4">
+                  <BarChart3 className="h-6 w-6 text-red-600 dark:text-red-400" />
                 </div>
-                <h3 className="text-lg font-semibold mb-2">
+                <h3 className="text-lg font-semibold mb-2 text-zinc-900 dark:text-white">
                   Error Loading Hierarchy
                 </h3>
-                <p className="text-muted-foreground mb-4">{error}</p>
-                <Button onClick={refresh}>Try Again</Button>
+                <p className="text-zinc-600 dark:text-zinc-400 mb-6">{error}</p>
+                <Button
+                  onClick={refresh}
+                  className="bg-indigo-600 hover:bg-indigo-700"
+                >
+                  Try Again
+                </Button>
               </CardContent>
             </Card>
           ) : (
@@ -292,33 +316,44 @@ export default function TestsHierarchyPage() {
         </div>
 
         {/* Details Panel */}
-        <div>
+        <div className="space-y-4">
           <Card className="border-0 shadow-xl">
-            <CardHeader>
-              <CardTitle>Details</CardTitle>
+            <CardHeader className="bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-950/30 dark:to-blue-950/30 rounded-t-lg border-b border-indigo-100 dark:border-indigo-800/30">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <BookOpen className="h-5 w-5 text-indigo-600" />
+                Item Details
+              </CardTitle>
+              <CardDescription>
+                View and manage selected hierarchy item
+              </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-6">
               {selectedItem ? (
-                <div className="space-y-4">
+                <div className="space-y-6">
+                  {/* Item Name & Type */}
                   <div>
-                    <h3 className="font-semibold text-lg">
+                    <h3 className="font-bold text-lg text-zinc-900 dark:text-white mb-3">
                       {selectedItem.name}
                     </h3>
-                    <Badge className="mt-1">{selectedItem.type}</Badge>
+                    <Badge className="bg-indigo-600 hover:bg-indigo-700 text-white capitalize font-medium">
+                      {selectedItem.type}
+                    </Badge>
                   </div>
 
+                  {/* Relevant Metadata - Only show type-specific info */}
                   {selectedItem.metadata && (
-                    <div className="space-y-2">
+                    <div className="space-y-3 pt-4 border-t border-zinc-200 dark:border-zinc-800">
+                      {/* Status Badge */}
                       {selectedItem.metadata.isActive !== undefined && (
-                        <div className="flex justify-between">
-                          <span className="text-sm text-muted-foreground">
+                        <div className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg">
+                          <span className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
                             Status
                           </span>
                           <Badge
-                            variant={
+                            className={
                               selectedItem.metadata.isActive
-                                ? "default"
-                                : "secondary"
+                                ? "bg-green-600 hover:bg-green-700 text-white"
+                                : "bg-zinc-400 hover:bg-zinc-500 text-white"
                             }
                           >
                             {selectedItem.metadata.isActive
@@ -328,85 +363,107 @@ export default function TestsHierarchyPage() {
                         </div>
                       )}
 
-                      {selectedItem.metadata.isLive && (
-                        <div className="flex justify-between">
-                          <span className="text-sm text-muted-foreground">
-                            Live Status
-                          </span>
-                          <Badge className="bg-red-100 text-red-800">
-                            Live
-                          </Badge>
-                        </div>
+                      {/* Test-specific metadata */}
+                      {selectedItem.type === "test" && (
+                        <>
+                          {selectedItem.metadata.isLive && (
+                            <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                              <span className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
+                                Publication
+                              </span>
+                              <Badge className="bg-green-600 hover:bg-green-700 text-white">
+                                ✓ Live
+                              </Badge>
+                            </div>
+                          )}
+
+                          {!selectedItem.metadata.isLive && (
+                            <div className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg">
+                              <span className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
+                                Publication
+                              </span>
+                              <Badge className="bg-zinc-400 hover:bg-zinc-500 text-white">
+                                ○ Draft
+                              </Badge>
+                            </div>
+                          )}
+
+                          {selectedItem.metadata.durationMins && (
+                            <div className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg">
+                              <span className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
+                                Duration
+                              </span>
+                              <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">
+                                {selectedItem.metadata.durationMins} min
+                              </span>
+                            </div>
+                          )}
+
+                          {selectedItem.metadata.totalMarks && (
+                            <div className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg">
+                              <span className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
+                                Total Marks
+                              </span>
+                              <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">
+                                {selectedItem.metadata.totalMarks}
+                              </span>
+                            </div>
+                          )}
+
+                          {selectedItem.metadata.isPremium && (
+                            <div className="flex items-center justify-between p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+                              <span className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
+                                Type
+                              </span>
+                              <Badge className="bg-yellow-600 hover:bg-yellow-700 text-white">
+                                ⭐ Premium
+                              </Badge>
+                            </div>
+                          )}
+                        </>
                       )}
 
-                      {selectedItem.metadata.isPremium && (
-                        <div className="flex justify-between">
-                          <span className="text-sm text-muted-foreground">
-                            Premium
-                          </span>
-                          <Badge className="bg-yellow-100 text-yellow-800">
-                            Premium
-                          </Badge>
-                        </div>
-                      )}
-
-                      {selectedItem.metadata.durationMins && (
-                        <div className="flex justify-between">
-                          <span className="text-sm text-muted-foreground">
-                            Duration
-                          </span>
-                          <span className="text-sm">
-                            {selectedItem.metadata.durationMins} minutes
-                          </span>
-                        </div>
-                      )}
-
-                      {selectedItem.metadata.totalMarks && (
-                        <div className="flex justify-between">
-                          <span className="text-sm text-muted-foreground">
-                            Total Marks
-                          </span>
-                          <span className="text-sm">
-                            {selectedItem.metadata.totalMarks}
-                          </span>
-                        </div>
-                      )}
-
-                      {selectedItem.metadata.createdAt && (
-                        <div className="flex justify-between">
-                          <span className="text-sm text-muted-foreground">
-                            Created
-                          </span>
-                          <span className="text-sm">
-                            {new Date(
-                              selectedItem.metadata.createdAt,
-                            ).toLocaleDateString()}
-                          </span>
-                        </div>
-                      )}
+                      {/* Created Date - only for important items */}
+                      {selectedItem.metadata.createdAt &&
+                        selectedItem.type === "test" && (
+                          <div className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-700">
+                            <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                              Created
+                            </span>
+                            <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                              {new Date(
+                                selectedItem.metadata.createdAt,
+                              ).toLocaleDateString()}
+                            </span>
+                          </div>
+                        )}
                     </div>
                   )}
 
-                  <div className="pt-4 border-t space-y-2">
+                  {/* Action Buttons */}
+                  <div className="pt-4 border-t border-zinc-200 dark:border-zinc-800 space-y-2">
                     <Button
                       onClick={() => handleItemEdit(selectedItem)}
-                      className="w-full"
+                      className="w-full bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 gap-2 text-white shadow-md"
                     >
+                      <Edit2 className="h-4 w-4" />
                       Edit {selectedItem.type}
                     </Button>
                     <Button
                       onClick={() => handleItemDelete(selectedItem)}
-                      variant="destructive"
-                      className="w-full"
+                      className="w-full bg-red-600 hover:bg-red-700 gap-2 text-white shadow-md"
                     >
+                      <Trash2 className="h-4 w-4" />
                       Delete {selectedItem.type}
                     </Button>
                   </div>
                 </div>
               ) : (
-                <div className="text-center text-muted-foreground py-8">
-                  <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p className="text-sm">
+                <div className="text-center text-zinc-500 dark:text-zinc-400 py-12">
+                  <div className="h-12 w-12 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center mx-auto mb-4">
+                    <BookOpen className="h-6 w-6 text-zinc-400" />
+                  </div>
+                  <p className="text-sm font-medium">
                     Select an item from the hierarchy to view details
                   </p>
                 </div>
@@ -414,6 +471,7 @@ export default function TestsHierarchyPage() {
             </CardContent>
           </Card>
 
+          {/* Sections Editor - Only show for tests */}
           {selectedItem?.type === "test" && (
             <SectionsEditor
               testId={selectedItem.id}

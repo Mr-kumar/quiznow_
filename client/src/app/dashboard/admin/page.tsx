@@ -10,6 +10,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Users,
   FileText,
@@ -23,20 +24,26 @@ import {
   Eye,
   Edit,
   Trash2,
+  BarChart3,
+  Zap,
+  Clock,
+  Award,
+  BookOpen,
 } from "lucide-react";
+import Link from "next/link";
 import { useAdminDashboard } from "@/hooks/use-admin-dashboard";
 
 function AdminDashboardSkeleton() {
   return (
     <div className="space-y-8">
       {/* Hero Skeleton */}
-      <div className="relative overflow-hidden rounded-2xl bg-linear-to-r from-red-600 via-orange-600 to-yellow-600 p-8 text-white shadow-2xl">
+      <div className="relative overflow-hidden rounded-3xl bg-linear-to-r from-blue-600 via-purple-600 to-pink-600 p-12 text-white shadow-2xl">
         <div className="relative z-10">
-          <div className="flex items-center gap-3 mb-4">
-            <Skeleton className="h-12 w-12 rounded-full bg-white/20" />
-            <div className="space-y-2">
-              <Skeleton className="h-8 w-64 bg-white/20" />
-              <Skeleton className="h-4 w-96 bg-white/20" />
+          <div className="flex items-center gap-4 mb-6">
+            <Skeleton className="h-16 w-16 rounded-full bg-white/20" />
+            <div className="space-y-3">
+              <Skeleton className="h-8 w-56 bg-white/20" />
+              <Skeleton className="h-4 w-80 bg-white/20" />
             </div>
           </div>
         </div>
@@ -45,14 +52,14 @@ function AdminDashboardSkeleton() {
       {/* Metrics Skeleton */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         {[...Array(4)].map((_, i) => (
-          <Card key={i} className="border-0 shadow-xl">
+          <Card key={i} className="border-0 shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <Skeleton className="h-4 w-20" />
-              <Skeleton className="h-4 w-4" />
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-8 w-8 rounded-lg" />
             </CardHeader>
             <CardContent>
-              <Skeleton className="h-8 w-16 mb-2" />
-              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-8 w-20 mb-3" />
+              <Skeleton className="h-4 w-32" />
             </CardContent>
           </Card>
         ))}
@@ -78,8 +85,8 @@ export default function AdminOverviewPage() {
 
   if (error) {
     return (
-      <div className="space-y-8">
-        <div className="relative overflow-hidden rounded-2xl bg-red-600 p-8 text-white shadow-2xl">
+      <div className="space-y-6">
+        <div className="relative overflow-hidden rounded-2xl bg-linear-to-r from-red-600 to-red-700 p-8 text-white shadow-2xl">
           <div className="relative z-10">
             <h1 className="text-3xl font-bold tracking-tight mb-4">
               Error Loading Dashboard
@@ -96,143 +103,193 @@ export default function AdminOverviewPage() {
 
   return (
     <div className="space-y-8">
-      {/* 🎯 Hero Section */}
-      <div className="relative overflow-hidden rounded-2xl bg-linear-to-r from-red-600 via-orange-600 to-yellow-600 p-8 text-white shadow-2xl">
-        <div className="absolute inset-0 bg-black/20"></div>
+      {/* 🎯 Enhanced Hero Section */}
+      <div className="relative overflow-hidden rounded-3xl bg-linear-to-r from-blue-600 via-blue-700 to-purple-700 p-12 text-white shadow-2xl border border-blue-500/20">
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute -top-10 -right-10 h-96 w-96 rounded-full bg-white/10 blur-3xl"></div>
+          <div className="absolute -bottom-10 -left-10 h-80 w-80 rounded-full bg-purple-400/10 blur-3xl"></div>
+        </div>
         <div className="relative z-10">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="h-12 w-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
-              <Shield className="h-6 w-6 text-yellow-300" />
+          <div className="flex items-start justify-between mb-8">
+            <div className="flex items-start gap-4">
+              <div className="h-16 w-16 rounded-2xl bg-white/20 backdrop-blur-xl flex items-center justify-center border border-white/30">
+                <BarChart3 className="h-8 w-8" />
+              </div>
+              <div>
+                <h1 className="text-4xl font-bold tracking-tight">
+                  Admin Control Center
+                </h1>
+                <p className="text-blue-100 mt-2 text-lg">
+                  Complete platform overview and management
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">
-                Admin Control Center
-              </h1>
-              <p className="text-red-100 mt-1">
-                Manage your entire quiz ecosystem with powerful tools
-              </p>
+            <div className="flex gap-2">
+              <Badge className="bg-white/20 text-white border-white/30 backdrop-blur-sm">
+                <Activity className="w-3 h-3 mr-1" />
+                System Active
+              </Badge>
+              <Badge className="bg-green-400/30 text-green-100 border-green-400/50 backdrop-blur-sm">
+                <CheckCircle2 className="w-3 h-3 mr-1" />
+                All Systems Online
+              </Badge>
             </div>
           </div>
-          <div className="flex items-center gap-4 mt-6">
-            <Badge className="bg-white/20 text-white border-white/30">
-              <Activity className="w-3 h-3 mr-1" />
-              System Active
-            </Badge>
-            <Badge className="bg-green-500/20 text-green-100 border-green-400/30">
-              <CheckCircle2 className="w-3 h-3 mr-1" />
-              All Systems Operational
-            </Badge>
+
+          <div className="flex flex-wrap gap-3">
+            <div className="px-4 py-2 rounded-lg bg-white/10 backdrop-blur-sm border border-white/20">
+              <p className="text-sm text-blue-100">Platform Health</p>
+              <p className="text-xl font-bold">99.9%</p>
+            </div>
+            <div className="px-4 py-2 rounded-lg bg-white/10 backdrop-blur-sm border border-white/20">
+              <p className="text-sm text-blue-100">Response Time</p>
+              <p className="text-xl font-bold">45ms</p>
+            </div>
           </div>
         </div>
-        <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10 blur-2xl"></div>
-        <div className="absolute -left-10 -bottom-10 h-40 w-40 rounded-full bg-white/10 blur-2xl"></div>
       </div>
 
       {/* 📊 Key Metrics Grid */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="group hover:shadow-xl transition-all duration-300 border-0 bg-linear-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-blue-700 dark:text-blue-300">
+        {/* Total Users */}
+        <Card className="group hover:shadow-xl transition-all duration-300 border-0 shadow-lg bg-linear-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+            <CardTitle className="text-sm font-semibold text-blue-700 dark:text-blue-300">
               Total Users
             </CardTitle>
-            <div className="h-8 w-8 rounded-lg bg-blue-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-              <Users className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+            <div className="h-10 w-10 rounded-xl bg-blue-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">
+            <div className="text-3xl font-bold text-blue-700 dark:text-blue-300">
               {metrics?.totalUsers.toLocaleString() || 0}
             </div>
-            <p className="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1">
+            <p className="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1 mt-2">
               {metrics?.userGrowth && metrics.userGrowth > 0 ? (
-                <ArrowUpRight className="h-3 w-3" />
+                <ArrowUpRight className="h-3 w-3 text-green-500" />
               ) : (
-                <ArrowDownRight className="h-3 w-3" />
+                <ArrowDownRight className="h-3 w-3 text-red-500" />
               )}
-              {metrics?.userGrowth
-                ? `${metrics.userGrowth > 0 ? "+" : ""}${metrics.userGrowth}%`
-                : "0%"}{" "}
+              <span
+                className={
+                  metrics?.userGrowth && metrics.userGrowth > 0
+                    ? "text-green-600"
+                    : "text-red-600"
+                }
+              >
+                {metrics?.userGrowth
+                  ? `${metrics.userGrowth > 0 ? "+" : ""}${metrics.userGrowth}%`
+                  : "0%"}
+              </span>{" "}
               from last month
             </p>
           </CardContent>
         </Card>
 
-        <Card className="group hover:shadow-xl transition-all duration-300 border-0 bg-linear-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-green-700 dark:text-green-300">
+        {/* Active Tests */}
+        <Card className="group hover:shadow-xl transition-all duration-300 border-0 shadow-lg bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+            <CardTitle className="text-sm font-semibold text-green-700 dark:text-green-300">
               Active Tests
             </CardTitle>
-            <div className="h-8 w-8 rounded-lg bg-green-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-              <FileText className="h-4 w-4 text-green-600 dark:text-green-400" />
+            <div className="h-10 w-10 rounded-xl bg-green-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <FileText className="h-5 w-5 text-green-600 dark:text-green-400" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-700 dark:text-green-300">
+            <div className="text-3xl font-bold text-green-700 dark:text-green-300">
               {metrics?.activeTests || 0}
             </div>
-            <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
+            <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1 mt-2">
               {metrics?.testGrowth && metrics.testGrowth > 0 ? (
-                <ArrowUpRight className="h-3 w-3" />
+                <ArrowUpRight className="h-3 w-3 text-green-500" />
               ) : (
-                <ArrowDownRight className="h-3 w-3" />
+                <ArrowDownRight className="h-3 w-3 text-red-500" />
               )}
-              {metrics?.testGrowth
-                ? `${metrics.testGrowth > 0 ? "+" : ""}${metrics.testGrowth}%`
-                : "0%"}{" "}
+              <span
+                className={
+                  metrics?.testGrowth && metrics.testGrowth > 0
+                    ? "text-green-600"
+                    : "text-red-600"
+                }
+              >
+                {metrics?.testGrowth
+                  ? `${metrics.testGrowth > 0 ? "+" : ""}${metrics.testGrowth}%`
+                  : "0%"}
+              </span>{" "}
               from last month
             </p>
           </CardContent>
         </Card>
 
-        <Card className="group hover:shadow-xl transition-all duration-300 border-0 bg-linear-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-purple-700 dark:text-purple-300">
+        {/* Completed Attempts */}
+        <Card className="group hover:shadow-xl transition-all duration-300 border-0 shadow-lg bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+            <CardTitle className="text-sm font-semibold text-purple-700 dark:text-purple-300">
               Completed Attempts
             </CardTitle>
-            <div className="h-8 w-8 rounded-lg bg-purple-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-              <CheckCircle2 className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+            <div className="h-10 w-10 rounded-xl bg-purple-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <CheckCircle2 className="h-5 w-5 text-purple-600 dark:text-purple-400" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-purple-700 dark:text-purple-300">
+            <div className="text-3xl font-bold text-purple-700 dark:text-purple-300">
               {metrics?.completedAttempts.toLocaleString() || 0}
             </div>
-            <p className="text-xs text-purple-600 dark:text-purple-400 flex items-center gap-1">
+            <p className="text-xs text-purple-600 dark:text-purple-400 flex items-center gap-1 mt-2">
               {metrics?.attemptGrowth && metrics.attemptGrowth > 0 ? (
-                <ArrowUpRight className="h-3 w-3" />
+                <ArrowUpRight className="h-3 w-3 text-green-500" />
               ) : (
-                <ArrowDownRight className="h-3 w-3" />
+                <ArrowDownRight className="h-3 w-3 text-red-500" />
               )}
-              {metrics?.attemptGrowth
-                ? `${metrics.attemptGrowth > 0 ? "+" : ""}${metrics.attemptGrowth}%`
-                : "0%"}{" "}
+              <span
+                className={
+                  metrics?.attemptGrowth && metrics.attemptGrowth > 0
+                    ? "text-green-600"
+                    : "text-red-600"
+                }
+              >
+                {metrics?.attemptGrowth
+                  ? `${metrics.attemptGrowth > 0 ? "+" : ""}${metrics.attemptGrowth}%`
+                  : "0%"}
+              </span>{" "}
               from last month
             </p>
           </CardContent>
         </Card>
 
-        <Card className="group hover:shadow-xl transition-all duration-300 border-0 bg-linear-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-orange-700 dark:text-orange-300">
+        {/* Avg. Performance */}
+        <Card className="group hover:shadow-xl transition-all duration-300 border-0 shadow-lg bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+            <CardTitle className="text-sm font-semibold text-orange-700 dark:text-orange-300">
               Avg. Performance
             </CardTitle>
-            <div className="h-8 w-8 rounded-lg bg-orange-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-              <TrendingUp className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+            <div className="h-10 w-10 rounded-xl bg-orange-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <TrendingUp className="h-5 w-5 text-orange-600 dark:text-orange-400" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-orange-700 dark:text-orange-300">
+            <div className="text-3xl font-bold text-orange-700 dark:text-orange-300">
               {metrics?.avgPerformance || 0}%
             </div>
-            <p className="text-xs text-orange-600 dark:text-orange-400 flex items-center gap-1">
+            <p className="text-xs text-orange-600 dark:text-orange-400 flex items-center gap-1 mt-2">
               {metrics?.performanceGrowth && metrics.performanceGrowth > 0 ? (
-                <ArrowUpRight className="h-3 w-3" />
+                <ArrowUpRight className="h-3 w-3 text-green-500" />
               ) : (
-                <ArrowDownRight className="h-3 w-3" />
+                <ArrowDownRight className="h-3 w-3 text-red-500" />
               )}
-              {metrics?.performanceGrowth
-                ? `${metrics.performanceGrowth > 0 ? "+" : ""}${metrics.performanceGrowth}%`
-                : "0%"}{" "}
+              <span
+                className={
+                  metrics?.performanceGrowth && metrics.performanceGrowth > 0
+                    ? "text-green-600"
+                    : "text-red-600"
+                }
+              >
+                {metrics?.performanceGrowth
+                  ? `${metrics.performanceGrowth > 0 ? "+" : ""}${metrics.performanceGrowth}%`
+                  : "0%"}
+              </span>{" "}
               improvement
             </p>
           </CardContent>
@@ -241,162 +298,280 @@ export default function AdminOverviewPage() {
 
       {/* 🚀 Quick Actions */}
       <div className="grid gap-6 md:grid-cols-3">
-        <Card className="group hover:shadow-xl transition-all duration-300 border-0 bg-linear-to-br from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20 cursor-pointer">
-          <CardHeader>
-            <div className="h-12 w-12 rounded-xl bg-red-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-              <Plus className="h-6 w-6 text-red-600 dark:text-red-400" />
-            </div>
-            <CardTitle className="text-red-700 dark:text-red-300">
-              Create New Test
-            </CardTitle>
-            <CardDescription className="text-red-600 dark:text-red-400">
-              Design engaging quizzes with questions and timers
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button className="w-full bg-linear-to-r from-red-500 to-orange-600 hover:from-red-600 hover:to-orange-700 text-white">
-              Start Creating
-            </Button>
-          </CardContent>
-        </Card>
+        <Link href="/dashboard/admin/tests/create">
+          <Card className="group hover:shadow-xl transition-all duration-300 border-0 shadow-lg bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 cursor-pointer h-full">
+            <CardHeader>
+              <div className="h-12 w-12 rounded-xl bg-blue-500/20 flex items-center justify-center group-hover:scale-110 transition-transform mb-4">
+                <Plus className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+              </div>
+              <CardTitle className="text-blue-700 dark:text-blue-300">
+                Create Test
+              </CardTitle>
+              <CardDescription className="text-blue-600 dark:text-blue-400">
+                Design new assessments
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white">
+                Start Creating
+              </Button>
+            </CardContent>
+          </Card>
+        </Link>
 
-        <Card className="group hover:shadow-xl transition-all duration-300 border-0 bg-linear-to-br from-indigo-50 to-indigo-100 dark:from-indigo-900/20 dark:to-indigo-800/20 cursor-pointer">
-          <CardHeader>
-            <div className="h-12 w-12 rounded-xl bg-indigo-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-              <Users className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
-            </div>
-            <CardTitle className="text-indigo-700 dark:text-indigo-300">
-              Manage Users
-            </CardTitle>
-            <CardDescription className="text-indigo-600 dark:text-indigo-400">
-              View, edit, and manage user accounts and permissions
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button className="w-full bg-linear-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white">
-              View Users
-            </Button>
-          </CardContent>
-        </Card>
+        <Link href="/dashboard/admin/users">
+          <Card className="group hover:shadow-xl transition-all duration-300 border-0 shadow-lg bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 cursor-pointer h-full">
+            <CardHeader>
+              <div className="h-12 w-12 rounded-xl bg-purple-500/20 flex items-center justify-center group-hover:scale-110 transition-transform mb-4">
+                <Users className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+              </div>
+              <CardTitle className="text-purple-700 dark:text-purple-300">
+                Manage Users
+              </CardTitle>
+              <CardDescription className="text-purple-600 dark:text-purple-400">
+                Control accounts & roles
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white">
+                View Users
+              </Button>
+            </CardContent>
+          </Card>
+        </Link>
 
-        <Card className="group hover:shadow-xl transition-all duration-300 border-0 bg-linear-to-br from-teal-50 to-teal-100 dark:from-teal-900/20 dark:to-teal-800/20 cursor-pointer">
-          <CardHeader>
-            <div className="h-12 w-12 rounded-xl bg-teal-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-              <Activity className="h-6 w-6 text-teal-600 dark:text-teal-400" />
-            </div>
-            <CardTitle className="text-teal-700 dark:text-teal-300">
-              System Analytics
-            </CardTitle>
-            <CardDescription className="text-teal-600 dark:text-teal-400">
-              Deep insights into platform usage and performance
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button className="w-full bg-linear-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white">
-              View Analytics
-            </Button>
-          </CardContent>
-        </Card>
+        <Link href="/dashboard/admin/analytics">
+          <Card className="group hover:shadow-xl transition-all duration-300 border-0 shadow-lg bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 cursor-pointer h-full">
+            <CardHeader>
+              <div className="h-12 w-12 rounded-xl bg-green-500/20 flex items-center justify-center group-hover:scale-110 transition-transform mb-4">
+                <BarChart3 className="h-6 w-6 text-green-600 dark:text-green-400" />
+              </div>
+              <CardTitle className="text-green-700 dark:text-green-300">
+                Analytics
+              </CardTitle>
+              <CardDescription className="text-green-600 dark:text-green-400">
+                Deep insights & metrics
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white">
+                View Analytics
+              </Button>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
 
-      {/* 📋 Recent Activity Table */}
-      <Card className="border-0 bg-white dark:bg-zinc-900 shadow-xl">
-        <CardHeader className="border-b border-zinc-200 dark:border-zinc-800">
-          <CardTitle className="flex items-center gap-2">
-            <Activity className="h-5 w-5" />
-            Recent Activity
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-zinc-50 dark:bg-zinc-800">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                    Activity
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                    User
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                    Time
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
-                <tr className="hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      <FileText className="h-4 w-4 text-blue-500" />
-                      <span className="text-sm font-medium">
-                        Test Completed
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-600 dark:text-zinc-400">
-                    John Doe
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-600 dark:text-zinc-400">
-                    2 mins ago
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
-                      Success
-                    </Badge>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <div className="flex items-center gap-2">
-                      <Button variant="ghost" size="sm">
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm">
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-                <tr className="hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      <Users className="h-4 w-4 text-purple-500" />
-                      <span className="text-sm font-medium">
-                        New User Registered
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-600 dark:text-zinc-400">
-                    Jane Smith
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-600 dark:text-zinc-400">
-                    15 mins ago
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
-                      Pending
-                    </Badge>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <div className="flex items-center gap-2">
-                      <Button variant="ghost" size="sm">
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm">
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+      {/* 📊 Detailed Stats */}
+      <Tabs defaultValue="users" className="w-full">
+        <TabsList className="grid w-full grid-cols-3 bg-zinc-100 dark:bg-zinc-900">
+          <TabsTrigger value="users" className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            Users
+          </TabsTrigger>
+          <TabsTrigger value="tests" className="flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            Tests
+          </TabsTrigger>
+          <TabsTrigger value="attempts" className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4" />
+            Attempts
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="users" className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card className="border-0 shadow-lg">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                      Total
+                    </p>
+                    <p className="text-2xl font-bold">
+                      {userStats?.total || 0}
+                    </p>
+                  </div>
+                  <Users className="h-8 w-8 text-blue-500 opacity-50" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="border-0 shadow-lg">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                      Students
+                    </p>
+                    <p className="text-2xl font-bold">
+                      {userStats?.students || 0}
+                    </p>
+                  </div>
+                  <BookOpen className="h-8 w-8 text-green-500 opacity-50" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="border-0 shadow-lg">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                      Instructors
+                    </p>
+                    <p className="text-2xl font-bold">
+                      {userStats?.instructors || 0}
+                    </p>
+                  </div>
+                  <Award className="h-8 w-8 text-purple-500 opacity-50" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="border-0 shadow-lg">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                      Active This Month
+                    </p>
+                    <p className="text-2xl font-bold">
+                      {userStats?.activeThisMonth || 0}
+                    </p>
+                  </div>
+                  <Activity className="h-8 w-8 text-orange-500 opacity-50" />
+                </div>
+              </CardContent>
+            </Card>
           </div>
-        </CardContent>
-      </Card>
+        </TabsContent>
+
+        <TabsContent value="tests" className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card className="border-0 shadow-lg">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                      Total
+                    </p>
+                    <p className="text-2xl font-bold">
+                      {testStats?.total || 0}
+                    </p>
+                  </div>
+                  <FileText className="h-8 w-8 text-blue-500 opacity-50" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="border-0 shadow-lg">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                      Active
+                    </p>
+                    <p className="text-2xl font-bold">
+                      {testStats?.active || 0}
+                    </p>
+                  </div>
+                  <Zap className="h-8 w-8 text-green-500 opacity-50" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="border-0 shadow-lg">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                      Live
+                    </p>
+                    <p className="text-2xl font-bold">{testStats?.live || 0}</p>
+                  </div>
+                  <CheckCircle2 className="h-8 w-8 text-purple-500 opacity-50" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="border-0 shadow-lg">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                      Completed This Month
+                    </p>
+                    <p className="text-2xl font-bold">
+                      {testStats?.completedThisMonth || 0}
+                    </p>
+                  </div>
+                  <Award className="h-8 w-8 text-orange-500 opacity-50" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="attempts" className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card className="border-0 shadow-lg">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                      Total
+                    </p>
+                    <p className="text-2xl font-bold">
+                      {attemptStats?.total || 0}
+                    </p>
+                  </div>
+                  <Activity className="h-8 w-8 text-blue-500 opacity-50" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="border-0 shadow-lg">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                      Completed
+                    </p>
+                    <p className="text-2xl font-bold">
+                      {attemptStats?.completed || 0}
+                    </p>
+                  </div>
+                  <CheckCircle2 className="h-8 w-8 text-green-500 opacity-50" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="border-0 shadow-lg">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                      Avg Score
+                    </p>
+                    <p className="text-2xl font-bold">
+                      {attemptStats?.avgScore || 0}%
+                    </p>
+                  </div>
+                  <TrendingUp className="h-8 w-8 text-purple-500 opacity-50" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="border-0 shadow-lg">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                      Avg Duration
+                    </p>
+                    <p className="text-2xl font-bold">
+                      {Math.round((attemptStats?.avgDuration || 0) / 60)} min
+                    </p>
+                  </div>
+                  <Clock className="h-8 w-8 text-orange-500 opacity-50" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

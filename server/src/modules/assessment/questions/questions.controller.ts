@@ -10,6 +10,8 @@ import {
   ParseUUIDPipe,
   UseGuards,
   Query,
+  NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express/multer';
 import { UploadedFile } from '@nestjs/common';
@@ -100,14 +102,6 @@ export class QuestionsController {
     return this.questionsService.softDelete(id);
   }
 
-  @Patch('bulk-tag')
-  @ApiOperation({
-    summary: 'Bulk tag questions with topic (God Mode feature)',
-  })
-  bulkTagQuestions(@Body() dto: { questionIds: string[]; topicId: string }) {
-    return this.questionsService.bulkTagQuestions(dto.questionIds, dto.topicId);
-  }
-
   @Post('upload')
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
@@ -143,5 +137,24 @@ export class QuestionsController {
       sectionId,
       questionIds,
     );
+  }
+
+  @Patch('bulk-tag')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Bulk tag questions with topic (God Mode feature)' })
+  async bulkTag(
+    @Body('questionIds') questionIds: string[],
+    @Body('topicId') topicId: string,
+  ): Promise<{ success: boolean; updatedCount?: number }> {
+    if (!questionIds || !topicId) {
+      throw new BadRequestException(
+        'Must provide questionIds array and a topicId',
+      );
+    }
+    const result = await this.questionsService.bulkTagQuestions(
+      questionIds,
+      topicId,
+    );
+    return { success: true, updatedCount: result.count };
   }
 }

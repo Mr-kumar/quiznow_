@@ -95,6 +95,62 @@ export default function TestAssemblyDashboard() {
     }
   };
 
+  const handleReorderQuestion = async (
+    sectionId: string,
+    questionId: string,
+    direction: "up" | "down",
+  ) => {
+    try {
+      const section = testData.sections?.find((s: any) => s.id === sectionId);
+      if (!section) return;
+
+      const questions = section.questions || [];
+      const currentIndex = questions.findIndex(
+        (q: any) => q.questionId === questionId,
+      );
+
+      if (
+        (direction === "up" && currentIndex === 0) ||
+        (direction === "down" && currentIndex === questions.length - 1)
+      ) {
+        toast({
+          title: "Cannot move",
+          description:
+            direction === "up" ? "Already at the top" : "Already at the bottom",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const newIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+      const reorderedIds = questions.map((q: any) => q.questionId);
+      [reorderedIds[currentIndex], reorderedIds[newIndex]] = [
+        reorderedIds[newIndex],
+        reorderedIds[currentIndex],
+      ];
+
+      await api.patch(`/sections/${sectionId}/reorder-questions`, {
+        questionIds: reorderedIds,
+      });
+
+      toast({
+        title: "Order Updated",
+        description: `Question moved ${direction}`,
+      });
+
+      await fetchTestDetails();
+    } catch (error: any) {
+      toast({
+        title: "Failed to reorder",
+        description:
+          error?.response?.data?.message ||
+          error?.message ||
+          "Please try again",
+        variant: "destructive",
+      });
+    }
+  };
+
   useEffect(() => {
     if (params.id) fetchTestDetails();
   }, [params.id]);
@@ -446,6 +502,14 @@ export default function TestAssemblyDashboard() {
                                         variant="ghost"
                                         size="icon"
                                         className="h-8 w-8 text-zinc-400 hover:text-indigo-600"
+                                        onClick={() =>
+                                          handleReorderQuestion(
+                                            section.id,
+                                            masterQ.id,
+                                            "up",
+                                          )
+                                        }
+                                        disabled={index === 0}
                                       >
                                         <ArrowUp className="w-4 h-4" />
                                       </Button>
@@ -453,6 +517,17 @@ export default function TestAssemblyDashboard() {
                                         variant="ghost"
                                         size="icon"
                                         className="h-8 w-8 text-zinc-400 hover:text-indigo-600"
+                                        onClick={() =>
+                                          handleReorderQuestion(
+                                            section.id,
+                                            masterQ.id,
+                                            "down",
+                                          )
+                                        }
+                                        disabled={
+                                          index ===
+                                          (section.questions?.length || 0) - 1
+                                        }
                                       >
                                         <ArrowDown className="w-4 h-4" />
                                       </Button>
