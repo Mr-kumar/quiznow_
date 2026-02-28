@@ -1,4 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from 'src/services/prisma/prisma.service';
 import { CreateAttemptDto } from './dto/create-attempt.dto';
 import { SubmitAttemptDto } from './dto/submit-attempt.dto';
@@ -136,13 +141,7 @@ export class AttemptsService {
       include: {
         translations: {
           where: { lang: 'en' },
-          select: { options: true },
         },
-      },
-      select: {
-        id: true,
-        correctAnswer: true,
-        translations: true,
       },
     });
 
@@ -152,7 +151,7 @@ export class AttemptsService {
         q.id,
         {
           correctAnswer: q.correctAnswer,
-          totalOptions: q.translations[0]?.options?.length || 4,
+          totalOptions: (q.translations[0]?.options as any)?.length || 4,
         },
       ]),
     );
@@ -171,7 +170,7 @@ export class AttemptsService {
     let score = 0;
     let correctCount = 0;
     let wrongCount = 0;
-    let timeTaken = null;
+    let timeTaken: number | null = null;
 
     // Calculate time taken
     if (attempt.startTime) {

@@ -48,4 +48,22 @@ export class CreateTestDto {
   @IsNumber()
   @Min(0)
   negativeMarking: number;
+
+  @ApiProperty({
+    example: '2024-01-01T10:00:00Z',
+    description: 'Test Start Time (Optional)',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  startAt?: string;
+
+  @ApiProperty({
+    example: '2024-01-01T12:00:00Z',
+    description: 'Test End Time (Optional)',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  endAt?: string;
 }

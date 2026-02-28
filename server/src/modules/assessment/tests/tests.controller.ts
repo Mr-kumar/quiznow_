@@ -74,15 +74,14 @@ export class TestsController {
   }
 
   @Get(':id/export')
-  @ApiOperation({
-    summary: 'Export test data to Excel (God Mode feature)',
-  })
-  async exportTest(@Param('id') id: string, @Res() res: Response) {
+  @ApiOperation({ summary: 'Export test to Excel' })
+  async exportTest(@Param('id') id: string, @Res() res: any) {
     return this.testsService.exportTest(id, res);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
+  @ApiOperation({ summary: 'Delete a test' })
+  async remove(@Param('id') id: string) {
     return this.testsService.remove(id);
   }
 }

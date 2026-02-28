@@ -221,10 +221,11 @@ export class QuestionsController {
       orderBy,
     });
 
-    // Get metadata
+    // Get metadata (OPTIMIZED - No slow count queries)
     const metadata = await this.questionsService.getCursorMetadata(
-      cursor,
+      questions,
       limit,
+      direction,
     );
 
     // Determine next/previous cursors
@@ -238,10 +239,11 @@ export class QuestionsController {
         nextCursor,
         prevCursor,
         hasMore: metadata.hasMore,
-        hasPrevious: metadata.hasPrevious,
-        currentPage: metadata.currentPage,
-        totalPages: metadata.totalPages,
-        total: metadata.total,
+        hasPrevious: !!prevCursor, // Simple check - if there's a previous cursor, we have previous data
+        // 🚨 FIX 4: Remove count-based metadata for performance
+        // total: 0, // Not needed for cursor pagination
+        // totalPages: 0, // Not needed for cursor pagination
+        // currentPage: 0, // Not needed for cursor pagination
         limit,
       },
     };

@@ -210,7 +210,9 @@ export class QuestionsService {
     }
 
     return this.prisma.$transaction(async (tx) => {
-      let count = 0;
+      // 🚨 FIX 2A: Pre-process all rows to generate hashes
+      const processedRows: any[] = [];
+      const allHashes: string[] = [];
 
       for (const [index, row] of rows.entries()) {
         if (!row['Question']) continue; // Skip empty rows
@@ -268,27 +270,57 @@ export class QuestionsService {
           .update(hashContent)
           .digest('hex');
 
-        // 1. Check if this exact question already exists globally in the Question Bank
-        let question = await tx.question.findUnique({
-          where: { hash: uniqueHash },
+        processedRows.push({
+          questionText,
+          options,
+          correctIndex,
+          uniqueHash,
+          explanation: row['Explanation'] || null,
+          index: index + 2, // for error reporting
         });
+
+        allHashes.push(uniqueHash);
+      }
+
+      // 🚨 FIX 2B: Fetch ALL existing questions with these hashes in ONE query
+      const existingQuestions = await tx.question.findMany({
+        where: {
+          hash: {
+            in: allHashes,
+          },
+        },
+      });
+
+      // Build a Map for O(1) lookup instead of O(n) database queries
+      const hashToQuestionMap = new Map(
+        existingQuestions.map((q) => [q.hash, q]),
+      );
+
+      // 🚨 FIX 2C: Now iterate through processed rows with minimal DB calls
+      let count = 0;
+
+      for (const processedRow of processedRows) {
+        // 1. Check if question exists in our preloaded map (O(1) lookup, no DB call)
+        let question = hashToQuestionMap.get(processedRow.uniqueHash);
 
         if (!question) {
           // 2. If it is brand new, create it in the Global Bank
           question = await tx.question.create({
             data: {
-              correctAnswer: correctIndex,
-              hash: uniqueHash,
+              correctAnswer: processedRow.correctIndex,
+              hash: processedRow.uniqueHash,
               translations: {
                 create: {
                   lang: 'en',
-                  content: questionText,
-                  options: options,
-                  explanation: row['Explanation'] || null,
+                  content: processedRow.questionText,
+                  options: processedRow.options,
+                  explanation: processedRow.explanation,
                 },
               },
             },
           });
+          // Add to map for potential duplicate questions in the same upload
+          hashToQuestionMap.set(processedRow.uniqueHash, question);
         }
 
         // 3. Connect the question (new or existing) to the specific Test Section safely
@@ -419,11 +451,7 @@ export class QuestionsService {
           where: { lang: 'en' }, // Only English translations
           take: 1,
         },
-        topic: {
-          include: {
-            subject: true,
-          },
-        },
+        topic: true,
       },
       orderBy,
     });
@@ -431,34 +459,29 @@ export class QuestionsService {
     return questions;
   }
 
-  // 📊 NEW: Get pagination metadata for cursor-based navigation
-  async getCursorMetadata(cursor?: string, take: number = 50) {
-    const where = { isActive: true };
+  // 📊 NEW: Get pagination metadata for cursor-based navigation (OPTIMIZED - No slow counts)
+  async getCursorMetadata(
+    questions: any[],
+    take: number = 50,
+    direction: 'forward' | 'backward' = 'forward',
+  ) {
+    // 🚨 FIX 4: Remove slow count() queries - use only what we have
+    const hasMore = questions.length === take; // If we got a full page, there might be more
+    const hasPrevious = false; // Will be determined by frontend based on cursor existence
 
-    // Count total questions
-    const total = await this.prisma.question.count({ where });
-
-    // Get current position if cursor exists
-    let currentPosition = 0;
-    if (cursor) {
-      currentPosition = await this.prisma.question.count({
-        where: {
-          ...where,
-          id: { lt: cursor },
-        },
-      });
-    }
-
-    const hasMore = currentPosition + take < total;
-    const hasPrevious = currentPosition > 0;
+    // 🚨 FIX 4B: Remove total, totalPages, currentPage as they require count() queries
+    // For cursor pagination, we only need:
+    // 1. hasMore (determined by whether we got a full page)
+    // 2. nextCursor (last item ID)
+    // 3. hasPrevious (frontend knows if there was a previous cursor)
 
     return {
-      total,
-      currentPosition,
       hasMore,
       hasPrevious,
-      totalPages: Math.ceil(total / take),
-      currentPage: Math.floor(currentPosition / take) + 1,
+      // Remove these to avoid slow count queries:
+      // total: 0, // Not needed for cursor pagination
+      // totalPages: 0, // Not needed for cursor pagination
+      // currentPage: 0, // Not needed for cursor pagination
     };
   }
 }

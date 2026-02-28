@@ -129,23 +129,50 @@ export default function TestAssemblyDashboard() {
         reorderedIds[currentIndex],
       ];
 
-      await api.patch(`/sections/${sectionId}/reorder-questions`, {
-        questionIds: reorderedIds,
+      // 🚨 FIX 3A: Save the original state for rollback on error
+      const originalTestData = JSON.parse(JSON.stringify(testData));
+
+      // 🚨 FIX 3B: Optimistic Update - Update UI immediately
+      const updatedSections = testData.sections.map((sec: any) => {
+        if (sec.id === sectionId) {
+          const updatedQuestions = [...sec.questions];
+          [updatedQuestions[currentIndex], updatedQuestions[newIndex]] = [
+            updatedQuestions[newIndex],
+            updatedQuestions[currentIndex],
+          ];
+          return { ...sec, questions: updatedQuestions };
+        }
+        return sec;
       });
 
-      toast({
-        title: "Order Updated",
-        description: `Question moved ${direction}`,
-      });
+      setTestData({ ...testData, sections: updatedSections });
 
-      await fetchTestDetails();
+      // 🚨 FIX 3C: Send API request in background (quietly, without blocking UI)
+      try {
+        await api.patch(`/sections/${sectionId}/reorder-questions`, {
+          questionIds: reorderedIds,
+        });
+
+        toast({
+          title: "Order Updated",
+          description: `Question moved ${direction}`,
+        });
+      } catch (error: any) {
+        // 🚨 FIX 3D: If API fails, rollback to original state
+        setTestData(originalTestData);
+        toast({
+          title: "Failed to reorder",
+          description:
+            error?.response?.data?.message ||
+            error?.message ||
+            "Changes have been reverted",
+          variant: "destructive",
+        });
+      }
     } catch (error: any) {
       toast({
-        title: "Failed to reorder",
-        description:
-          error?.response?.data?.message ||
-          error?.message ||
-          "Please try again",
+        title: "Error",
+        description: error?.message || "Please try again",
         variant: "destructive",
       });
     }

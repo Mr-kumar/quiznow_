@@ -31,7 +31,8 @@ export class TestsService {
       const series = await tx.testSeries.findUnique({
         where: { id: dto.testSeriesId },
       });
-      if (!series) throw new ResourceNotFoundException('Test Series', dto.testSeriesId);
+      if (!series)
+        throw new ResourceNotFoundException('Test Series', dto.testSeriesId);
 
       // 2. Create Test
       const test = await tx.test.create({
@@ -81,7 +82,8 @@ export class TestsService {
     const series = await this.prisma.testSeries.findUnique({
       where: { id: dto.testSeriesId },
     });
-    if (!series) throw new ResourceNotFoundException('Test Series', dto.testSeriesId);
+    if (!series)
+      throw new ResourceNotFoundException('Test Series', dto.testSeriesId);
 
     const test = await this.prisma.test.create({
       data: {
@@ -160,8 +162,33 @@ export class TestsService {
 
   // 🚀 Publish Toggle with validation
   async togglePublish(id: string, isLive: boolean) {
-    const test = await this.prisma.test.findUnique({ where: { id } });
+    const test = await this.prisma.test.findUnique({
+      where: { id },
+      include: {
+        sections: {
+          include: {
+            _count: {
+              select: { questions: true },
+            },
+          },
+        },
+      },
+    });
     if (!test) throw new ResourceNotFoundException('Test', id);
+
+    // 🚨 FIX 1: Prevent publishing empty tests
+    if (isLive === true) {
+      const totalQuestions = test.sections.reduce(
+        (acc, sec) => acc + sec._count.questions,
+        0,
+      );
+      if (totalQuestions === 0) {
+        throw new ValidationException(
+          'Cannot publish a test with 0 questions! Please add at least one question before publishing.',
+          'EMPTY_TEST_PUBLICATION_BLOCKED',
+        );
+      }
+    }
 
     const updated = await this.prisma.test.update({
       where: { id },
@@ -194,44 +221,51 @@ export class TestsService {
         // Create duplicate test
         const duplicatedTest = await tx.test.create({
           data: {
-          title: `${originalTest.title} (Copy)`,
-          durationMins: originalTest.durationMins,
-          totalMarks: originalTest.totalMarks,
-          passMarks: originalTest.passMarks,
-          negativeMark: originalTest.negativeMark,
-          seriesId: originalTest.seriesId,
-          isLive: false, // Start as draft
-          isPremium: originalTest.isPremium,
-          isActive: true,
-        },
-      });
-
-      // Duplicate sections and questions
-      for (const section of originalTest.sections) {
-        const duplicatedSection = await tx.section.create({
-          data: {
-            testId: duplicatedTest.id,
-            name: section.name,
-            order: section.order,
+            title: `${originalTest.title} (Copy)`,
+            durationMins: originalTest.durationMins,
+            totalMarks: originalTest.totalMarks,
+            passMarks: originalTest.passMarks,
+            negativeMark: originalTest.negativeMark,
+            seriesId: originalTest.seriesId,
+            isLive: false, // Start as draft
+            isPremium: originalTest.isPremium,
+            isActive: true,
           },
         });
 
-        // Link questions to new section
-        if (section.questions.length > 0) {
-          const sectionQuestions = section.questions.map((sq, index) => ({
-            sectionId: duplicatedSection.id,
-            questionId: sq.questionId,
-            order: index + 1,
-          }));
-
-          await tx.sectionQuestion.createMany({
-            data: sectionQuestions,
+        // Duplicate sections and questions
+        for (const section of originalTest.sections) {
+          const duplicatedSection = await tx.section.create({
+            data: {
+              testId: duplicatedTest.id,
+              name: section.name,
+              order: section.order,
+            },
           });
-        }
-      }
 
-      return duplicatedTest;
-    });
+          // Link questions to new section
+          if (section.questions.length > 0) {
+            const sectionQuestions = section.questions.map((sq, index) => ({
+              sectionId: duplicatedSection.id,
+              questionId: sq.questionId,
+              order: index + 1,
+            }));
+
+            await tx.sectionQuestion.createMany({
+              data: sectionQuestions,
+            });
+          }
+        }
+
+        return duplicatedTest;
+      });
+    } catch (error) {
+      this.logger.error(`Failed to duplicate test ${id}`, error);
+      throw new ValidationException(
+        'Failed to duplicate test. Please try again.',
+        'DUPLICATION_FAILED',
+      );
+    }
   }
 
   // 📊 NEW: Export Test (God Mode Feature)
@@ -253,15 +287,13 @@ export class TestsService {
             },
           },
         },
-        series: true,
       },
     });
 
     if (!test) {
-      throw new Error('Test not found');
+      throw new ResourceNotFoundException('Test', id);
     }
 
-    // Create Excel export
     const workbook = XLSX.utils.book_new();
 
     for (const section of test.sections) {
@@ -273,24 +305,27 @@ export class TestsService {
           'Option C',
           'Option D',
           'Correct Answer',
-          'Subject',
-          'Topic',
+          'Explanation',
         ],
       ];
 
-      // Add questions
-      for (const sq of section.questions) {
-        const translation = sq.question.translations[0];
-        worksheetData.push([
-          translation?.content || '',
-          translation?.options?.[0] || '',
-          translation?.options?.[1] || '',
-          translation?.options?.[2] || '',
-          translation?.options?.[3] || '',
-          ['A', 'B', 'C', 'D'][sq.question.correctAnswer] || '',
-          sq.question.topic?.subject || '',
-          sq.question.topic?.name || '',
-        ]);
+      for (const sectionQuestion of section.questions) {
+        const question = sectionQuestion.question;
+        const translation = question.translations[0];
+
+        if (translation) {
+          const options = translation.options as string[];
+          const correctMap = ['A', 'B', 'C', 'D'];
+          worksheetData.push([
+            translation.content,
+            options[0] || '',
+            options[1] || '',
+            options[2] || '',
+            options[3] || '',
+            correctMap[question.correctAnswer] || 'A',
+            translation.explanation || '',
+          ]);
+        }
       }
 
       const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
@@ -311,7 +346,7 @@ export class TestsService {
   }
 
   // 5. Delete
-  remove(id: string) {
+  async remove(id: string) {
     return this.prisma.test.delete({ where: { id } });
   }
 }
