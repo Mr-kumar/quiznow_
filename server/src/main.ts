@@ -7,11 +7,14 @@ import { rateLimit } from 'express-rate-limit';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // 🛡️ Rate Limiting Middleware (Fixed - using express-rate-limit)
+  // 🌐 Set Global API Prefix
+  app.setGlobalPrefix('api');
+
+  // 🛡️ Rate Limiting Middleware (Fixed - more lenient for development)
   app.use(
     rateLimit({
       windowMs: 15 * 60 * 1000, // 15 minutes
-      max: 100, // Limit each IP to 100 requests per windowMs
+      max: 1000, // Increased from 100 to 1000 for development
       message:
         'Too many requests from this IP, please try again after 15 minutes',
       standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
@@ -24,7 +27,7 @@ async function bootstrap() {
     '/auth',
     rateLimit({
       windowMs: 15 * 60 * 1000, // 15 minutes
-      max: 10, // Limit each IP to 10 auth requests per windowMs
+      max: 100, // Increased from 10 to 100 for development
       message:
         'Too many authentication attempts, please try again after 15 minutes',
       standardHeaders: true,
@@ -37,8 +40,8 @@ async function bootstrap() {
     '/questions/upload',
     rateLimit({
       windowMs: 60 * 60 * 1000, // 1 hour
-      max: 5, // Limit each IP to 5 uploads per hour
-      message: 'Upload limit exceeded. Maximum 5 uploads per hour.',
+      max: 20, // Increased from 5 to 20 for development
+      message: 'Upload limit exceeded. Maximum 20 uploads per hour.',
       standardHeaders: true,
       legacyHeaders: false,
     }),
