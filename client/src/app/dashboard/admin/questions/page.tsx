@@ -286,12 +286,29 @@ export default function QuestionBankPage() {
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div
-                          className="bg-blue-600 h-2 rounded-full transition-all"
-                          style={
-                            {
-                              "--progress-width": `${uploadProgress}%`,
-                            } as React.CSSProperties
-                          }
+                          className={`bg-blue-600 h-2 rounded-full transition-all ${
+                            uploadProgress === 0
+                              ? "w-0"
+                              : uploadProgress <= 10
+                                ? "w-[10%]"
+                                : uploadProgress <= 20
+                                  ? "w-[20%]"
+                                  : uploadProgress <= 30
+                                    ? "w-[30%]"
+                                    : uploadProgress <= 40
+                                      ? "w-[40%]"
+                                      : uploadProgress <= 50
+                                        ? "w-[50%]"
+                                        : uploadProgress <= 60
+                                          ? "w-[60%]"
+                                          : uploadProgress <= 70
+                                            ? "w-[70%]"
+                                            : uploadProgress <= 80
+                                              ? "w-[80%]"
+                                              : uploadProgress <= 90
+                                                ? "w-[90%]"
+                                                : "w-full"
+                          }`}
                         />
                       </div>
                     </div>

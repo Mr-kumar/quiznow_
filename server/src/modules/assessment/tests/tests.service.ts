@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/services/prisma/prisma.service';
 import { CreateTestDto } from './dto/create-test.dto';
 import { UpdateTestDto } from './dto/update-test.dto';
+import * as XLSX from 'xlsx';
 
 @Injectable()
 export class TestsService {
@@ -102,6 +103,143 @@ export class TestsService {
       where: { id },
       data: { isLive },
     });
+  }
+
+  // 📋 NEW: Duplicate Test (God Mode Feature)
+  async duplicateTest(id: string) {
+    const originalTest = await this.prisma.test.findUnique({
+      where: { id },
+      include: {
+        sections: {
+          include: {
+            questions: true,
+          },
+        },
+      },
+    });
+
+    if (!originalTest) {
+      throw new Error('Test not found');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      // Create duplicate test
+      const duplicatedTest = await tx.test.create({
+        data: {
+          title: `${originalTest.title} (Copy)`,
+          durationMins: originalTest.durationMins,
+          totalMarks: originalTest.totalMarks,
+          passMarks: originalTest.passMarks,
+          negativeMark: originalTest.negativeMark,
+          seriesId: originalTest.seriesId,
+          isLive: false, // Start as draft
+          isPremium: originalTest.isPremium,
+          isActive: true,
+        },
+      });
+
+      // Duplicate sections and questions
+      for (const section of originalTest.sections) {
+        const duplicatedSection = await tx.section.create({
+          data: {
+            testId: duplicatedTest.id,
+            name: section.name,
+            order: section.order,
+          },
+        });
+
+        // Link questions to new section
+        if (section.questions.length > 0) {
+          const sectionQuestions = section.questions.map((sq, index) => ({
+            sectionId: duplicatedSection.id,
+            questionId: sq.questionId,
+            order: index + 1,
+          }));
+
+          await tx.sectionQuestion.createMany({
+            data: sectionQuestions,
+          });
+        }
+      }
+
+      return duplicatedTest;
+    });
+  }
+
+  // 📊 NEW: Export Test (God Mode Feature)
+  async exportTest(id: string, res: any) {
+    const test = await this.prisma.test.findUnique({
+      where: { id },
+      include: {
+        sections: {
+          include: {
+            questions: {
+              include: {
+                question: {
+                  include: {
+                    translations: true,
+                    topic: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        series: true,
+      },
+    });
+
+    if (!test) {
+      throw new Error('Test not found');
+    }
+
+    // Create Excel export
+    const workbook = XLSX.utils.book_new();
+
+    for (const section of test.sections) {
+      const worksheetData = [
+        [
+          'Question',
+          'Option A',
+          'Option B',
+          'Option C',
+          'Option D',
+          'Correct Answer',
+          'Subject',
+          'Topic',
+        ],
+      ];
+
+      // Add questions
+      for (const sq of section.questions) {
+        const translation = sq.question.translations[0];
+        worksheetData.push([
+          translation?.content || '',
+          translation?.options?.[0] || '',
+          translation?.options?.[1] || '',
+          translation?.options?.[2] || '',
+          translation?.options?.[3] || '',
+          ['A', 'B', 'C', 'D'][sq.question.correctAnswer] || '',
+          sq.question.topic?.subject || '',
+          sq.question.topic?.name || '',
+        ]);
+      }
+
+      const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+      XLSX.utils.book_append_sheet(workbook, worksheet, section.name);
+    }
+
+    // Generate and send file
+    const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${test.title.replace(/\s+/g, '_')}_export.xlsx"`,
+    );
+    res.send(buffer);
   }
 
   // 5. Delete

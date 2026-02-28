@@ -7,6 +7,8 @@ import {
   Param,
   Delete,
   UseGuards,
+  Res,
+  Response,
 } from '@nestjs/common';
 import { TestsService } from './tests.service';
 import { CreateTestDto } from './dto/create-test.dto';
@@ -60,6 +62,23 @@ export class TestsController {
   })
   togglePublish(@Param('id') id: string, @Body() dto: { isLive: boolean }) {
     return this.testsService.togglePublish(id, dto.isLive);
+  }
+
+  @Post(':id/duplicate')
+  @ApiOperation({
+    summary:
+      'Duplicate test with all sections and questions (God Mode feature)',
+  })
+  duplicateTest(@Param('id') id: string) {
+    return this.testsService.duplicateTest(id);
+  }
+
+  @Get(':id/export')
+  @ApiOperation({
+    summary: 'Export test data to Excel (God Mode feature)',
+  })
+  async exportTest(@Param('id') id: string, @Res() res: Response) {
+    return this.testsService.exportTest(id, res);
   }
 
   @Delete(':id')
