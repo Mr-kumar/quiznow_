@@ -297,7 +297,52 @@ export const adminAnalyticsApi = {
     api.get<ApiResponse<AttemptStats>>("/admin/analytics/attempts"),
 };
 
+// Question Management API
+export interface Question {
+  id: string;
+  content: string;
+  type: string;
+  options: string[];
+  correctAnswer: number;
+  explanation?: string;
+  difficulty?: string;
+  isActive: boolean;
+  topicId?: string;
+  createdAt: string;
+  updatedAt: string;
+  translations?: Array<{
+    id: string;
+    lang: string;
+    content: string;
+    options?: string[];
+    explanation?: string;
+  }>;
+  topic?: Topic;
+}
+
+export interface CreateQuestionRequest {
+  content: string;
+  type: string;
+  options: string[];
+  correctAnswer: number;
+  explanation?: string;
+  difficulty?: string;
+  topicId?: string;
+}
+
+export interface UpdateQuestionRequest {
+  content?: string;
+  type?: string;
+  options?: string[];
+  correctAnswer?: number;
+  explanation?: string;
+  difficulty?: string;
+  topicId?: string;
+  isActive?: boolean;
+}
+
 export const adminQuestionsApi = {
+  // Bulk operations (God Mode)
   bulkUpload: (file: File, sectionId: string) => {
     const formData = new FormData();
     formData.append("file", file);
@@ -313,6 +358,42 @@ export const adminQuestionsApi = {
       },
     );
   },
+
+  bulkTag: (questionIds: string[], topicId: string) =>
+    api.patch<{ success: boolean; updatedCount: number }>(
+      "/questions/bulk-tag",
+      {
+        questionIds,
+        topicId,
+      },
+    ),
+
+  // 🚀 NEW: Cursor-based pagination (Enterprise Scale)
+  getCursorPaginated: (params: CursorPaginationParams = {}) =>
+    api.get<CursorPaginationResponse<Question>>("/questions/cursor-paginated", {
+      params: {
+        cursor: params.cursor,
+        limit: params.limit || 50,
+        direction: params.direction || "forward",
+        search: params.search,
+        topicId: params.topicId,
+        subject: params.subject,
+      },
+    }),
+
+  // Original pagination (for backward compatibility)
+  getAll: (page = 1, limit = 10, search?: string) =>
+    api.get<PaginatedResponse<Question>>("/questions", {
+      params: { page, limit, search },
+    }),
+
+  // CRUD operations
+  getById: (id: string) => api.get<ApiResponse<Question>>(`/questions/${id}`),
+  create: (questionData: CreateQuestionRequest) =>
+    api.post<ApiResponse<Question>>("/questions", questionData),
+  update: (id: string, questionData: UpdateQuestionRequest) =>
+    api.patch<ApiResponse<Question>>(`/questions/${id}`, questionData),
+  delete: (id: string) => api.delete<ApiResponse<void>>(`/questions/${id}`),
 };
 
 // Plans Management API
@@ -469,6 +550,30 @@ export interface CreateTopicRequest {
 
 export interface UpdateTopicRequest {
   name?: string;
+  subject?: string;
+}
+
+// 🚀 Cursor-Based Pagination Types
+export interface CursorPaginationResponse<T> {
+  data: T[];
+  pagination: {
+    nextCursor: string | null;
+    prevCursor: string | null;
+    hasMore: boolean;
+    hasPrevious: boolean;
+    currentPage: number;
+    totalPages: number;
+    total: number;
+    limit: number;
+  };
+}
+
+export interface CursorPaginationParams {
+  cursor?: string;
+  limit?: number;
+  direction?: "forward" | "backward";
+  search?: string;
+  topicId?: string;
   subject?: string;
 }
 

@@ -110,16 +110,15 @@ export class QuestionsService {
     });
   }
 
-  // Paginated questions with filters
+  // Cursor-based pagination using Prisma's B-Tree index (O(1) time complexity)
   async getPaginatedQuestions(params: {
-    page: number;
+    cursor?: string;
     limit: number;
     search?: string;
     subject?: string;
     topic?: string;
   }) {
-    const { page, limit, search, subject, topic } = params;
-    const skip = (page - 1) * limit;
+    const { cursor, limit, search, subject, topic } = params;
 
     // Build where clause
     const where: any = {
@@ -149,10 +148,8 @@ export class QuestionsService {
       };
     }
 
-    // Get total count
-    const total = await this.prisma.question.count({ where });
-
-    // Get questions with pagination
+    // Fetch limit+1 items to check if there are more pages
+    // This allows us to know if hasMore without double-counting queries
     const questions = await this.prisma.question.findMany({
       where,
       include: {
@@ -164,19 +161,31 @@ export class QuestionsService {
       orderBy: {
         createdAt: 'desc',
       },
-      skip,
-      take: limit,
+      // Cursor-based pagination: O(1) lookup via B-Tree index
+      ...(cursor && {
+        cursor: { id: cursor },
+        skip: 1, // Skip the cursor itself
+      }),
+      take: limit + 1, // Fetch one extra to determine hasMore
     });
 
-    const totalPages = Math.ceil(total / limit);
+    // Check if there are more items
+    const hasMore = questions.length > limit;
+
+    // Return only the requested limit
+    const paginatedQuestions = questions.slice(0, limit);
+
+    // Last question ID becomes the cursor for next page
+    const nextCursor = hasMore
+      ? paginatedQuestions[paginatedQuestions.length - 1]?.id
+      : null;
 
     return {
-      questions,
-      currentPage: page,
-      totalPages,
-      total,
-      hasMore: page < totalPages,
+      questions: paginatedQuestions,
+      nextCursor,
+      hasMore,
       limit,
+      count: paginatedQuestions.length,
     };
   }
 
@@ -379,5 +388,73 @@ export class QuestionsService {
         topicId: topicId,
       },
     });
+  }
+
+  // 🚀 NEW: Cursor-Based Pagination (Enterprise Scale Feature)
+  async findWithCursor(params: {
+    cursor?: { id: string };
+    take?: number;
+    skip?: number;
+    where?: any;
+    orderBy?: any;
+  }) {
+    const {
+      cursor,
+      take = 50,
+      skip = 0,
+      where = {},
+      orderBy = { id: 'asc' },
+    } = params;
+
+    const questions = await this.prisma.question.findMany({
+      cursor,
+      take,
+      skip,
+      where: {
+        isActive: true, // Only active questions
+        ...where,
+      },
+      include: {
+        translations: {
+          where: { lang: 'en' }, // Only English translations
+          take: 1,
+        },
+        topic: true, // Include topic with subject string field
+      },
+      orderBy,
+    });
+
+    return questions;
+  }
+
+  // 📊 NEW: Get pagination metadata for cursor-based navigation
+  async getCursorMetadata(cursor?: string, take: number = 50) {
+    const where = { isActive: true };
+
+    // Count total questions
+    const total = await this.prisma.question.count({ where });
+
+    // Get current position if cursor exists
+    let currentPosition = 0;
+    if (cursor) {
+      currentPosition = await this.prisma.question.count({
+        where: {
+          ...where,
+          id: { lt: cursor },
+        },
+      });
+    }
+
+    const hasMore = currentPosition + take < total;
+    const hasPrevious = currentPosition > 0;
+
+    return {
+      total,
+      currentPosition,
+      hasMore,
+      hasPrevious,
+      totalPages: Math.ceil(total / take),
+      currentPage: Math.floor(currentPosition / take) + 1,
+    };
   }
 }
