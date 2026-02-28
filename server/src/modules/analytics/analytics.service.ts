@@ -1,10 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../services/prisma/prisma.service';
 import { CacheService } from '../../cache/cache.service';
 import { Status } from '@prisma/client';
 
 @Injectable()
 export class AnalyticsService {
+  private readonly logger = new Logger(AnalyticsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly cacheService: CacheService,
@@ -230,5 +232,73 @@ export class AnalyticsService {
     });
 
     return Math.round(result._avg.timeTaken || 0);
+  }
+
+  /**
+   * Get user's topic-wise performance statistics
+   * Safely handles null topicId with proper error handling
+   */
+  async getUserTopicStats(userId: string) {
+    try {
+      // Get all topics first
+      const allTopics = await this.prisma.topic.findMany({
+        include: {
+          questions: true,
+        },
+      });
+
+      // Get user stats for each topic
+      const userStats = await this.prisma.userTopicStat.findMany({
+        where: { userId },
+        include: { topic: true },
+      });
+
+      return userStats
+        .filter((stat) => stat.topicId) // Only include stats with valid topicId
+        .map((stat) => ({
+          topicId: stat.topicId,
+          topicName: stat.topic?.name || 'Unknown',
+          attempts: stat.attempts,
+          correct: stat.correct,
+          wrong: stat.wrong,
+          accuracy: stat.accuracy || 0,
+        }));
+    } catch (error) {
+      this.logger.error(`Failed to get user topic stats for ${userId}`, error);
+      return [];
+    }
+  }
+
+  /**
+   * Get test-wise performance statistics with null topic handling
+   */
+  async getTestWiseStats(userId: string) {
+    try {
+      const attempts = await this.prisma.attempt.findMany({
+        where: { userId, status: Status.SUBMITTED },
+        include: {
+          test: {
+            include: {
+              series: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      return attempts.map((attempt) => ({
+        testId: attempt.testId,
+        testName: attempt.test.title,
+        seriesName: attempt.test.series?.title,
+        score: attempt.score,
+        accuracy: attempt.accuracy,
+        attemptNumber: attempt.attemptNumber,
+        submittedAt: attempt.updatedAt,
+        timeTaken: attempt.timeTaken,
+      }));
+    } catch (error) {
+      this.logger.error(`Failed to get test stats for ${userId}`, error);
+      return [];
+    }
   }
 }

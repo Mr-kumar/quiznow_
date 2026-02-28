@@ -11,6 +11,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ProgressBar } from "@/components/admin/progress-bar";
 import {
   Users,
   FileText,
@@ -546,108 +547,63 @@ export default function AdminAnalyticsPage() {
         <CardContent>
           <div className="grid gap-6 md:grid-cols-2">
             {/* Success Rate */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                  Success Rate
-                </span>
-                <span className="text-sm text-zinc-500 dark:text-zinc-400">
-                  {attemptStats
+            <div>
+              <ProgressBar
+                percentage={
+                  attemptStats
                     ? Math.round(
                         (attemptStats.completed / attemptStats.total) * 100,
                       )
-                    : 0}
-                  %
-                </span>
-              </div>
-              <div className="w-full bg-zinc-200 dark:bg-zinc-700 rounded-full h-2">
-                <div
-                  className="bg-linear-to-r from-green-500 to-green-600 h-2 rounded-full transition-all duration-500"
-                  style={
-                    {
-                      "--progress-width": `${attemptStats ? Math.round((attemptStats.completed / attemptStats.total) * 100) : 0}%`,
-                    } as React.CSSProperties
-                  }
-                />
-              </div>
+                    : 0
+                }
+                color="green"
+                label="Success Rate"
+                value={`${attemptStats ? Math.round((attemptStats.completed / attemptStats.total) * 100) : 0}%`}
+              />
             </div>
 
             {/* Completion Rate */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                  Test Completion Rate
-                </span>
-                <span className="text-sm text-zinc-500 dark:text-zinc-400">
-                  {testStats && attemptStats
+            <div>
+              <ProgressBar
+                percentage={
+                  testStats && attemptStats
                     ? Math.round(
                         (testStats.completedThisMonth /
                           Math.max(attemptStats.total, 1)) *
                           100,
                       )
-                    : 0}
-                  %
-                </span>
-              </div>
-              <div className="w-full bg-zinc-200 dark:bg-zinc-700 rounded-full h-2">
-                <div
-                  className="bg-linear-to-r from-blue-500 to-blue-600 h-2 rounded-full transition-all duration-500"
-                  style={
-                    {
-                      "--progress-width": `${testStats && attemptStats ? Math.round((testStats.completedThisMonth / Math.max(attemptStats.total, 1)) * 100) : 0}%`,
-                    } as React.CSSProperties
-                  }
-                />
-              </div>
+                    : 0
+                }
+                color="blue"
+                label="Test Completion Rate"
+                value={`${testStats && attemptStats ? Math.round((testStats.completedThisMonth / Math.max(attemptStats.total, 1)) * 100) : 0}%`}
+              />
             </div>
 
             {/* User Engagement */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                  User Engagement
-                </span>
-                <span className="text-sm text-zinc-500 dark:text-zinc-400">
-                  {userStats
+            <div>
+              <ProgressBar
+                percentage={
+                  userStats
                     ? Math.round(
                         (userStats.activeThisMonth / userStats.total) * 100,
                       )
-                    : 0}
-                  %
-                </span>
-              </div>
-              <div className="w-full bg-zinc-200 dark:bg-zinc-700 rounded-full h-2">
-                <div
-                  className="bg-linear-to-r from-purple-500 to-purple-600 h-2 rounded-full transition-all duration-500"
-                  style={
-                    {
-                      "--progress-width": `${userStats ? Math.round((userStats.activeThisMonth / userStats.total) * 100) : 0}%`,
-                    } as React.CSSProperties
-                  }
-                />
-              </div>
+                    : 0
+                }
+                color="purple"
+                label="User Engagement"
+                value={`${userStats ? Math.round((userStats.activeThisMonth / userStats.total) * 100) : 0}%`}
+              />
             </div>
 
             {/* Performance Score */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                  Performance Score
-                </span>
-                <span className="text-sm text-zinc-500 dark:text-zinc-400">
-                  {dashboardMetrics?.avgPerformance || 0}%
-                </span>
-              </div>
-              <div className="w-full bg-zinc-200 dark:bg-zinc-700 rounded-full h-2">
-                <div
-                  className="bg-linear-to-r from-orange-500 to-orange-600 h-2 rounded-full transition-all duration-500"
-                  style={
-                    {
-                      "--progress-width": `${dashboardMetrics?.avgPerformance || 0}%`,
-                    } as React.CSSProperties
-                  }
-                />
-              </div>
+            <div>
+              <ProgressBar
+                percentage={dashboardMetrics?.avgPerformance || 0}
+                color="orange"
+                label="Performance Score"
+                value={`${dashboardMetrics?.avgPerformance || 0}%`}
+              />
             </div>
           </div>
         </CardContent>

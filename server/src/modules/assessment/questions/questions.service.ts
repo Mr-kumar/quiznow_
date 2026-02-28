@@ -419,7 +419,11 @@ export class QuestionsService {
           where: { lang: 'en' }, // Only English translations
           take: 1,
         },
-        topic: true, // Include topic with subject string field
+        topic: {
+          include: {
+            subject: true,
+          },
+        },
       },
       orderBy,
     });

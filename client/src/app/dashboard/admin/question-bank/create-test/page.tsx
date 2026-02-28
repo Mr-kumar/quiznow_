@@ -375,7 +375,7 @@ export default function QuestionBankCreateTestPage() {
         <div className="space-y-6">
           {/* Filters Card */}
           <Card className="border-0 shadow-lg">
-            <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 rounded-t-lg">
+            <CardHeader className="bg-linear-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 rounded-t-lg">
               <CardTitle className="flex items-center gap-2 text-lg">
                 <Filter className="h-5 w-5 text-blue-600" />
                 <span>Filter Questions</span>
@@ -453,7 +453,7 @@ export default function QuestionBankCreateTestPage() {
 
           {/* Questions List Card */}
           <Card className="border-0 shadow-lg">
-            <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 rounded-t-lg">
+            <CardHeader className="bg-linear-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 rounded-t-lg">
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="flex items-center gap-2 text-lg">
@@ -483,7 +483,7 @@ export default function QuestionBankCreateTestPage() {
                   </p>
                 </div>
               ) : (
-                <div className="space-y-3 max-h-[600px] overflow-y-auto">
+                <div className="space-y-3 max-h-150 overflow-y-auto">
                   {filteredQuestions.map((question) => {
                     const preview = getQuestionPreview(question);
                     const isSelected = selectedQuestions.includes(question.id);
@@ -565,7 +565,7 @@ export default function QuestionBankCreateTestPage() {
         <div className="space-y-6">
           {/* Test Details Card */}
           <Card className="border-0 shadow-lg">
-            <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 rounded-t-lg">
+            <CardHeader className="bg-linear-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 rounded-t-lg">
               <CardTitle className="flex items-center gap-2 text-lg">
                 <FileText className="h-5 w-5 text-blue-600" />
                 Test Details

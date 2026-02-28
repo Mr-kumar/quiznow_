@@ -262,7 +262,7 @@ export default function TestsHierarchyPage() {
         <div className="lg:col-span-2">
           {isLoading ? (
             <Card className="border-0 shadow-xl">
-              <CardHeader className="bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-950/30 dark:to-blue-950/30 rounded-t-lg border-b border-indigo-100 dark:border-indigo-800/30">
+              <CardHeader className="bg-linear-to-r from-indigo-50 to-blue-50 dark:from-indigo-950/30 dark:to-blue-950/30 rounded-t-lg border-b border-indigo-100 dark:border-indigo-800/30">
                 <CardTitle className="flex items-center gap-2">
                   <BarChart3 className="h-5 w-5 text-indigo-600" />
                   Test Hierarchy
@@ -318,7 +318,7 @@ export default function TestsHierarchyPage() {
         {/* Details Panel */}
         <div className="space-y-4">
           <Card className="border-0 shadow-xl">
-            <CardHeader className="bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-950/30 dark:to-blue-950/30 rounded-t-lg border-b border-indigo-100 dark:border-indigo-800/30">
+            <CardHeader className="bg-linear-to-r from-indigo-50 to-blue-50 dark:from-indigo-950/30 dark:to-blue-950/30 rounded-t-lg border-b border-indigo-100 dark:border-indigo-800/30">
               <CardTitle className="flex items-center gap-2 text-lg">
                 <BookOpen className="h-5 w-5 text-indigo-600" />
                 Item Details
@@ -444,7 +444,7 @@ export default function TestsHierarchyPage() {
                   <div className="pt-4 border-t border-zinc-200 dark:border-zinc-800 space-y-2">
                     <Button
                       onClick={() => handleItemEdit(selectedItem)}
-                      className="w-full bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 gap-2 text-white shadow-md"
+                      className="w-full bg-linear-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 gap-2 text-white shadow-md"
                     >
                       <Edit2 className="h-4 w-4" />
                       Edit {selectedItem.type}

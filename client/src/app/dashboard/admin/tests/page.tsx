@@ -268,7 +268,7 @@ export default function ManageTestsCommandCenter() {
       {/* Header Section */}
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-3">
-          <div className="p-2 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-lg">
+          <div className="p-2 bg-linear-to-br from-indigo-500 to-blue-600 rounded-lg">
             <Layers className="h-5 w-5 text-white" />
           </div>
           <div>
@@ -310,14 +310,14 @@ export default function ManageTestsCommandCenter() {
                     expandedCategory === category.id ? null : category.id,
                   )
                 }
-                className="w-full flex items-center gap-2 p-3 bg-gradient-to-r from-indigo-50 to-blue-50 hover:from-indigo-100 hover:to-blue-100 rounded-lg border border-indigo-100 transition-all text-left"
+                className="w-full flex items-center gap-2 p-3 bg-linear-to-r from-indigo-50 to-blue-50 hover:from-indigo-100 hover:to-blue-100 rounded-lg border border-indigo-100 transition-all text-left"
               >
                 {expandedCategory === category.id ? (
-                  <ChevronDown className="h-4 w-4 text-indigo-600 flex-shrink-0" />
+                  <ChevronDown className="h-4 w-4 text-indigo-600 shrink-0" />
                 ) : (
-                  <ChevronRight className="h-4 w-4 text-indigo-600 flex-shrink-0" />
+                  <ChevronRight className="h-4 w-4 text-indigo-600 shrink-0" />
                 )}
-                <FolderOpen className="h-4 w-4 text-indigo-600 flex-shrink-0" />
+                <FolderOpen className="h-4 w-4 text-indigo-600 shrink-0" />
                 <span className="font-semibold text-gray-900 text-sm flex-1">
                   {category.name}
                 </span>
@@ -354,11 +354,11 @@ export default function ManageTestsCommandCenter() {
                         className="w-full flex items-center gap-2 p-2 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition-all text-left"
                       >
                         {expandedExam === exam.id ? (
-                          <ChevronDown className="h-3.5 w-3.5 text-blue-600 flex-shrink-0" />
+                          <ChevronDown className="h-3.5 w-3.5 text-blue-600 shrink-0" />
                         ) : (
-                          <ChevronRight className="h-3.5 w-3.5 text-blue-600 flex-shrink-0" />
+                          <ChevronRight className="h-3.5 w-3.5 text-blue-600 shrink-0" />
                         )}
-                        <BookOpen className="h-3.5 w-3.5 text-blue-600 flex-shrink-0" />
+                        <BookOpen className="h-3.5 w-3.5 text-blue-600 shrink-0" />
                         <span className="font-medium text-gray-800 text-xs flex-1">
                           {exam.name}
                         </span>
@@ -390,11 +390,11 @@ export default function ManageTestsCommandCenter() {
                                 className="w-full flex items-center gap-2 p-2 bg-purple-50 hover:bg-purple-100 rounded-lg border border-purple-200 transition-all text-left"
                               >
                                 {expandedSeries === series.id ? (
-                                  <ChevronDown className="h-3 w-3 text-purple-600 flex-shrink-0" />
+                                  <ChevronDown className="h-3 w-3 text-purple-600 shrink-0" />
                                 ) : (
-                                  <ChevronRight className="h-3 w-3 text-purple-600 flex-shrink-0" />
+                                  <ChevronRight className="h-3 w-3 text-purple-600 shrink-0" />
                                 )}
-                                <Zap className="h-3 w-3 text-purple-600 flex-shrink-0" />
+                                <Zap className="h-3 w-3 text-purple-600 shrink-0" />
                                 <span className="font-medium text-gray-800 text-xs flex-1">
                                   {series.title || series.name}
                                 </span>
@@ -453,7 +453,7 @@ export default function ManageTestsCommandCenter() {
                                                 test.isLive,
                                               )
                                             }
-                                            className="flex-shrink-0 h-5"
+                                            className="shrink-0 h-5"
                                           />
                                         </div>
 

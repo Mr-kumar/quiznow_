@@ -1,21 +1,37 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from 'src/services/prisma/prisma.service';
 import { CreateTestDto } from './dto/create-test.dto';
 import { UpdateTestDto } from './dto/update-test.dto';
+import { TestValidator } from 'src/common/validators/answer.validator';
+import {
+  ResourceNotFoundException,
+  ValidationException,
+} from 'src/common/exceptions/app.exception';
 import * as XLSX from 'xlsx';
 
 @Injectable()
 export class TestsService {
+  private readonly logger = new Logger(TestsService.name);
+
   constructor(private prisma: PrismaService) {}
 
-  // 🚀 NEW: Atomic Test + Section Creation (Fixes "Orphan Test" issue)
+  // 🚀 Atomic Test + Section Creation with validation
   async createTestWithSection(dto: CreateTestDto) {
+    // Validate test configuration
+    TestValidator.validateDuration(dto.duration);
+    TestValidator.validateMarks(
+      dto.totalMarks,
+      dto.passingMarks,
+      dto.negativeMarking || 1,
+      dto.negativeMarking || 0,
+    );
+
     return this.prisma.$transaction(async (tx) => {
       // 1. Validate Series exists
       const series = await tx.testSeries.findUnique({
         where: { id: dto.testSeriesId },
       });
-      if (!series) throw new NotFoundException('Test Series not found');
+      if (!series) throw new ResourceNotFoundException('Test Series', dto.testSeriesId);
 
       // 2. Create Test
       const test = await tx.test.create({
@@ -26,11 +42,13 @@ export class TestsService {
           totalMarks: dto.totalMarks,
           passMarks: dto.passingMarks,
           negativeMark: dto.negativeMarking,
+          startAt: dto.startAt,
+          endAt: dto.endAt,
           isActive: true,
         },
       });
 
-      // 3. Create Default Section (Atomic - if this fails, test creation rolls back)
+      // 3. Create Default Section
       const section = await tx.section.create({
         data: {
           testId: test.id,
@@ -38,6 +56,8 @@ export class TestsService {
           order: 1,
         },
       });
+
+      this.logger.log(`Test created: ${test.id} with section ${section.id}`);
 
       return {
         test,
@@ -48,13 +68,22 @@ export class TestsService {
 
   // 1. Create Test
   async create(dto: CreateTestDto) {
+    // Validate test configuration
+    TestValidator.validateDuration(dto.duration);
+    TestValidator.validateMarks(
+      dto.totalMarks,
+      dto.passingMarks,
+      dto.negativeMarking || 1,
+      dto.negativeMarking || 0,
+    );
+
     // Validate Series exists
     const series = await this.prisma.testSeries.findUnique({
       where: { id: dto.testSeriesId },
     });
-    if (!series) throw new NotFoundException('Test Series not found');
+    if (!series) throw new ResourceNotFoundException('Test Series', dto.testSeriesId);
 
-    return this.prisma.test.create({
+    const test = await this.prisma.test.create({
       data: {
         title: dto.title,
         seriesId: dto.testSeriesId,
@@ -62,9 +91,14 @@ export class TestsService {
         totalMarks: dto.totalMarks,
         passMarks: dto.passingMarks,
         negativeMark: dto.negativeMarking,
+        startAt: dto.startAt,
+        endAt: dto.endAt,
         isActive: true,
       },
     });
+
+    this.logger.log(`Test created: ${test.id}`);
+    return test;
   }
 
   // 2. Find All (Include Series Title)
@@ -81,22 +115,21 @@ export class TestsService {
     });
   }
 
-  // 3. Find One
+  // 3. Find One with proper error handling
   async findOne(id: string) {
     const test = await this.prisma.test.findUnique({
       where: { id },
       include: {
-        series: true, // Optional: gets series info
+        series: true,
         sections: {
           orderBy: { order: 'asc' },
           include: {
-            // 🌟 CRITICAL: This pulls the linked questions AND their text!
             questions: {
-              orderBy: { order: 'asc' }, // Keeps them in the correct sequence
+              orderBy: { order: 'asc' },
               include: {
                 question: {
                   include: {
-                    translations: true, // We need the text to show Admin
+                    translations: true,
                     topic: true,
                   },
                 },
@@ -108,28 +141,38 @@ export class TestsService {
     });
 
     if (!test) {
-      throw new NotFoundException(`Test with ID ${id} not found`);
+      throw new ResourceNotFoundException('Test', id);
     }
+
     return test;
   }
-
-  // 4. Update
+  // 4. Update with validation
   update(id: string, dto: UpdateTestDto) {
-    return this.prisma.test.update({
-      where: { id },
-      data: dto,
-    });
+    try {
+      return this.prisma.test.update({
+        where: { id },
+        data: dto,
+      });
+    } catch (error) {
+      throw new ResourceNotFoundException('Test', id);
+    }
   }
 
-  // 🚀 NEW: Publish Toggle (God Mode Feature)
+  // 🚀 Publish Toggle with validation
   async togglePublish(id: string, isLive: boolean) {
-    return this.prisma.test.update({
+    const test = await this.prisma.test.findUnique({ where: { id } });
+    if (!test) throw new ResourceNotFoundException('Test', id);
+
+    const updated = await this.prisma.test.update({
       where: { id },
       data: { isLive },
     });
+
+    this.logger.log(`Test ${id} publish status: ${isLive}`);
+    return updated;
   }
 
-  // 📋 NEW: Duplicate Test (God Mode Feature)
+  // 📋 Duplicate Test (God Mode Feature)
   async duplicateTest(id: string) {
     const originalTest = await this.prisma.test.findUnique({
       where: { id },
@@ -143,13 +186,14 @@ export class TestsService {
     });
 
     if (!originalTest) {
-      throw new Error('Test not found');
+      throw new ResourceNotFoundException('Test', id);
     }
 
-    return this.prisma.$transaction(async (tx) => {
-      // Create duplicate test
-      const duplicatedTest = await tx.test.create({
-        data: {
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        // Create duplicate test
+        const duplicatedTest = await tx.test.create({
+          data: {
           title: `${originalTest.title} (Copy)`,
           durationMins: originalTest.durationMins,
           totalMarks: originalTest.totalMarks,

@@ -277,7 +277,7 @@ export default function TestAssemblyDashboard() {
                   testData.isLive
                     ? "bg-green-600 hover:bg-green-700 text-white"
                     : "bg-gray-200 hover:bg-gray-300 text-gray-700"
-                } min-w-[120px]`}
+                } min-w-30`}
               >
                 {isTogglingPublish ? (
                   <Loader2 className="w-4 h-4 animate-spin" />

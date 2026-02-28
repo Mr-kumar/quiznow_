@@ -188,7 +188,7 @@ export default function AdminOverviewPage() {
         </Card>
 
         {/* Active Tests */}
-        <Card className="group hover:shadow-xl transition-all duration-300 border-0 shadow-lg bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20">
+        <Card className="group hover:shadow-xl transition-all duration-300 border-0 shadow-lg bg-linear-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
             <CardTitle className="text-sm font-semibold text-green-700 dark:text-green-300">
               Active Tests
@@ -224,7 +224,7 @@ export default function AdminOverviewPage() {
         </Card>
 
         {/* Completed Attempts */}
-        <Card className="group hover:shadow-xl transition-all duration-300 border-0 shadow-lg bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20">
+        <Card className="group hover:shadow-xl transition-all duration-300 border-0 shadow-lg bg-linear-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
             <CardTitle className="text-sm font-semibold text-purple-700 dark:text-purple-300">
               Completed Attempts
@@ -260,7 +260,7 @@ export default function AdminOverviewPage() {
         </Card>
 
         {/* Avg. Performance */}
-        <Card className="group hover:shadow-xl transition-all duration-300 border-0 shadow-lg bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20">
+        <Card className="group hover:shadow-xl transition-all duration-300 border-0 shadow-lg bg-linear-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
             <CardTitle className="text-sm font-semibold text-orange-700 dark:text-orange-300">
               Avg. Performance
@@ -299,7 +299,7 @@ export default function AdminOverviewPage() {
       {/* 🚀 Quick Actions */}
       <div className="grid gap-6 md:grid-cols-3">
         <Link href="/dashboard/admin/tests/create">
-          <Card className="group hover:shadow-xl transition-all duration-300 border-0 shadow-lg bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 cursor-pointer h-full">
+          <Card className="group hover:shadow-xl transition-all duration-300 border-0 shadow-lg bg-linear-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 cursor-pointer h-full">
             <CardHeader>
               <div className="h-12 w-12 rounded-xl bg-blue-500/20 flex items-center justify-center group-hover:scale-110 transition-transform mb-4">
                 <Plus className="h-6 w-6 text-blue-600 dark:text-blue-400" />
@@ -312,7 +312,7 @@ export default function AdminOverviewPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Button className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white">
+              <Button className="w-full bg-linear-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white">
                 Start Creating
               </Button>
             </CardContent>
@@ -320,7 +320,7 @@ export default function AdminOverviewPage() {
         </Link>
 
         <Link href="/dashboard/admin/users">
-          <Card className="group hover:shadow-xl transition-all duration-300 border-0 shadow-lg bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 cursor-pointer h-full">
+          <Card className="group hover:shadow-xl transition-all duration-300 border-0 shadow-lg bg-linear-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 cursor-pointer h-full">
             <CardHeader>
               <div className="h-12 w-12 rounded-xl bg-purple-500/20 flex items-center justify-center group-hover:scale-110 transition-transform mb-4">
                 <Users className="h-6 w-6 text-purple-600 dark:text-purple-400" />
@@ -333,7 +333,7 @@ export default function AdminOverviewPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Button className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white">
+              <Button className="w-full bg-linear-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white">
                 View Users
               </Button>
             </CardContent>
@@ -341,7 +341,7 @@ export default function AdminOverviewPage() {
         </Link>
 
         <Link href="/dashboard/admin/analytics">
-          <Card className="group hover:shadow-xl transition-all duration-300 border-0 shadow-lg bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 cursor-pointer h-full">
+          <Card className="group hover:shadow-xl transition-all duration-300 border-0 shadow-lg bg-linear-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 cursor-pointer h-full">
             <CardHeader>
               <div className="h-12 w-12 rounded-xl bg-green-500/20 flex items-center justify-center group-hover:scale-110 transition-transform mb-4">
                 <BarChart3 className="h-6 w-6 text-green-600 dark:text-green-400" />
@@ -354,7 +354,7 @@ export default function AdminOverviewPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Button className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white">
+              <Button className="w-full bg-linear-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white">
                 View Analytics
               </Button>
             </CardContent>

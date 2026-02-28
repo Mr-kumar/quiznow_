@@ -594,7 +594,7 @@ export default function CreateTestWizard() {
               size="lg"
               onClick={handleCreateTest}
               disabled={isLoading || !isFormValid}
-              className="bg-blue-600 hover:bg-blue-700 text-white min-w-[200px]"
+              className="bg-blue-600 hover:bg-blue-700 text-white min-w-50"
             >
               {isLoading ? (
                 <>

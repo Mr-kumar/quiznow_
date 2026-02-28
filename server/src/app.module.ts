@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './modules/iam/auth/auth.module';
@@ -19,9 +20,11 @@ import { SubscriptionsModule } from './modules/catalog/subscriptions/subscriptio
 import { SettingsModule } from './modules/admin/settings/settings.module';
 import { AuditLogsModule } from './modules/admin/audit-logs/audit-logs.module';
 import { CacheModule } from './cache/cache.module';
+import { SchedulerService } from './common/services/scheduler.service';
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(), // Enable scheduling
     AuthModule,
     UsersModule,
     CategoriesModule,
@@ -41,6 +44,6 @@ import { CacheModule } from './cache/cache.module';
     CacheModule,
   ],
   controllers: [AppController],
-  providers: [AppService, PrismaService],
+  providers: [AppService, PrismaService, SchedulerService],
 })
 export class AppModule {}
