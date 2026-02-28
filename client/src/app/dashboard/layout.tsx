@@ -79,13 +79,8 @@ export default function DashboardLayout({
     },
     {
       href: "/dashboard/admin/question-bank",
-      label: "Question Bank",
+      label: "Global Question Vault",
       icon: BookOpen,
-    },
-    {
-      href: "/dashboard/admin/question-bank/create-test",
-      label: "Create from QB",
-      icon: Target,
     },
     {
       href: "/dashboard/admin/users",
