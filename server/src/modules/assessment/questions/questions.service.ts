@@ -84,9 +84,36 @@ export class QuestionsService {
   }
 
   update(id: string, dto: UpdateQuestionDto) {
-    return this.prisma.question.update({
-      where: { id },
-      data: dto,
+    const { content, options, explanation, correctAnswer, lang, ...rest } =
+      dto as any;
+
+    return this.prisma.$transaction(async (tx) => {
+      const data: any = {};
+      if (typeof correctAnswer === 'number') data.correctAnswer = correctAnswer;
+      if (typeof rest.isActive === 'boolean') data.isActive = rest.isActive;
+      if (rest.topicId) data.topicId = rest.topicId;
+
+      const updated = await tx.question.update({
+        where: { id },
+        data,
+      });
+
+      if (
+        content !== undefined ||
+        options !== undefined ||
+        explanation !== undefined
+      ) {
+        await tx.questionTranslation.updateMany({
+          where: { questionId: id, lang: lang || 'en' },
+          data: {
+            ...(content !== undefined ? { content } : {}),
+            ...(options !== undefined ? { options } : {}),
+            ...(explanation !== undefined ? { explanation } : {}),
+          },
+        });
+      }
+
+      return updated;
     });
   }
 
@@ -429,6 +456,7 @@ export class QuestionsService {
     skip?: number;
     where?: any;
     orderBy?: any;
+    lang?: string;
   }) {
     const {
       cursor,
@@ -436,6 +464,7 @@ export class QuestionsService {
       skip = 0,
       where = {},
       orderBy = { id: 'asc' },
+      lang = 'en',
     } = params;
 
     const questions = await this.prisma.question.findMany({
@@ -448,10 +477,13 @@ export class QuestionsService {
       },
       include: {
         translations: {
-          where: { lang: 'en' }, // Only English translations
+          where: { lang }, // Only requested language translations
           take: 1,
         },
         topic: true,
+        _count: {
+          select: { sectionLinks: true },
+        },
       },
       orderBy,
     });

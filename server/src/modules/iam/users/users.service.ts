@@ -37,7 +37,7 @@ export class UsersService {
       data: {
         email: createUserDto.email,
         name: createUserDto.name,
-        role: createUserDto.role as Role,
+        role: createUserDto.role,
       },
     });
   }

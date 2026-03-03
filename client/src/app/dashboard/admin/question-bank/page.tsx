@@ -75,6 +75,7 @@ import {
   List,
   SlidersHorizontal,
   X,
+  Info,
 } from "lucide-react";
 import api from "@/lib/api";
 
@@ -248,10 +249,18 @@ export default function GlobalQuestionVault() {
   // Fetch topics and stats
   const fetchTopics = async () => {
     try {
-      const res = await api.get("/topics");
-      setTopics(res.data.data || res.data);
+      console.log("Fetching topics...");
+      const res = await api.get("/topics/topics"); // Fixed: use correct endpoint
+      const topicsData = res.data.data || res.data || [];
+      console.log("Topics response:", topicsData);
+      setTopics(topicsData);
     } catch (error) {
       console.error("Failed to fetch topics:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch topics",
+        variant: "destructive",
+      });
     }
   };
 
@@ -337,44 +346,114 @@ export default function GlobalQuestionVault() {
 
   // Selection functions
   const handleQuestionSelect = (questionId: string) => {
-    setSelectedQuestions((prev) =>
-      prev.includes(questionId)
+    console.log("Selecting question:", questionId);
+    console.log("Current selected:", selectedQuestions);
+
+    setSelectedQuestions((prev) => {
+      const newSelection = prev.includes(questionId)
         ? prev.filter((id) => id !== questionId)
-        : [...prev, questionId],
-    );
+        : [...prev, questionId];
+
+      console.log("New selection:", newSelection);
+      return newSelection;
+    });
   };
 
   const handleSelectAll = () => {
+    console.log("Select All clicked");
+    console.log("Current questions length:", questions.length);
+    console.log("Current selected length:", selectedQuestions.length);
+
     if (selectedQuestions.length === questions.length) {
+      console.log("Deselecting all");
       setSelectedQuestions([]);
     } else {
-      setSelectedQuestions(questions.map((q) => q.id));
+      console.log("Selecting all questions");
+      const allIds = questions.map((q) => q.id);
+      console.log("All question IDs:", allIds);
+      setSelectedQuestions(allIds);
     }
   };
 
   // Bulk operations
   const handleBulkTag = async () => {
-    if (!selectedBulkTagTopic || selectedQuestions.length === 0) return;
+    console.log("Bulk Tagger clicked");
+    console.log("Selected questions:", selectedQuestions);
+    console.log("Selected topic:", selectedBulkTagTopic);
+
+    if (!selectedBulkTagTopic || selectedQuestions.length === 0) {
+      console.log("Early return - no topic or no questions");
+      return;
+    }
 
     setIsBulkTagging(true);
     try {
-      await api.patch("/questions/bulk-tag", {
+      console.log("Making bulk tag request...");
+      const response = await api.patch("/questions/bulk-tag", {
         questionIds: selectedQuestions,
         topicId: selectedBulkTagTopic,
       });
 
+      console.log("Bulk tag response:", response);
+
       toast({
-        title: "Success",
-        description: `Tagged ${selectedQuestions.length} questions successfully`,
+        title: "✅ Bulk Tagger Complete",
+        description: `Successfully assigned ${selectedQuestions.length} questions to topic. Global updates applied across all tests.`,
       });
 
       setSelectedQuestions([]);
       setShowBulkTagDialog(false);
       fetchQuestions();
+      fetchTopics(); // Refresh topics to show updated counts
     } catch (error) {
+      console.error("Bulk tag error:", error);
       toast({
-        title: "Error",
-        description: "Failed to tag questions",
+        title: "🚨 Bulk Tag Failed",
+        description:
+          "Failed to assign topic to questions. Please check backend connection.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsBulkTagging(false);
+    }
+  };
+
+  const handleExcelUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    console.log("Excel upload started:", file.name);
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("topicId", selectedBulkTagTopic || "");
+
+    try {
+      setIsBulkTagging(true);
+      const response = await api.post("/questions/upload-excel", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      console.log("Excel upload response:", response);
+
+      toast({
+        title: "📊 Excel Upload Complete",
+        description: `Successfully processed ${file.name}. ${response.data?.processed || 0} questions added.`,
+      });
+
+      setShowBulkUploadDialog(false);
+      fetchQuestions();
+      fetchTopics();
+    } catch (error) {
+      console.error("Excel upload error:", error);
+      toast({
+        title: "🚨 Excel Upload Failed",
+        description:
+          "Failed to process Excel file. Please check format and try again.",
         variant: "destructive",
       });
     } finally {
@@ -383,33 +462,84 @@ export default function GlobalQuestionVault() {
   };
 
   const handleBulkDelete = async () => {
-    if (selectedQuestions.length === 0) return;
+    if (selectedQuestions.length === 0) {
+      toast({
+        title: "⚠️ No Questions Selected",
+        description: "Please select questions to delete",
+        variant: "destructive",
+      });
+      return;
+    }
 
+    console.log(
+      `Bulk deleting ${selectedQuestions.length} questions:`,
+      selectedQuestions,
+    );
+
+    setIsBulkTagging(true); // Reuse loading state
     try {
-      await api.delete("/questions/bulk", {
+      const response = await api.delete("/questions/bulk", {
         data: { questionIds: selectedQuestions },
       });
 
+      console.log("Bulk delete response:", response);
+
       toast({
-        title: "Success",
-        description: `Deleted ${selectedQuestions.length} questions`,
+        title: "🗑️ Bulk Delete Complete",
+        description: `Successfully soft-deleted ${selectedQuestions.length} questions. Student data preserved.`,
       });
 
       setSelectedQuestions([]);
       fetchQuestions();
       fetchStats();
     } catch (error) {
+      console.error("Bulk delete error:", error);
       toast({
-        title: "Error",
-        description: "Failed to delete questions",
+        title: "🚨 Bulk Delete Failed",
+        description:
+          "Failed to delete questions. Please check connection and try again.",
         variant: "destructive",
       });
+    } finally {
+      setIsBulkTagging(false);
     }
   };
 
   // Question operations
-  const handleEdit = (question: Question) => {
-    setEditingQuestion(question);
+  const handleEdit = async (question: Question) => {
+    try {
+      // Master Edit: Update question globally across all tests
+      console.log("Master Edit - updating question globally:", question.id);
+
+      const updatedData = {
+        content: question.translations[0]?.content,
+        options: question.translations[0]?.options,
+        explanation: question.translations[0]?.explanation,
+        topicId: question.topic?.id,
+      };
+
+      const response = await api.patch(
+        `/questions/${question.id}`,
+        updatedData,
+      );
+      console.log("Master Edit response:", response);
+
+      toast({
+        title: "Question Updated Globally",
+        description:
+          "This change is reflected across ALL tests using this question",
+      });
+
+      setEditingQuestion(null);
+      fetchQuestions(); // Refresh to show updates
+    } catch (error) {
+      console.error("Master Edit error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update question globally",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleDelete = (questionId: string) => {
@@ -442,15 +572,38 @@ export default function GlobalQuestionVault() {
 
   const handleDeleteQuestion = async (questionId: string) => {
     try {
-      await api.delete(`/questions/${questionId}`);
+      // Master Soft-Delete: Preserves student scorecards
+      console.log("Master Soft-Delete - deactivating question:", questionId);
+
+      const response = await api.patch(`/questions/${questionId}/soft-delete`);
+      console.log("Soft-delete response:", response);
+
+      toast({
+        title: "Question Soft-Deleted",
+        description:
+          "Question hidden from future searches but student scorecards preserved",
+      });
+
       fetchQuestions();
       fetchStats();
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to delete question",
-        variant: "destructive",
-      });
+      console.error("Soft-delete error:", error);
+      // Fallback to regular toggle if soft-delete endpoint doesn't exist
+      try {
+        await api.patch(`/questions/${questionId}/toggle-status`);
+        toast({
+          title: "Question Deactivated",
+          description: "Question hidden from searches (student data preserved)",
+        });
+        fetchQuestions();
+        fetchStats();
+      } catch (fallbackError) {
+        toast({
+          title: "Error",
+          description: "Failed to deactivate question",
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -688,11 +841,11 @@ export default function GlobalQuestionVault() {
                   onClick={() => setShowBulkUploadDialog(true)}
                 >
                   <Upload className="h-4 w-4 mr-2" />
-                  Import
+                  📊 Upload Excel
                 </Button>
                 <Button variant="outline">
                   <Download className="h-4 w-4 mr-2" />
-                  Export
+                  📥 Export Selected
                 </Button>
                 <Button
                   variant="destructive"
@@ -700,7 +853,7 @@ export default function GlobalQuestionVault() {
                   onClick={handleBulkDelete}
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
-                  Delete
+                  🗑️ Soft Delete
                 </Button>
               </div>
             </div>
@@ -811,31 +964,6 @@ export default function GlobalQuestionVault() {
                             </span>
                           </div>
                         </div>
-
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleViewQuestion(question)}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEdit(question)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDelete(question.id)}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
                       </div>
                     </div>
                   </div>
@@ -924,6 +1052,154 @@ export default function GlobalQuestionVault() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Tag Dialog */}
+      <Dialog open={showBulkTagDialog} onOpenChange={setShowBulkTagDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Tag className="h-5 w-5" />
+              🏷️ Bulk Tagger - Assign Topic
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Selected Questions</Label>
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                {selectedQuestions.length} questions selected for bulk tagging
+              </p>
+            </div>
+
+            <div>
+              <Label>Assign Topic</Label>
+              <Select
+                value={selectedBulkTagTopic}
+                onValueChange={setSelectedBulkTagTopic}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select topic to assign" />
+                </SelectTrigger>
+                <SelectContent>
+                  {topics.map((topic) => (
+                    <SelectItem key={topic.id} value={topic.id}>
+                      {topic.name} ({topic.subject})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
+              <Info className="h-4 w-4" />
+              <span>
+                This will update ALL questions to the selected topic instantly
+                across all tests.
+              </span>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4">
+            <Button
+              variant="outline"
+              onClick={() => setShowBulkTagDialog(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleBulkTag}
+              disabled={
+                isBulkTagging ||
+                !selectedBulkTagTopic ||
+                selectedQuestions.length === 0
+              }
+            >
+              {isBulkTagging ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Tagging...
+                </>
+              ) : (
+                <>
+                  <Tag className="h-4 w-4 mr-2" />
+                  🏷️ Tag {selectedQuestions.length} Questions
+                </>
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Upload Dialog */}
+      <Dialog
+        open={showBulkUploadDialog}
+        onOpenChange={setShowBulkUploadDialog}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Upload className="h-5 w-5" />
+              📊 Upload Excel - Bulk Questions
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Upload Excel File</Label>
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                Upload Excel files with 500+ questions for instant bulk
+                processing
+              </p>
+            </div>
+
+            <div>
+              <Label>Default Topic (Optional)</Label>
+              <Select
+                value={selectedBulkTagTopic}
+                onValueChange={setSelectedBulkTagTopic}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select default topic for uploaded questions" />
+                </SelectTrigger>
+                <SelectContent>
+                  {topics.map((topic) => (
+                    <SelectItem key={topic.id} value={topic.id}>
+                      {topic.name} ({topic.subject})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="border-2 border-dashed border-zinc-300 dark:border-zinc-600 rounded-lg p-4">
+              <input
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={handleExcelUpload}
+                className="hidden"
+                id="excel-upload"
+              />
+              <label
+                htmlFor="excel-upload"
+                className="flex flex-col items-center justify-center w-full h-32 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+              >
+                <Upload className="h-8 w-8 text-zinc-400 mb-2" />
+                <span className="text-sm font-medium">
+                  Click to upload Excel file
+                </span>
+                <span className="text-xs text-zinc-500">or drag and drop</span>
+              </label>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4">
+            <Button
+              variant="outline"
+              onClick={() => setShowBulkUploadDialog(false)}
+            >
+              Cancel
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

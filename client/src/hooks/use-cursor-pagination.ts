@@ -11,6 +11,7 @@ interface UseCursorPaginationOptions {
   initialSearch?: string;
   initialTopicId?: string;
   initialSubject?: string;
+  initialLang?: string;
 }
 
 export function useCursorPagination(options: UseCursorPaginationOptions = {}) {
@@ -19,6 +20,7 @@ export function useCursorPagination(options: UseCursorPaginationOptions = {}) {
     initialSearch = "",
     initialTopicId = "",
     initialSubject = "",
+    initialLang = "en",
   } = options;
 
   const [data, setData] = useState<Question[]>([]);
@@ -41,6 +43,7 @@ export function useCursorPagination(options: UseCursorPaginationOptions = {}) {
     search: initialSearch,
     topicId: initialTopicId,
     subject: initialSubject,
+    lang: initialLang,
   });
 
   const [cursor, setCursor] = useState<string | undefined>(undefined);
@@ -61,6 +64,7 @@ export function useCursorPagination(options: UseCursorPaginationOptions = {}) {
           search: filters.search || undefined,
           topicId: filters.topicId || undefined,
           subject: filters.subject || undefined,
+          lang: filters.lang || undefined,
         };
 
         const response = await adminQuestionsApi.getCursorPaginated(params);
@@ -81,8 +85,15 @@ export function useCursorPagination(options: UseCursorPaginationOptions = {}) {
         }
 
         setPagination(response.data.pagination);
-      } catch (err: any) {
-        setError(err.response?.data?.message || "Failed to fetch data");
+      } catch (err) {
+        const message =
+          typeof err === "object" &&
+          err !== null &&
+          "response" in err &&
+          (err as any).response?.data?.message
+            ? (err as any).response.data.message
+            : "Failed to fetch data";
+        setError(message);
       } finally {
         setLoading(false);
       }
@@ -93,7 +104,13 @@ export function useCursorPagination(options: UseCursorPaginationOptions = {}) {
   // Initial load
   useEffect(() => {
     fetch("forward", undefined);
-  }, [filters.search, filters.topicId, filters.subject, pagination.limit]);
+  }, [
+    filters.search,
+    filters.topicId,
+    filters.subject,
+    filters.lang,
+    pagination.limit,
+  ]);
 
   // Load more
   const loadMore = useCallback(() => {

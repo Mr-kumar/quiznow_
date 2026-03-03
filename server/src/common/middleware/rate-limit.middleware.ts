@@ -26,7 +26,7 @@ export class RateLimitMiddleware implements NestMiddleware {
     const WINDOW_MS = 15 * 60 * 1000; // 15 minutes
     const MAX_REQUESTS = 100; // Requests per window
 
-    let record = this.requestMap.get(key);
+    const record = this.requestMap.get(key);
 
     if (!record || now > record.resetTime) {
       // New window
@@ -70,7 +70,7 @@ export class AuthRateLimitMiddleware implements NestMiddleware {
     const WINDOW_MS = 15 * 60 * 1000; // 15 minutes
     const MAX_REQUESTS = 10; // Much stricter for auth
 
-    let record = this.requestMap.get(key);
+    const record = this.requestMap.get(key);
 
     if (!record || now > record.resetTime) {
       this.requestMap.set(key, {
@@ -113,7 +113,7 @@ export class UploadRateLimitMiddleware implements NestMiddleware {
     const WINDOW_MS = 60 * 60 * 1000; // 1 hour
     const MAX_UPLOADS = 5; // 5 uploads per hour
 
-    let record = this.requestMap.get(key);
+    const record = this.requestMap.get(key);
 
     if (!record || now > record.resetTime) {
       this.requestMap.set(key, {

@@ -316,8 +316,13 @@ export interface Question {
     content: string;
     options?: string[];
     explanation?: string;
+    imageUrl?: string;
   }>;
   topic?: Topic;
+  _count?: {
+    sectionLinks: number;
+  };
+  usageCount?: number;
 }
 
 export interface CreateQuestionRequest {
@@ -355,7 +360,7 @@ export const adminQuestionsApi = {
         headers: {
           "Content-Type": "multipart/form-data",
         },
-      },
+      }
     );
   },
 
@@ -365,7 +370,7 @@ export const adminQuestionsApi = {
       {
         questionIds,
         topicId,
-      },
+      }
     ),
 
   // 🚀 NEW: Cursor-based pagination (Enterprise Scale)
@@ -378,6 +383,7 @@ export const adminQuestionsApi = {
         search: params.search,
         topicId: params.topicId,
         subject: params.subject,
+        lang: params.lang || "en",
       },
     }),
 
@@ -394,6 +400,8 @@ export const adminQuestionsApi = {
   update: (id: string, questionData: UpdateQuestionRequest) =>
     api.patch<ApiResponse<Question>>(`/questions/${id}`, questionData),
   delete: (id: string) => api.delete<ApiResponse<void>>(`/questions/${id}`),
+  softDelete: (id: string) =>
+    api.patch<ApiResponse<Question>>(`/questions/${id}/soft-delete`, {}),
 };
 
 // Plans Management API
@@ -470,13 +478,13 @@ export const adminSubscriptionsApi = {
   create: (subscriptionData: CreateSubscriptionRequest) =>
     api.post<ApiResponse<Subscription>>(
       "/admin/subscriptions",
-      subscriptionData,
+      subscriptionData
     ),
 
   update: (id: string, subscriptionData: UpdateSubscriptionRequest) =>
     api.patch<ApiResponse<Subscription>>(
       `/admin/subscriptions/${id}`,
-      subscriptionData,
+      subscriptionData
     ),
 
   delete: (id: string) =>
@@ -575,6 +583,7 @@ export interface CursorPaginationParams {
   search?: string;
   topicId?: string;
   subject?: string;
+  lang?: string;
 }
 
 export const adminTopicsApi = {
@@ -593,6 +602,5 @@ export const adminTopicsApi = {
 
   delete: (id: string) => api.delete<ApiResponse<void>>(`/topics/${id}`),
 
-  getUniqueSubjects: () =>
-    api.get<ApiResponse<string[]>>("/topics/subjects/unique"),
+  getUniqueSubjects: () => api.get<ApiResponse<string[]>>("/topics/subjects"),
 };

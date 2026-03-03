@@ -1,18 +1,17 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
-import { adminTopicsApi, type Topic } from "@/lib/admin-api";
+import { useEffect, useMemo, useState } from "react";
+import {
+  adminQuestionsApi,
+  adminTopicsApi,
+  type Question,
+  type Topic,
+} from "@/lib/admin-api";
+import { useCursorPagination } from "@/hooks/use-cursor-pagination";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -20,6 +19,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,437 +35,595 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetFooter,
+} from "@/components/ui/sheet";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
   BookOpen,
-  Upload,
-  Download,
-  AlertCircle,
+  Search,
+  Tag,
+  Edit,
+  Trash2,
+  Eye,
+  ImageIcon,
   CheckCircle2,
   Loader2,
-  FileText,
-  Search,
 } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import api from "@/lib/api";
 
-interface Question {
-  id: string;
-  hash: string;
-  topicId?: string;
-  topic?: Topic;
-  isActive: boolean;
-  correctAnswer: number;
-  createdAt: string;
-  translations: Array<{
-    lang: string;
-    content: string;
-    options: string[];
-    explanation?: string;
-  }>;
-}
-
-export default function QuestionBankPage() {
+export default function GlobalQuestionVaultPage() {
   const { toast } = useToast();
-  const [questions, setQuestions] = useState<Question[]>([]);
   const [topics, setTopics] = useState<Topic[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedTopic, setSelectedTopic] = useState<string>("all");
-  const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [selectedSection, setSelectedSection] = useState<string>("");
+  const [subjects, setSubjects] = useState<string[]>([]);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [bulkTopicId, setBulkTopicId] = useState<string>("");
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [activeQuestion, setActiveQuestion] = useState<Question | null>(null);
+  const [editContent, setEditContent] = useState("");
+  const [editOptions, setEditOptions] = useState<string[]>([]);
+  const [editCorrect, setEditCorrect] = useState<number>(0);
+  const [editExplanation, setEditExplanation] = useState("");
+  const [saving, setSaving] = useState(false);
 
-  // Load questions and topics
-  const loadData = useCallback(async () => {
-    try {
-      setLoading(true);
-      const [questionsRes, topicsRes] = await Promise.all([
-        api.get("/questions"),
-        adminTopicsApi.getAll(1, 1000),
-      ]);
-      setQuestions(questionsRes.data.data || []);
-      setTopics(topicsRes.data.data || []);
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description:
-          error.response?.data?.message || "Failed to load questions",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [toast]);
+  const { data, loading, updateFilters, filters, reset, loadMore, hasMore } =
+    useCursorPagination({ initialLimit: 50, initialLang: "en" });
 
-  // Load on mount
+  const [observerEl, setObserverEl] = useState<HTMLDivElement | null>(null);
   useEffect(() => {
-    loadData();
+    if (!observerEl) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && hasMore && !loading) {
+          loadMore();
+        }
+      },
+      { rootMargin: "200px" }
+    );
+    io.observe(observerEl);
+    return () => io.disconnect();
+  }, [observerEl, hasMore, loading, loadMore]);
+
+  useEffect(() => {
+    adminTopicsApi.getAll(1, 1000).then((r) => setTopics(r.data.data || []));
+    adminTopicsApi
+      .getUniqueSubjects()
+      .then((r) => setSubjects(r.data.data || []));
   }, []);
 
-  const filteredQuestions = questions.filter((q) => {
-    const matchesSearch = q.translations.some(
-      (t) =>
-        t.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        t.explanation?.toLowerCase().includes(searchTerm.toLowerCase()),
+  const onToggleSelect = (id: string) => {
+    setSelected((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
-    const matchesTopic = selectedTopic === "all" || q.topicId === selectedTopic;
-    return matchesSearch && matchesTopic;
-  });
-
-  // Handle file selection
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // Validate file type
-    const validTypes = [
-      "application/vnd.ms-excel",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "text/csv",
-    ];
-
-    if (!validTypes.includes(file.type)) {
-      toast({
-        title: "Invalid file",
-        description: "Please upload an Excel (.xlsx) or CSV file",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setSelectedFile(file);
   };
 
-  // Handle bulk upload
-  const handleBulkUpload = async () => {
-    if (!selectedFile || !selectedSection) {
+  const onSelectAllVisible = () => {
+    const ids = data.map((q) => q.id);
+    const allSelected = ids.every((id) => selected.includes(id));
+    setSelected(
+      allSelected
+        ? selected.filter((id) => !ids.includes(id))
+        : [...new Set([...selected, ...ids])]
+    );
+  };
+
+  const subjectOptions = useMemo(() => ["all", ...subjects], [subjects]);
+  const topicOptions = useMemo(() => {
+    if (!filters.subject || filters.subject === "all") return topics;
+    return topics.filter((t) => t.subject === filters.subject);
+  }, [topics, filters.subject]);
+
+  const openPreview = (q: Question) => {
+    setActiveQuestion(q);
+    setPreviewOpen(true);
+  };
+
+  const openEdit = (q: Question) => {
+    const t = q.translations?.[0];
+    setActiveQuestion(q);
+    setEditContent(t?.content || "");
+    setEditOptions((t?.options as string[]) || []);
+    setEditExplanation(t?.explanation || "");
+    setEditCorrect(q.correctAnswer ?? 0);
+    setEditOpen(true);
+  };
+
+  const doBulkTag = async () => {
+    if (!bulkTopicId || selected.length === 0) return;
+    try {
+      await adminQuestionsApi.bulkTag(selected, bulkTopicId);
+      toast({ title: "Updated", description: "Topics updated" });
+      setBulkOpen(false);
+      setSelected([]);
+      reset();
+    } catch (e: any) {
       toast({
-        title: "Missing information",
-        description: "Please select a file and a section",
+        title: "Failed",
+        description: e.response?.data?.message || "Bulk tag failed",
         variant: "destructive",
       });
-      return;
     }
+  };
 
+  const doSoftDelete = async (id: string) => {
     try {
-      setUploading(true);
-      setUploadProgress(0);
-
-      const formData = new FormData();
-      formData.append("file", selectedFile);
-      formData.append("sectionId", selectedSection);
-
-      const response = await api.post("/questions/upload", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-        onUploadProgress: (progressEvent: any) => {
-          const progress = Math.round(
-            (progressEvent.loaded / progressEvent.total) * 100,
-          );
-          setUploadProgress(progress);
-        },
-      });
-
+      await adminQuestionsApi.softDelete(id);
+      toast({ title: "Archived", description: "Question soft-deleted" });
+      reset();
+    } catch (e: any) {
       toast({
-        title: "Success",
-        description: `${response.data.count} questions uploaded successfully`,
+        title: "Failed",
+        description: e.response?.data?.message || "Delete failed",
+        variant: "destructive",
       });
+    }
+  };
 
-      setIsUploadDialogOpen(false);
-      setSelectedFile(null);
-      setSelectedSection("");
-      await loadData();
-    } catch (error: any) {
+  const doSave = async () => {
+    if (!activeQuestion) return;
+    try {
+      setSaving(true);
+      await adminQuestionsApi.update(activeQuestion.id, {
+        content: editContent,
+        options: editOptions,
+        explanation: editExplanation,
+        correctAnswer: editCorrect,
+      } as any);
+      toast({ title: "Saved", description: "Question updated" });
+      setEditOpen(false);
+      reset();
+    } catch (e: any) {
       toast({
-        title: "Upload failed",
-        description:
-          error.response?.data?.message ||
-          "Failed to upload questions. Check the file format.",
+        title: "Failed",
+        description: e.response?.data?.message || "Update failed",
         variant: "destructive",
       });
     } finally {
-      setUploading(false);
-      setUploadProgress(0);
+      setSaving(false);
     }
   };
 
-  // Download template
-  const handleDownloadTemplate = () => {
-    const link = document.createElement("a");
-    link.href = "/templates/questions-template.xlsx";
-    link.download = "questions-template.xlsx";
-    link.click();
-  };
-
-  const uniqueSubjects = Array.from(
-    new Set(topics.map((t) => t.subject).filter(Boolean)),
-  );
-
   return (
-    <div className="space-y-6">
-      {/* Header */}
+    <div className="space-y-4">
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2">
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
               <BookOpen className="h-5 w-5" />
-              Question Bank
-            </CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">
-              Manage questions and bulk upload new ones
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={handleDownloadTemplate}>
-              <Download className="h-4 w-4 mr-2" />
-              Template
-            </Button>
-            <Dialog
-              open={isUploadDialogOpen}
-              onOpenChange={setIsUploadDialogOpen}
-            >
-              <DialogTrigger asChild>
-                <Button>
-                  <Upload className="h-4 w-4 mr-2" />
-                  Import Questions
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Import Questions from File</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <Alert>
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>
-                      Upload an Excel (.xlsx) file with questions. Download the
-                      template for the correct format.
-                    </AlertDescription>
-                  </Alert>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Select File</label>
-                    <div className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-primary transition">
-                      <input
-                        type="file"
-                        accept=".xlsx,.csv,.xls"
-                        onChange={handleFileSelect}
-                        className="hidden"
-                        id="file-input"
-                      />
-                      <label htmlFor="file-input" className="cursor-pointer">
-                        {selectedFile ? (
-                          <div className="flex items-center justify-center gap-2">
-                            <CheckCircle2 className="h-5 w-5 text-green-500" />
-                            <span>{selectedFile.name}</span>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col items-center gap-2">
-                            <FileText className="h-8 w-8 text-muted-foreground" />
-                            <span className="text-sm">
-                              Click to select Excel file
-                            </span>
-                          </div>
-                        )}
-                      </label>
+              Global Question Vault
+            </div>
+            <div className="flex items-center gap-2">
+              <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" disabled={selected.length === 0}>
+                    <Tag className="h-4 w-4 mr-2" />
+                    Bulk Assign Topic
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Bulk Assign Topic</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-3">
+                    <div className="text-sm text-muted-foreground">
+                      {selected.length} selected
+                    </div>
+                    <Select value={bulkTopicId} onValueChange={setBulkTopicId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select topic" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {topics.map((t) => (
+                          <SelectItem key={t.id} value={t.id}>
+                            {t.subject ? `${t.subject} — ${t.name}` : t.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => setBulkOpen(false)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button onClick={doBulkTag} disabled={!bulkTopicId}>
+                        Apply
+                      </Button>
                     </div>
                   </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">
-                      Section (Optional)
-                    </label>
-                    <Input
-                      placeholder="Enter section ID or leave blank"
-                      value={selectedSection}
-                      onChange={(e) => setSelectedSection(e.target.value)}
-                    />
-                  </div>
-
-                  {uploading && (
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span>Uploading...</span>
-                        <span>{uploadProgress}%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div
-                          className={`bg-blue-600 h-2 rounded-full transition-all ${
-                            uploadProgress === 0
-                              ? "w-0"
-                              : uploadProgress <= 10
-                                ? "w-[10%]"
-                                : uploadProgress <= 20
-                                  ? "w-[20%]"
-                                  : uploadProgress <= 30
-                                    ? "w-[30%]"
-                                    : uploadProgress <= 40
-                                      ? "w-[40%]"
-                                      : uploadProgress <= 50
-                                        ? "w-[50%]"
-                                        : uploadProgress <= 60
-                                          ? "w-[60%]"
-                                          : uploadProgress <= 70
-                                            ? "w-[70%]"
-                                            : uploadProgress <= 80
-                                              ? "w-[80%]"
-                                              : uploadProgress <= 90
-                                                ? "w-[90%]"
-                                                : "w-full"
-                          }`}
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      onClick={() => setIsUploadDialogOpen(false)}
-                      disabled={uploading}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={handleBulkUpload}
-                      disabled={uploading || !selectedFile}
-                      className="flex-1"
-                    >
-                      {uploading ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Uploading...
-                        </>
-                      ) : (
-                        <>
-                          <Upload className="h-4 w-4 mr-2" />
-                          Import
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              </DialogContent>
-            </Dialog>
-          </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </CardTitle>
         </CardHeader>
-      </Card>
-
-      {/* Filters */}
-      <div className="flex gap-2 items-center">
-        <Search className="h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search questions..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="max-w-sm"
-        />
-        <Select value={selectedTopic} onValueChange={setSelectedTopic}>
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder="Filter by topic" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Topics</SelectItem>
-            {topics.map((topic) => (
-              <SelectItem key={topic.id} value={topic.id}>
-                {topic.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Statistics */}
-      <div className="grid grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <div className="text-3xl font-bold">{questions.length}</div>
-              <p className="text-xs text-muted-foreground">Total Questions</p>
+        <CardContent className="space-y-3">
+          <div className="grid gap-2 md:grid-cols-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search..."
+                className="pl-10"
+                value={filters.search}
+                onChange={(e) => updateFilters({ search: e.target.value })}
+              />
             </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <div className="text-3xl font-bold">
-                {questions.filter((q) => q.isActive).length}
+            <Select
+              value={filters.subject || "all"}
+              onValueChange={(v) =>
+                updateFilters({ subject: v === "all" ? "" : v })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Subject" />
+              </SelectTrigger>
+              <SelectContent>
+                {subjectOptions.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {s}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
+              value={filters.topicId || "all"}
+              onValueChange={(v) =>
+                updateFilters({ topicId: v === "all" ? "" : v })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Topic" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                {topicOptions.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>
+                    {t.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
+              value={(filters as any).lang || "en"}
+              onValueChange={(v) => updateFilters({ lang: v })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Language" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="en">English</SelectItem>
+                <SelectItem value="hi">Hindi</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="border rounded-lg">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-10">
+                    <input
+                      type="checkbox"
+                      aria-label="Select all"
+                      onChange={onSelectAllVisible}
+                      checked={
+                        data.length > 0 &&
+                        data.every((q) => selected.includes(q.id))
+                      }
+                    />
+                  </TableHead>
+                  <TableHead>Question</TableHead>
+                  <TableHead className="w-40 text-center">Topic</TableHead>
+                  <TableHead className="w-32 text-center">Usage</TableHead>
+                  <TableHead className="w-40 text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loading && data.length === 0
+                  ? Array.from({ length: 6 }).map((_, i) => (
+                      <TableRow key={i}>
+                        <TableCell>
+                          <Skeleton className="h-4 w-4" />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton className="h-4 w-3/4" />
+                          <div className="mt-2 space-x-2">
+                            <Skeleton className="h-3 w-24 inline-block" />
+                            <Skeleton className="h-3 w-16 inline-block" />
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Skeleton className="h-5 w-24 mx-auto" />
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Skeleton className="h-5 w-20 mx-auto" />
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Skeleton className="h-8 w-24 inline-block" />
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  : data.map((q) => {
+                      const t = q.translations?.[0];
+                      const hasMedia = !!t?.imageUrl;
+                      const usage =
+                        (q as any)._count?.sectionLinks ?? q.usageCount ?? 0;
+                      const isSelected = selected.includes(q.id);
+                      return (
+                        <TableRow
+                          key={q.id}
+                          className={!q.isActive ? "opacity-60" : ""}
+                        >
+                          <TableCell>
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => onToggleSelect(q.id)}
+                              aria-label="Select row"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-start gap-2">
+                              <button
+                                className="text-left flex-1"
+                                onClick={() => openPreview(q)}
+                              >
+                                <div className="font-medium text-sm line-clamp-2">
+                                  {t?.content}
+                                </div>
+                              </button>
+                              {hasMedia && (
+                                <ImageIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+                              )}
+                            </div>
+                            <div className="mt-1 text-xs text-muted-foreground">
+                              {Array.isArray(t?.options) &&
+                                t?.options.slice(0, 2).map((o, i) => (
+                                  <span key={i} className="mr-3">
+                                    {String.fromCharCode(65 + i)}. {o}
+                                  </span>
+                                ))}
+                            </div>
+                            <div className="mt-1">
+                              <Badge
+                                variant={q.isActive ? "secondary" : "outline"}
+                              >
+                                {q.isActive ? "Active" : "Inactive"}
+                              </Badge>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {q.topic ? (
+                              <div className="flex flex-col items-center">
+                                {q.topic.subject && (
+                                  <Badge variant="outline" className="mb-1">
+                                    {q.topic.subject}
+                                  </Badge>
+                                )}
+                                <Badge variant="outline">{q.topic.name}</Badge>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">
+                                Untagged
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Badge variant="outline">
+                              Used in {usage} Tests
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right space-x-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => openPreview(q)}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => openEdit(q)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button size="sm" variant="destructive">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>
+                                    Soft Delete Question
+                                  </AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    This hides the question from future use
+                                    without affecting past attempts.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => doSoftDelete(q.id)}
+                                  >
+                                    Confirm
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                <TableRow>
+                  <TableCell colSpan={5}>
+                    <div
+                      ref={setObserverEl}
+                      className="h-8 flex items-center justify-center text-xs text-muted-foreground"
+                    >
+                      {hasMore
+                        ? loading
+                          ? "Loading…"
+                          : "Scroll to load more"
+                        : "No more questions"}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+            <div className="flex items-center justify-between px-4 py-2">
+              <div className="text-sm text-muted-foreground">
+                {selected.length} selected
               </div>
-              <p className="text-xs text-muted-foreground">Active</p>
+              <div className="text-sm text-muted-foreground">
+                Showing {data.length} questions
+              </div>
             </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <div className="text-3xl font-bold">{topics.length}</div>
-              <p className="text-xs text-muted-foreground">Topics</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <div className="text-3xl font-bold">{uniqueSubjects.length}</div>
-              <p className="text-xs text-muted-foreground">Subjects</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Questions List */}
-      <Card>
-        <CardContent className="pt-6">
-          {loading ? (
-            <div className="text-center py-8 flex items-center justify-center gap-2">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Loading questions...</span>
-            </div>
-          ) : filteredQuestions.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              No questions found matching your filters
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {filteredQuestions.map((question) => (
-                <div
-                  key={question.id}
-                  className="border rounded-lg p-4 hover:bg-muted/50 transition"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <p className="font-medium text-sm">
-                        {question.translations[0]?.content.substring(0, 100)}
-                        {question.translations[0]?.content.length > 100 &&
-                          "..."}
-                      </p>
-                      <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-                        {question.topic && (
-                          <>
-                            <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded">
-                              {question.topic.name}
-                            </span>
-                          </>
-                        )}
-                        <span>
-                          {new Date(question.createdAt).toLocaleDateString()}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded">
-                        {question.isActive ? "Active" : "Inactive"}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          </div>
         </CardContent>
       </Card>
+
+      <Sheet open={previewOpen} onOpenChange={setPreviewOpen}>
+        <SheetContent side="right">
+          <SheetHeader>
+            <SheetTitle>Question Preview</SheetTitle>
+          </SheetHeader>
+          {activeQuestion && (
+            <div className="p-4 space-y-3">
+              <div className="text-sm">
+                {activeQuestion.translations?.[0]?.content}
+              </div>
+              <div className="space-y-1">
+                {activeQuestion.translations?.[0]?.options?.map((o, i) => {
+                  const isCorrect = i === activeQuestion.correctAnswer;
+                  return (
+                    <div
+                      key={i}
+                      className={`text-sm ${isCorrect ? "text-green-600" : ""}`}
+                    >
+                      {String.fromCharCode(65 + i)}. {o}
+                    </div>
+                  );
+                })}
+              </div>
+              {activeQuestion.translations?.[0]?.explanation && (
+                <div className="text-sm">
+                  {activeQuestion.translations?.[0]?.explanation}
+                </div>
+              )}
+              {activeQuestion.translations?.[0]?.imageUrl && (
+                <img
+                  src={activeQuestion.translations?.[0]?.imageUrl}
+                  alt=""
+                  className="rounded-md border"
+                />
+              )}
+              <div className="pt-2">
+                <Badge variant="outline">
+                  Used in {(activeQuestion as any)._count?.sectionLinks ?? 0}{" "}
+                  Tests
+                </Badge>
+              </div>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={editOpen} onOpenChange={setEditOpen}>
+        <SheetContent side="right">
+          <SheetHeader>
+            <SheetTitle>Edit Question</SheetTitle>
+          </SheetHeader>
+          <div className="p-4 space-y-3">
+            <Input
+              value={editContent}
+              onChange={(e) => setEditContent(e.target.value)}
+              placeholder="Question text"
+            />
+            <div className="space-y-2">
+              {editOptions.map((opt, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <Input
+                    value={opt}
+                    onChange={(e) => {
+                      const next = [...editOptions];
+                      next[idx] = e.target.value;
+                      setEditOptions(next);
+                    }}
+                    placeholder={`Option ${String.fromCharCode(65 + idx)}`}
+                  />
+                  <Button
+                    variant={editCorrect === idx ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setEditCorrect(idx)}
+                  >
+                    <CheckCircle2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setEditOptions((o) => [...o, ""])}
+                >
+                  Add option
+                </Button>
+                {editOptions.length > 0 && (
+                  <Button
+                    variant="outline"
+                    onClick={() =>
+                      setEditOptions((o) =>
+                        o.slice(0, Math.max(0, o.length - 1))
+                      )
+                    }
+                  >
+                    Remove last
+                  </Button>
+                )}
+              </div>
+            </div>
+            <Input
+              value={editExplanation}
+              onChange={(e) => setEditExplanation(e.target.value)}
+              placeholder="Explanation"
+            />
+          </div>
+          <SheetFooter className="p-4">
+            <Button variant="outline" onClick={() => setEditOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={doSave} disabled={saving}>
+              {saving ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Saving
+                </>
+              ) : (
+                "Save"
+              )}
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
