@@ -7,6 +7,9 @@ CREATE TYPE "Status" AS ENUM ('STARTED', 'SUBMITTED', 'EXPIRED');
 -- CreateEnum
 CREATE TYPE "SubscriptionStatus" AS ENUM ('ACTIVE', 'EXPIRED', 'CANCELLED');
 
+-- CreateEnum
+CREATE TYPE "Language" AS ENUM ('EN', 'HI');
+
 -- CreateTable
 CREATE TABLE "User" (
     "id" TEXT NOT NULL,
@@ -14,8 +17,10 @@ CREATE TABLE "User" (
     "name" TEXT,
     "image" TEXT,
     "role" "Role" NOT NULL DEFAULT 'STUDENT',
+    "preferredLang" "Language" NOT NULL DEFAULT 'EN',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "deletedAt" TIMESTAMP(3),
 
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
 );
@@ -28,6 +33,7 @@ CREATE TABLE "Category" (
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "deletedAt" TIMESTAMP(3),
 
     CONSTRAINT "Category_pkey" PRIMARY KEY ("id")
 );
@@ -40,6 +46,7 @@ CREATE TABLE "Exam" (
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "deletedAt" TIMESTAMP(3),
 
     CONSTRAINT "Exam_pkey" PRIMARY KEY ("id")
 );
@@ -52,6 +59,7 @@ CREATE TABLE "TestSeries" (
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "deletedAt" TIMESTAMP(3),
 
     CONSTRAINT "TestSeries_pkey" PRIMARY KEY ("id")
 );
@@ -63,6 +71,7 @@ CREATE TABLE "Topic" (
     "subject" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "deletedAt" TIMESTAMP(3),
 
     CONSTRAINT "Topic_pkey" PRIMARY KEY ("id")
 );
@@ -71,11 +80,11 @@ CREATE TABLE "Topic" (
 CREATE TABLE "Question" (
     "id" TEXT NOT NULL,
     "topicId" TEXT,
-    "correctAnswer" INTEGER NOT NULL,
-    "hash" TEXT NOT NULL,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "hash" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "deletedAt" TIMESTAMP(3),
 
     CONSTRAINT "Question_pkey" PRIMARY KEY ("id")
 );
@@ -84,12 +93,34 @@ CREATE TABLE "Question" (
 CREATE TABLE "QuestionTranslation" (
     "id" TEXT NOT NULL,
     "questionId" TEXT NOT NULL,
-    "lang" TEXT NOT NULL,
+    "lang" "Language" NOT NULL,
     "content" TEXT NOT NULL,
-    "options" JSONB NOT NULL,
     "explanation" TEXT,
+    "imageUrl" TEXT,
 
     CONSTRAINT "QuestionTranslation_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "QuestionOption" (
+    "id" TEXT NOT NULL,
+    "questionId" TEXT NOT NULL,
+    "isCorrect" BOOLEAN NOT NULL DEFAULT false,
+    "order" INTEGER NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "QuestionOption_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "OptionTranslation" (
+    "id" TEXT NOT NULL,
+    "optionId" TEXT NOT NULL,
+    "lang" "Language" NOT NULL,
+    "text" TEXT NOT NULL,
+
+    CONSTRAINT "OptionTranslation_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -106,10 +137,11 @@ CREATE TABLE "Test" (
     "isLive" BOOLEAN NOT NULL DEFAULT false,
     "isPremium" BOOLEAN NOT NULL DEFAULT false,
     "maxAttempts" INTEGER,
-    "seriesId" TEXT NOT NULL,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "seriesId" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "deletedAt" TIMESTAMP(3),
 
     CONSTRAINT "Test_pkey" PRIMARY KEY ("id")
 );
@@ -138,7 +170,7 @@ CREATE TABLE "SectionQuestion" (
 
 -- CreateTable
 CREATE TABLE "Attempt" (
-    "id" TEXT NOT NULL,
+    "id" BIGSERIAL NOT NULL,
     "userId" TEXT NOT NULL,
     "testId" TEXT NOT NULL,
     "attemptNumber" INTEGER NOT NULL DEFAULT 1,
@@ -148,7 +180,7 @@ CREATE TABLE "Attempt" (
     "ipAddress" TEXT,
     "userAgent" TEXT,
     "deviceInfo" TEXT,
-    "suspiciousScore" DOUBLE PRECISION DEFAULT 0,
+    "suspiciousScore" DOUBLE PRECISION NOT NULL DEFAULT 0,
     "score" DOUBLE PRECISION NOT NULL DEFAULT 0,
     "correctCount" INTEGER NOT NULL DEFAULT 0,
     "wrongCount" INTEGER NOT NULL DEFAULT 0,
@@ -163,27 +195,24 @@ CREATE TABLE "Attempt" (
 
 -- CreateTable
 CREATE TABLE "AttemptAnswer" (
-    "id" TEXT NOT NULL,
-    "attemptId" TEXT NOT NULL,
+    "attemptId" BIGINT NOT NULL,
     "questionId" TEXT NOT NULL,
-    "selectedOption" INTEGER,
+    "optionId" TEXT,
     "isCorrect" BOOLEAN NOT NULL DEFAULT false,
+    "marksAwarded" DOUBLE PRECISION,
     "isMarked" BOOLEAN NOT NULL DEFAULT false,
     "answeredAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "AttemptAnswer_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "AttemptAnswer_pkey" PRIMARY KEY ("attemptId","questionId")
 );
 
 -- CreateTable
 CREATE TABLE "LeaderboardEntry" (
-    "id" TEXT NOT NULL,
+    "id" BIGSERIAL NOT NULL,
     "testId" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "score" DOUBLE PRECISION NOT NULL,
-    "rank" INTEGER NOT NULL,
-    "percentile" DOUBLE PRECISION NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "LeaderboardEntry_pkey" PRIMARY KEY ("id")
@@ -191,7 +220,7 @@ CREATE TABLE "LeaderboardEntry" (
 
 -- CreateTable
 CREATE TABLE "UserTopicStat" (
-    "id" TEXT NOT NULL,
+    "id" BIGSERIAL NOT NULL,
     "userId" TEXT NOT NULL,
     "topicId" TEXT NOT NULL,
     "attempts" INTEGER NOT NULL DEFAULT 0,
@@ -203,6 +232,20 @@ CREATE TABLE "UserTopicStat" (
 );
 
 -- CreateTable
+CREATE TABLE "AuditLog" (
+    "id" BIGSERIAL NOT NULL,
+    "actorId" TEXT,
+    "actorRole" "Role",
+    "action" TEXT NOT NULL,
+    "targetType" TEXT,
+    "targetId" TEXT,
+    "metadata" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "AuditLog_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "Plan" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
@@ -210,6 +253,7 @@ CREATE TABLE "Plan" (
     "durationDays" INTEGER NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "deletedAt" TIMESTAMP(3),
 
     CONSTRAINT "Plan_pkey" PRIMARY KEY ("id")
 );
@@ -236,20 +280,6 @@ CREATE TABLE "Subscription" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "Subscription_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "AuditLog" (
-    "id" TEXT NOT NULL,
-    "actorId" TEXT,
-    "actorRole" "Role",
-    "action" TEXT NOT NULL,
-    "targetType" TEXT,
-    "targetId" TEXT,
-    "metadata" JSONB,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "AuditLog_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -294,7 +324,19 @@ CREATE INDEX "QuestionTranslation_lang_idx" ON "QuestionTranslation"("lang");
 CREATE UNIQUE INDEX "QuestionTranslation_questionId_lang_key" ON "QuestionTranslation"("questionId", "lang");
 
 -- CreateIndex
+CREATE INDEX "QuestionOption_questionId_idx" ON "QuestionOption"("questionId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "QuestionOption_questionId_order_key" ON "QuestionOption"("questionId", "order");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "OptionTranslation_optionId_lang_key" ON "OptionTranslation"("optionId", "lang");
+
+-- CreateIndex
 CREATE INDEX "Test_seriesId_idx" ON "Test"("seriesId");
+
+-- CreateIndex
+CREATE INDEX "Test_isActive_isLive_idx" ON "Test"("isActive", "isLive");
 
 -- CreateIndex
 CREATE INDEX "Test_startAt_idx" ON "Test"("startAt");
@@ -306,28 +348,25 @@ CREATE INDEX "Section_testId_idx" ON "Section"("testId");
 CREATE INDEX "SectionQuestion_questionId_idx" ON "SectionQuestion"("questionId");
 
 -- CreateIndex
-CREATE INDEX "Attempt_userId_idx" ON "Attempt"("userId");
-
--- CreateIndex
-CREATE INDEX "Attempt_testId_idx" ON "Attempt"("testId");
-
--- CreateIndex
 CREATE INDEX "Attempt_status_idx" ON "Attempt"("status");
+
+-- CreateIndex
+CREATE INDEX "Attempt_testId_createdAt_idx" ON "Attempt"("testId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "Attempt_userId_createdAt_idx" ON "Attempt"("userId", "createdAt");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Attempt_userId_testId_attemptNumber_key" ON "Attempt"("userId", "testId", "attemptNumber");
 
 -- CreateIndex
-CREATE INDEX "AttemptAnswer_attemptId_idx" ON "AttemptAnswer"("attemptId");
-
--- CreateIndex
 CREATE INDEX "AttemptAnswer_questionId_idx" ON "AttemptAnswer"("questionId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "AttemptAnswer_attemptId_questionId_key" ON "AttemptAnswer"("attemptId", "questionId");
+CREATE INDEX "AttemptAnswer_optionId_idx" ON "AttemptAnswer"("optionId");
 
 -- CreateIndex
-CREATE INDEX "LeaderboardEntry_testId_rank_idx" ON "LeaderboardEntry"("testId", "rank");
+CREATE INDEX "LeaderboardEntry_testId_score_idx" ON "LeaderboardEntry"("testId", "score" DESC);
 
 -- CreateIndex
 CREATE UNIQUE INDEX "LeaderboardEntry_testId_userId_key" ON "LeaderboardEntry"("testId", "userId");
@@ -339,37 +378,31 @@ CREATE INDEX "UserTopicStat_topicId_idx" ON "UserTopicStat"("topicId");
 CREATE UNIQUE INDEX "UserTopicStat_userId_topicId_key" ON "UserTopicStat"("userId", "topicId");
 
 -- CreateIndex
-CREATE INDEX "PlanAccess_planId_idx" ON "PlanAccess"("planId");
-
--- CreateIndex
-CREATE INDEX "PlanAccess_examId_idx" ON "PlanAccess"("examId");
-
--- CreateIndex
-CREATE INDEX "PlanAccess_seriesId_idx" ON "PlanAccess"("seriesId");
-
--- CreateIndex
-CREATE INDEX "Subscription_userId_idx" ON "Subscription"("userId");
-
--- CreateIndex
 CREATE INDEX "AuditLog_actorId_idx" ON "AuditLog"("actorId");
 
 -- CreateIndex
 CREATE INDEX "AuditLog_action_idx" ON "AuditLog"("action");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "AdminSettings_key_key" ON "AdminSettings"("key");
+CREATE INDEX "PlanAccess_planId_examId_idx" ON "PlanAccess"("planId", "examId");
 
 -- CreateIndex
-CREATE INDEX "AdminSettings_key_idx" ON "AdminSettings"("key");
+CREATE INDEX "PlanAccess_planId_seriesId_idx" ON "PlanAccess"("planId", "seriesId");
+
+-- CreateIndex
+CREATE INDEX "Subscription_userId_expiresAt_idx" ON "Subscription"("userId", "expiresAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "AdminSettings_key_key" ON "AdminSettings"("key");
 
 -- AddForeignKey
-ALTER TABLE "Category" ADD CONSTRAINT "Category_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "Category"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Category" ADD CONSTRAINT "Category_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "Category"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Exam" ADD CONSTRAINT "Exam_categoryId_fkey" FOREIGN KEY ("categoryId") REFERENCES "Category"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Exam" ADD CONSTRAINT "Exam_categoryId_fkey" FOREIGN KEY ("categoryId") REFERENCES "Category"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "TestSeries" ADD CONSTRAINT "TestSeries_examId_fkey" FOREIGN KEY ("examId") REFERENCES "Exam"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "TestSeries" ADD CONSTRAINT "TestSeries_examId_fkey" FOREIGN KEY ("examId") REFERENCES "Exam"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Question" ADD CONSTRAINT "Question_topicId_fkey" FOREIGN KEY ("topicId") REFERENCES "Topic"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -378,52 +411,61 @@ ALTER TABLE "Question" ADD CONSTRAINT "Question_topicId_fkey" FOREIGN KEY ("topi
 ALTER TABLE "QuestionTranslation" ADD CONSTRAINT "QuestionTranslation_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "Question"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Test" ADD CONSTRAINT "Test_seriesId_fkey" FOREIGN KEY ("seriesId") REFERENCES "TestSeries"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "QuestionOption" ADD CONSTRAINT "QuestionOption_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "Question"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "OptionTranslation" ADD CONSTRAINT "OptionTranslation_optionId_fkey" FOREIGN KEY ("optionId") REFERENCES "QuestionOption"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Test" ADD CONSTRAINT "Test_seriesId_fkey" FOREIGN KEY ("seriesId") REFERENCES "TestSeries"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Section" ADD CONSTRAINT "Section_testId_fkey" FOREIGN KEY ("testId") REFERENCES "Test"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "SectionQuestion" ADD CONSTRAINT "SectionQuestion_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "Question"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "SectionQuestion" ADD CONSTRAINT "SectionQuestion_sectionId_fkey" FOREIGN KEY ("sectionId") REFERENCES "Section"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Attempt" ADD CONSTRAINT "Attempt_testId_fkey" FOREIGN KEY ("testId") REFERENCES "Test"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "SectionQuestion" ADD CONSTRAINT "SectionQuestion_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "Question"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Attempt" ADD CONSTRAINT "Attempt_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Attempt" ADD CONSTRAINT "Attempt_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Attempt" ADD CONSTRAINT "Attempt_testId_fkey" FOREIGN KEY ("testId") REFERENCES "Test"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "AttemptAnswer" ADD CONSTRAINT "AttemptAnswer_attemptId_fkey" FOREIGN KEY ("attemptId") REFERENCES "Attempt"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "AttemptAnswer" ADD CONSTRAINT "AttemptAnswer_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "Question"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "AttemptAnswer" ADD CONSTRAINT "AttemptAnswer_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "Question"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "LeaderboardEntry" ADD CONSTRAINT "LeaderboardEntry_testId_fkey" FOREIGN KEY ("testId") REFERENCES "Test"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "AttemptAnswer" ADD CONSTRAINT "AttemptAnswer_optionId_fkey" FOREIGN KEY ("optionId") REFERENCES "QuestionOption"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "LeaderboardEntry" ADD CONSTRAINT "LeaderboardEntry_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "LeaderboardEntry" ADD CONSTRAINT "LeaderboardEntry_testId_fkey" FOREIGN KEY ("testId") REFERENCES "Test"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "UserTopicStat" ADD CONSTRAINT "UserTopicStat_topicId_fkey" FOREIGN KEY ("topicId") REFERENCES "Topic"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "LeaderboardEntry" ADD CONSTRAINT "LeaderboardEntry_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "UserTopicStat" ADD CONSTRAINT "UserTopicStat_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "UserTopicStat" ADD CONSTRAINT "UserTopicStat_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "PlanAccess" ADD CONSTRAINT "PlanAccess_examId_fkey" FOREIGN KEY ("examId") REFERENCES "Exam"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "UserTopicStat" ADD CONSTRAINT "UserTopicStat_topicId_fkey" FOREIGN KEY ("topicId") REFERENCES "Topic"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "PlanAccess" ADD CONSTRAINT "PlanAccess_planId_fkey" FOREIGN KEY ("planId") REFERENCES "Plan"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "PlanAccess" ADD CONSTRAINT "PlanAccess_planId_fkey" FOREIGN KEY ("planId") REFERENCES "Plan"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "PlanAccess" ADD CONSTRAINT "PlanAccess_seriesId_fkey" FOREIGN KEY ("seriesId") REFERENCES "TestSeries"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "PlanAccess" ADD CONSTRAINT "PlanAccess_examId_fkey" FOREIGN KEY ("examId") REFERENCES "Exam"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Subscription" ADD CONSTRAINT "Subscription_planId_fkey" FOREIGN KEY ("planId") REFERENCES "Plan"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "PlanAccess" ADD CONSTRAINT "PlanAccess_seriesId_fkey" FOREIGN KEY ("seriesId") REFERENCES "TestSeries"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Subscription" ADD CONSTRAINT "Subscription_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Subscription" ADD CONSTRAINT "Subscription_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Subscription" ADD CONSTRAINT "Subscription_planId_fkey" FOREIGN KEY ("planId") REFERENCES "Plan"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

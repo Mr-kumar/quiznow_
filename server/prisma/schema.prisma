@@ -7,304 +7,9 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id            String             @id @default(uuid())
-  email         String             @unique
-  name          String?
-  image         String?
-  role          Role               @default(STUDENT)
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
-  attempts      Attempt[]
-  leaderboard   LeaderboardEntry[]
-  subscriptions Subscription[]
-  topicStats    UserTopicStat[]
-
-  @@index([role])
-  @@index([email])  // For login performance
-}
-
-model Category {
-  id        String     @id @default(uuid())
-  name      String
-  parentId  String?
-  isActive  Boolean    @default(true)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  parent    Category?  @relation("SubCategories", fields: [parentId], references: [id], onDelete: Cascade)
-  children  Category[] @relation("SubCategories")
-  exams     Exam[]
-
-  @@index([parentId])
-}
-
-model Exam {
-  id         String       @id @default(uuid())
-  name       String
-  categoryId String
-  isActive   Boolean      @default(true)
-  createdAt  DateTime     @default(now())
-  updatedAt  DateTime     @updatedAt
-  category   Category     @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  planAccess PlanAccess[]
-  testSeries TestSeries[]
-
-  @@index([categoryId])
-}
-
-model TestSeries {
-  id         String       @id @default(uuid())
-  title      String
-  examId     String
-  isActive   Boolean      @default(true)
-  createdAt  DateTime     @default(now())
-  updatedAt  DateTime     @updatedAt
-  planAccess PlanAccess[]
-  tests      Test[]
-  exam       Exam         @relation(fields: [examId], references: [id], onDelete: Cascade)
-
-  @@index([examId])
-}
-
-model Topic {
-  id        String          @id @default(uuid())
-  name      String
-  subject   String?
-  createdAt DateTime        @default(now())
-  updatedAt DateTime        @updatedAt
-  questions Question[]
-  userStats UserTopicStat[]
-
-  @@index([subject])
-}
-
-model Question {
-  id             String               @id @default(uuid())
-  topicId        String?
-  topic          Topic?               @relation(fields: [topicId], references: [id], onDelete: SetNull)
-  correctAnswer  Int
-  hash           String               @unique
-  isActive       Boolean              @default(true)
-  createdAt      DateTime             @default(now())
-  updatedAt      DateTime             @updatedAt
-  attemptAnswers AttemptAnswer[]
-  translations   QuestionTranslation[]
-  sectionLinks   SectionQuestion[]
-
-  @@index([topicId])
-  @@index([hash])  // For deduplication lookups
-}
-
-model QuestionTranslation {
-  id          String   @id @default(uuid())
-  questionId  String
-  lang        String
-  content     String
-  options     Json
-  explanation String?
-  imageUrl    String?  // For images/diagrams in questions
-  question    Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
-
-  @@unique([questionId, lang])
-  @@index([lang])
-}
-
-model Test {
-  id           String             @id @default(uuid())
-  title        String
-  durationMins Int
-  totalMarks   Float
-  passMarks    Float
-  positiveMark Float              @default(1.0)
-  negativeMark Float              @default(0.33)
-  startAt      DateTime?
-  endAt        DateTime?
-  isLive       Boolean            @default(false)
-  isPremium    Boolean            @default(false)
-  maxAttempts  Int?
-  seriesId     String
-  isActive     Boolean            @default(true)
-  createdAt    DateTime           @default(now())
-  updatedAt    DateTime           @updatedAt
-  attempts     Attempt[]
-  leaderboard  LeaderboardEntry[]
-  sections     Section[]
-  series       TestSeries         @relation(fields: [seriesId], references: [id], onDelete: Cascade)
-
-  @@index([seriesId])  // For series queries
-  @@index([isActive, isLive])  // For filtering active/live tests
-  @@index([startAt])  // For scheduling
-}
-
-model Section {
-  id           String            @id @default(uuid())
-  testId       String
-  name         String
-  durationMins Int?
-  order        Int
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
-  test         Test              @relation(fields: [testId], references: [id], onDelete: Cascade)
-  questions    SectionQuestion[]
-
-  @@index([testId])
-}
-
-model SectionQuestion {
-  sectionId  String
-  questionId String
-  order      Int
-  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
-  section    Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-
-  @@id([sectionId, questionId])
-  @@index([questionId])
-}
-
-model Attempt {
-  id               String          @id @default(uuid())
-  userId           String
-  testId           String
-  attemptNumber    Int             @default(1)
-  status           Status          @default(STARTED)
-  startTime        DateTime        @default(now())
-  endTime          DateTime?
-  ipAddress        String?
-  userAgent        String?
-  deviceInfo       String?
-  suspiciousScore  Float?          @default(0)
-  score            Float           @default(0)
-  correctCount     Int             @default(0)
-  wrongCount       Int             @default(0)
-  unattemptedCount Int             @default(0)
-  accuracy         Float?
-  timeTaken        Int?
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
-  test             Test            @relation(fields: [testId], references: [id], onDelete: Cascade)
-  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  answers          AttemptAnswer[]
-
-  @@unique([userId, testId, attemptNumber])
-  @@index([userId])
-  @@index([testId])
-  @@index([status])
-  @@index([status, createdAt])  // For analytics queries
-}
-
-model AttemptAnswer {
-  id             String   @id @default(uuid())
-  attemptId      String
-  questionId     String
-  selectedOption Int?
-  isCorrect      Boolean  @default(false)
-  marksAwarded   Float?   // Immutable: marks awarded at time of test
-  isMarked       Boolean  @default(false)
-  answeredAt     DateTime?
-  attempt        Attempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
-  question       Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
-
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  @@unique([attemptId, questionId])
-  @@index([attemptId])
-  @@index([questionId])
-}
-
-model LeaderboardEntry {
-  id         String   @id @default(uuid())
-  testId     String
-  userId     String
-  score      Float
-  rank       Int
-  percentile Float
-  createdAt  DateTime @default(now())
-  test       Test     @relation(fields: [testId], references: [id], onDelete: Cascade)
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([testId, userId])
-  @@index([testId, rank])
-}
-
-model UserTopicStat {
-  id       String @id @default(uuid())
-  userId   String
-  topicId  String
-  attempts Int    @default(0)
-  correct  Int    @default(0)
-  wrong    Int    @default(0)
-  accuracy Float?
-  topic    Topic  @relation(fields: [topicId], references: [id], onDelete: Cascade)
-  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, topicId])
-  @@index([topicId])
-}
-
-model Plan {
-  id            String         @id @default(uuid())
-  name          String
-  price         Float
-  durationDays  Int
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  accesses      PlanAccess[]
-  subscriptions Subscription[]
-}
-
-model PlanAccess {
-  id       String      @id @default(uuid())
-  planId   String
-  examId   String?
-  seriesId String?
-  exam     Exam?       @relation(fields: [examId], references: [id], onDelete: Cascade)
-  plan     Plan        @relation(fields: [planId], references: [id], onDelete: Cascade)
-  series   TestSeries? @relation(fields: [seriesId], references: [id], onDelete: Cascade)
-
-  @@index([planId])
-  @@index([examId])
-  @@index([seriesId])
-}
-
-model Subscription {
-  id        String             @id @default(uuid())
-  userId    String
-  planId    String
-  startAt   DateTime
-  expiresAt DateTime
-  status    SubscriptionStatus
-  createdAt DateTime           @default(now())
-  updatedAt DateTime           @updatedAt
-  plan      Plan               @relation(fields: [planId], references: [id], onDelete: Cascade)
-  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-}
-
-model AuditLog {
-  id         String   @id @default(uuid())
-  actorId    String?
-  actorRole  Role?
-  action     String
-  targetType String?
-  targetId   String?
-  metadata   Json?
-  createdAt  DateTime @default(now())
-
-  @@index([actorId])
-  @@index([action])
-}
-
-model AdminSettings {
-  id        String   @id @default(uuid())
-  key       String   @unique
-  value     Json
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([key])
-}
+//
+// ENUMS
+//
 
 enum Role {
   STUDENT
@@ -322,4 +27,392 @@ enum SubscriptionStatus {
   ACTIVE
   EXPIRED
   CANCELLED
+}
+
+enum Language {
+  EN
+  HI
+}
+
+//
+// CORE ENTITIES
+//
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  image         String?
+  role          Role      @default(STUDENT)
+  preferredLang Language  @default(EN)
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  attempts      Attempt[]
+  leaderboard   LeaderboardEntry[]
+  subscriptions Subscription[]
+  topicStats    UserTopicStat[]
+
+  @@index([role])
+}
+
+model Category {
+  id        String    @id @default(cuid())
+  name      String
+  parentId  String?
+  isActive  Boolean   @default(true)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  parent    Category?  @relation("SubCategories", fields: [parentId], references: [id], onDelete: Restrict)
+  children  Category[] @relation("SubCategories")
+  exams     Exam[]
+
+  @@index([parentId])
+}
+
+model Exam {
+  id         String    @id @default(cuid())
+  name       String
+  categoryId String
+  isActive   Boolean   @default(true)
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime?
+
+  category   Category     @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  planAccess PlanAccess[]
+  testSeries TestSeries[]
+
+  @@index([categoryId])
+}
+
+model TestSeries {
+  id         String    @id @default(cuid())
+  title      String
+  examId     String
+  isActive   Boolean   @default(true)
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime?
+
+  exam       Exam         @relation(fields: [examId], references: [id], onDelete: Restrict)
+  tests      Test[]
+  planAccess PlanAccess[]
+
+  @@index([examId])
+}
+
+//
+// MULTILINGUAL QUESTION BANK
+//
+
+model Topic {
+  id        String    @id @default(cuid())
+  name      String
+  subject   String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  questions Question[]
+  userStats UserTopicStat[]
+
+  @@index([subject])
+}
+
+model Question {
+  id        String    @id @default(cuid())
+  topicId   String?
+  isActive  Boolean   @default(true)
+  hash      String    @unique
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  topic        Topic?                 @relation(fields: [topicId], references: [id], onDelete: SetNull)
+  options      QuestionOption[]
+  translations QuestionTranslation[]
+  sectionLinks SectionQuestion[]
+  attemptAnswers AttemptAnswer[]
+
+  @@index([topicId])
+}
+
+model QuestionTranslation {
+  id          String   @id @default(cuid())
+  questionId  String
+  lang        Language
+  content     String
+  explanation String?
+  imageUrl    String?
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([questionId, lang])
+  @@index([lang])
+}
+
+model QuestionOption {
+  id         String   @id @default(cuid())
+  questionId String
+  isCorrect  Boolean  @default(false)
+  order      Int
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  question     Question            @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  translations OptionTranslation[]
+  answers      AttemptAnswer[]
+
+  @@unique([questionId, order])
+  @@index([questionId])
+}
+
+model OptionTranslation {
+  id       String   @id @default(cuid())
+  optionId String
+  lang     Language
+  text     String
+
+  option QuestionOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+
+  @@unique([optionId, lang])
+}
+
+//
+// TEST EXECUTION
+//
+
+model Test {
+  id           String   @id @default(cuid())
+  title        String
+  durationMins Int
+  totalMarks   Float
+  passMarks    Float
+  positiveMark Float    @default(1.0)
+  negativeMark Float    @default(0.33)
+
+  startAt     DateTime?
+  endAt       DateTime?
+  isLive      Boolean   @default(false)
+  isPremium   Boolean   @default(false)
+  maxAttempts Int?
+  isActive    Boolean   @default(true)
+
+  seriesId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  series      TestSeries        @relation(fields: [seriesId], references: [id], onDelete: Restrict)
+  sections    Section[]
+  attempts    Attempt[]
+  leaderboard LeaderboardEntry[]
+
+  @@index([seriesId])
+  @@index([isActive, isLive])
+  @@index([startAt])
+}
+
+model Section {
+  id           String   @id @default(cuid())
+  testId       String
+  name         String
+  durationMins Int?
+  order        Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  test      Test              @relation(fields: [testId], references: [id], onDelete: Cascade)
+  questions SectionQuestion[]
+
+  @@index([testId])
+}
+
+model SectionQuestion {
+  sectionId  String
+  questionId String
+  order      Int
+
+  section  Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id], onDelete: Restrict)
+
+  @@id([sectionId, questionId])
+  @@index([questionId])
+}
+
+//
+// HIGH-VOLUME TABLES
+//
+
+model Attempt {
+  id               BigInt   @id @default(autoincrement())
+  userId           String
+  testId           String
+  attemptNumber    Int      @default(1)
+  status           Status   @default(STARTED)
+
+  startTime        DateTime @default(now())
+  endTime          DateTime?
+
+  ipAddress        String?
+  userAgent        String?
+  deviceInfo       String?
+  suspiciousScore  Float    @default(0)
+
+  score            Float    @default(0)
+  correctCount     Int      @default(0)
+  wrongCount       Int      @default(0)
+  unattemptedCount Int      @default(0)
+  accuracy         Float?
+  timeTaken        Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  test  Test @relation(fields: [testId], references: [id], onDelete: Restrict)
+
+  answers AttemptAnswer[]
+
+  @@unique([userId, testId, attemptNumber])
+  @@index([status])
+  @@index([testId, createdAt])
+  @@index([userId, createdAt])
+}
+
+model AttemptAnswer {
+  attemptId  BigInt
+  questionId String
+  optionId   String?
+
+  isCorrect    Boolean  @default(false)
+  marksAwarded Float?
+  isMarked     Boolean  @default(false)
+
+  answeredAt DateTime?
+  createdAt  DateTime @default(now())
+
+  attempt  Attempt         @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question Question        @relation(fields: [questionId], references: [id], onDelete: Restrict)
+  option   QuestionOption? @relation(fields: [optionId], references: [id], onDelete: Restrict)
+
+  @@id([attemptId, questionId])
+  @@index([questionId])
+  @@index([optionId])
+}
+
+model LeaderboardEntry {
+  id        BigInt   @id @default(autoincrement())
+  testId    String
+  userId    String
+  score     Float
+  createdAt DateTime @default(now())
+
+  test Test @relation(fields: [testId], references: [id], onDelete: Restrict)
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([testId, userId])
+  @@index([testId, score(sort: Desc)])
+}
+
+model UserTopicStat {
+  id       BigInt @id @default(autoincrement())
+  userId   String
+  topicId  String
+
+  attempts Int @default(0)
+  correct  Int @default(0)
+  wrong    Int @default(0)
+  accuracy Float?
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Restrict)
+  topic Topic @relation(fields: [topicId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, topicId])
+  @@index([topicId])
+}
+
+model AuditLog {
+  id         BigInt @id @default(autoincrement())
+  actorId    String?
+  actorRole  Role?
+  action     String
+  targetType String?
+  targetId   String?
+  metadata   Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([actorId])
+  @@index([action])
+}
+
+//
+// BILLING
+//
+
+model Plan {
+  id           String   @id @default(cuid())
+  name         String
+  price        Float
+  durationDays Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  accesses      PlanAccess[]
+  subscriptions Subscription[]
+}
+
+model PlanAccess {
+  id       String  @id @default(cuid())
+  planId   String
+  examId   String?
+  seriesId String?
+
+  plan   Plan        @relation(fields: [planId], references: [id], onDelete: Restrict)
+  exam   Exam?       @relation(fields: [examId], references: [id], onDelete: Restrict)
+  series TestSeries? @relation(fields: [seriesId], references: [id], onDelete: Restrict)
+
+  @@index([planId, examId])
+  @@index([planId, seriesId])
+}
+
+model Subscription {
+  id        String   @id @default(cuid())
+  userId    String
+  planId    String
+  startAt   DateTime
+  expiresAt DateTime
+  status    SubscriptionStatus
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  plan Plan @relation(fields: [planId], references: [id], onDelete: Restrict)
+
+  @@index([userId, expiresAt])
+}
+
+model AdminSettings {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
