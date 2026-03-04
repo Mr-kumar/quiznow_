@@ -126,8 +126,17 @@ export class SectionsService {
 
   // NEW: Unlink Question from Section (God Mode Feature)
   async unlinkQuestion(sectionId: string, questionId: string) {
-    // 🚨 LIVE EDIT SHIELD: Prevent unlinking questions from live tests
-    await this.validateTestNotLive(sectionId, 'unlink questions from');
+    // �️ ARMOR LOCK: Check if test is Live BEFORE touching data
+    const section = await this.prisma.section.findUnique({
+      where: { id: sectionId },
+      include: { test: true },
+    });
+
+    if (section?.test?.isLive) {
+      throw new BadRequestException(
+        "SYSTEM LOCK: You cannot remove a question from a LIVE test. Please change test status to 'Draft' first. This protects active student sessions from crashing.",
+      );
+    }
 
     try {
       return await this.prisma.sectionQuestion.delete({
@@ -150,6 +159,18 @@ export class SectionsService {
     sectionId: string,
     orderedQuestionIds: string[],
   ) {
+    // 🛡️ ARMOR LOCK: Check if test is Live BEFORE touching data
+    const section = await this.prisma.section.findUnique({
+      where: { id: sectionId },
+      include: { test: true },
+    });
+
+    if (section?.test?.isLive) {
+      throw new BadRequestException(
+        "SYSTEM LOCK: You cannot reorder questions in a LIVE test. Please change test status to 'Draft' first. This protects active student sessions from crashing.",
+      );
+    }
+
     // We use a massive transaction to update all orders instantly
     const updates = orderedQuestionIds.map((qId, index) =>
       this.prisma.sectionQuestion.update({

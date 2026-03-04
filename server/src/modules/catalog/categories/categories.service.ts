@@ -43,13 +43,16 @@ export class CategoriesService {
 
   // NEW: Get Full Recursive Tree for Enterprise Hierarchy
   async getFullTree() {
-    const categories = await this.prisma.category.findMany({
+    return this.prisma.category.findMany({
+      where: { parentId: null, isActive: true }, // Start strictly at Root (e.g. Railways)
       include: {
         children: {
+          // Fetches Level 2 (e.g. RRB JE Exam)
           include: {
             children: {
+              // Fetches Level 3 (e.g. Math Subject)
               include: {
-                children: true, // Support for deep nesting
+                children: true, // Fetches Level 4 (e.g. Algebra Topic)
               },
             },
             _count: { select: { exams: true } },
@@ -58,21 +61,6 @@ export class CategoriesService {
         _count: { select: { exams: true } },
       },
     });
-
-    // Build recursive tree structure
-    const buildTree = (
-      categories: any[],
-      parentId: string | null = null,
-    ): any[] => {
-      return categories
-        .filter((cat) => cat.parentId === parentId)
-        .map((cat) => ({
-          ...cat,
-          children: buildTree(categories, cat.id),
-        }));
-    };
-
-    return buildTree(categories);
   }
 
   // 3. Get One (Details)
