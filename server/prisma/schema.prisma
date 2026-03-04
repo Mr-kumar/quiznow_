@@ -110,27 +110,50 @@ model TestSeries {
 }
 
 //
-// MULTILINGUAL QUESTION BANK
+// SYLLABUS HIERARCHY (GLOBAL SUBJECTS)
 //
 
-model Topic {
+model Subject {
   id        String    @id @default(cuid())
-  name      String
-  subject   String?
+  name      String    @unique
+  isActive  Boolean   @default(true)
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
+  topics    Topic[]
+}
+
+model Topic {
+  id        String    @id @default(cuid())
+  name      String
+  subjectId String
+  parentId  String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  subject   Subject   @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  parent    Topic?    @relation("SubTopics", fields: [parentId], references: [id], onDelete: Restrict)
+  children  Topic[]   @relation("SubTopics")
+
   questions Question[]
   userStats UserTopicStat[]
 
-  @@index([subject])
+  @@unique([subjectId, name])   // Prevent duplicate topic under same subject
+  @@index([subjectId])
+  @@index([parentId])
 }
+
+//
+// QUESTION BANK (STRICT)
+//
 
 model Question {
   id        String    @id @default(cuid())
-  topicId   String?
+  topicId   String
   isActive  Boolean   @default(true)
   hash      String    @unique
 
@@ -138,7 +161,7 @@ model Question {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  topic        Topic?                 @relation(fields: [topicId], references: [id], onDelete: SetNull)
+  topic        Topic                  @relation(fields: [topicId], references: [id], onDelete: Restrict)
   options      QuestionOption[]
   translations QuestionTranslation[]
   sectionLinks SectionQuestion[]
