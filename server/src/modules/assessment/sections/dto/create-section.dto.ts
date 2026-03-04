@@ -5,6 +5,7 @@ import {
   IsInt,
   Min,
   IsOptional,
+  Matches,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
@@ -17,9 +18,12 @@ export class CreateSectionDto {
   @IsString()
   name: string;
 
-  @ApiProperty({ example: 'uuid-of-test', description: 'The Test ID' })
+  @ApiProperty({
+    example: 'c1234567890abcdef1234567890abcdef',
+    description: 'The Test ID',
+  })
   @IsNotEmpty()
-  @IsUUID()
+  @Matches(/^c[0-9a-z]{24}$/, { message: 'Test ID must be a valid CUID' })
   testId: string;
 
   @ApiProperty({

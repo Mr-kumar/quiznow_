@@ -50,13 +50,36 @@ export class QuestionsController {
     @Query('subject') subject?: string,
     @Query('topic') topic?: string,
   ) {
-    return this.questionsService.getPaginatedQuestions({
+    const result = await this.questionsService.getPaginatedQuestions({
       cursor,
       limit,
       search,
       subject,
       topic,
     });
+
+    // Ensure we always have an array (not null)
+    const safeQuestions = Array.isArray(result.questions)
+      ? result.questions
+      : [];
+
+    // Use safeQuestions throughout the controller
+    const nextCursor =
+      safeQuestions.length > 0
+        ? safeQuestions[safeQuestions.length - 1]?.id
+        : null;
+
+    return {
+      data: safeQuestions, // Always an array
+      pagination: {
+        nextCursor: result.nextCursor,
+        prevCursor: cursor || null,
+        hasMore: result.hasMore,
+        hasPrevious: !!cursor,
+        limit: result.limit,
+        count: result.count,
+      },
+    };
   }
 
   @Get()
@@ -221,20 +244,25 @@ export class QuestionsController {
       orderBy,
     });
 
+    // Ensure we always have an array (not null)
+    const safeQuestions = Array.isArray(questions) ? questions : [];
+
     // Get metadata (OPTIMIZED - No slow count queries)
     const metadata = await this.questionsService.getCursorMetadata(
-      questions,
+      safeQuestions,
       limit,
       direction,
     );
 
     // Determine next/previous cursors
     const nextCursor =
-      questions.length > 0 ? questions[questions.length - 1].id : null;
-    const prevCursor = cursor ? questions[0]?.id : null;
+      safeQuestions.length > 0
+        ? safeQuestions[safeQuestions.length - 1].id
+        : null;
+    const prevCursor = cursor ? safeQuestions[0]?.id : null;
 
     return {
-      data: questions,
+      data: safeQuestions,
       pagination: {
         nextCursor,
         prevCursor,

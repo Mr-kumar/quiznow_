@@ -40,14 +40,14 @@ export default function LoginForm() {
       let user;
       if (email === "admin@quiznow.com") {
         user = {
-          id: "2dfab947-92c5-4c66-b8e9-83f47643d6c2", // Admin ID
+          id: "c1234567890abcdef1234567890abcdef", // Admin ID
           email: email,
           name: "Super Admin",
           role: "ADMIN" as const,
         };
       } else if (email === "student@quiznow.com") {
         user = {
-          id: "student-id-12345", // Student ID
+          id: "c1234567890abcdef1234567890abcde1", // Student ID
           email: email,
           name: "John Student",
           role: "STUDENT" as const,
@@ -55,7 +55,7 @@ export default function LoginForm() {
       } else {
         // Default to student for any other email
         user = {
-          id: "default-student-id",
+          id: "c1234567890abcdef1234567890abcde2", // Default student ID
           email: email,
           name: email.split("@")[0], // Use email prefix as name
           role: "STUDENT" as const,

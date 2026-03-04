@@ -116,9 +116,9 @@ export class SchedulerService {
    * Force-expire specific attempt (manual trigger)
    * Used when test time limit is reached
    */
-  async forceExpireAttempt(attemptId: string): Promise<void> {
+  async forceExpireAttempt(attemptId: string | number | bigint): Promise<void> {
     await this.prisma.attempt.update({
-      where: { id: attemptId },
+      where: { id: attemptId as any },
       data: {
         status: Status.EXPIRED,
         endTime: new Date(),
@@ -130,9 +130,11 @@ export class SchedulerService {
   /**
    * Check if attempt is expired based on test duration
    */
-  async isAttemptExpired(attemptId: string): Promise<boolean> {
-    const attempt = await this.prisma.attempt.findUnique({
-      where: { id: attemptId },
+  async isAttemptExpired(
+    attemptId: string | number | bigint,
+  ): Promise<boolean> {
+    const attempt: any = await this.prisma.attempt.findUnique({
+      where: { id: attemptId as any },
       include: { test: true },
     });
 

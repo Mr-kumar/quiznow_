@@ -81,11 +81,11 @@ export default function AdminCategoriesPage() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(
-    null,
+    null
   );
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(
-    null,
+    null
   );
   const { toast } = useToast();
 
@@ -108,69 +108,12 @@ export default function AdminCategoriesPage() {
     try {
       setLoading(true);
 
-      // Mock data for demo
-      const mockCategories: Category[] = [
-        {
-          id: "1",
-          name: "Mathematics",
-          parentId: undefined,
-          isActive: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          children: [
-            {
-              id: "2",
-              name: "Algebra",
-              parentId: "1",
-              isActive: true,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            },
-            {
-              id: "3",
-              name: "Geometry",
-              parentId: "1",
-              isActive: true,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            },
-          ],
-        },
-        {
-          id: "4",
-          name: "Science",
-          parentId: undefined,
-          isActive: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          children: [
-            {
-              id: "5",
-              name: "Physics",
-              parentId: "4",
-              isActive: true,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            },
-            {
-              id: "6",
-              name: "Chemistry",
-              parentId: "4",
-              isActive: true,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            },
-          ],
-        },
-      ];
-
-      try {
-        const response = await adminCategoriesApi.getAll();
-        setCategories(response.data.data);
-      } catch (apiError) {
-        console.log("API endpoints not ready, using mock data:", apiError);
-        setCategories(mockCategories);
-      }
+      // Fetch real categories from API
+      const response = await adminCategoriesApi.getAll();
+      const categories = Array.isArray(response.data)
+        ? response.data
+        : response.data?.data || [];
+      setCategories(categories);
     } catch (error) {
       toast({
         title: "Error",
@@ -213,7 +156,7 @@ export default function AdminCategoriesPage() {
     try {
       await adminCategoriesApi.update(
         selectedCategory.id,
-        data as UpdateCategoryRequest,
+        data as UpdateCategoryRequest
       );
       toast({
         title: "Success",
@@ -245,10 +188,11 @@ export default function AdminCategoriesPage() {
       setDeleteDialogOpen(false);
       setCategoryToDelete(null);
       loadCategories();
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to delete category",
+        description:
+          error?.response?.data?.message || "Failed to delete category",
         variant: "destructive",
       });
     }
@@ -287,7 +231,11 @@ export default function AdminCategoriesPage() {
         return (
           <div className="flex items-center gap-3">
             <div
-              className={`h-10 w-10 rounded-lg ${hasParent ? "bg-linear-to-br from-purple-500 to-pink-600" : "bg-linear-to-br from-blue-500 to-purple-600"} flex items-center justify-center text-white`}
+              className={`h-10 w-10 rounded-lg ${
+                hasParent
+                  ? "bg-linear-to-br from-purple-500 to-pink-600"
+                  : "bg-linear-to-br from-blue-500 to-purple-600"
+              } flex items-center justify-center text-white`}
             >
               {hasParent ? (
                 <Layers className="h-5 w-5" />
@@ -609,7 +557,7 @@ export default function AdminCategoriesPage() {
                             <SelectItem key={category.id} value={category.id}>
                               {category.name}
                             </SelectItem>
-                          ),
+                          )
                         )}
                       </SelectContent>
                     </Select>

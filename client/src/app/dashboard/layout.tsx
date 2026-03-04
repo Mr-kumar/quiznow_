@@ -78,7 +78,7 @@ export default function DashboardLayout({
       icon: FileText,
     },
     {
-      href: "/dashboard/admin/question-bank",
+      href: "/dashboard/admin/questions",
       label: "Global Question Vault",
       icon: BookOpen,
     },

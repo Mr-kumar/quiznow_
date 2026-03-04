@@ -6,13 +6,21 @@ import {
   Patch,
   Param,
   Delete,
+  UseGuards,
 } from '@nestjs/common';
 import { ExamsService } from './exams.service';
 import { CreateExamDto } from './dto/create-exam.dto';
 import { UpdateExamDto } from './dto/update-exam.dto';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../../iam/auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../../iam/auth/guards/roles.guard';
+import { Roles } from '../../iam/auth/decorators/roles.decorator';
+import { Role } from '@prisma/client';
 
 @ApiTags('Assessment (Exams)') // 👈 New Section in Swagger
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(Role.ADMIN)
 @Controller('exams')
 export class ExamsController {
   constructor(private readonly examsService: ExamsService) {}

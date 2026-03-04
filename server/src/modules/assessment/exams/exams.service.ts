@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from 'src/services/prisma/prisma.service';
 import { CreateExamDto } from './dto/create-exam.dto';
 import { UpdateExamDto } from './dto/update-exam.dto';
@@ -50,8 +55,39 @@ export class ExamsService {
     });
   }
 
-  // 5. Delete
-  remove(id: string) {
-    return this.prisma.exam.delete({ where: { id } });
+  // 5. Delete with cascade handling
+  async remove(id: string) {
+    const exam = await this.prisma.exam.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+
+    if (!exam) {
+      throw new NotFoundException('Exam not found');
+    }
+
+    const testSeriesCount = await this.prisma.testSeries.count({
+      where: { examId: id },
+    });
+
+    if (testSeriesCount > 0) {
+      throw new BadRequestException(
+        'Cannot delete exam: It contains test series. Please delete or move the test series first.',
+      );
+    }
+
+    try {
+      return await this.prisma.exam.delete({ where: { id } });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2003'
+      ) {
+        throw new BadRequestException(
+          'Cannot delete exam: It is linked to test series. Please delete or move the test series first.',
+        );
+      }
+      throw error;
+    }
   }
 }

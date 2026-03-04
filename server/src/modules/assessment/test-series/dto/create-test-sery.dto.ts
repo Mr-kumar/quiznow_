@@ -4,6 +4,7 @@ import {
   IsUUID,
   IsOptional,
   IsBoolean,
+  Matches,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
@@ -17,11 +18,11 @@ export class CreateTestSeryDto {
   title: string;
 
   @ApiProperty({
-    example: 'uuid-of-exam',
+    example: 'c1234567890abcdef1234567890abcdef',
     description: 'The Exam ID (e.g. RRB JE 2026)',
   })
   @IsNotEmpty()
-  @IsUUID()
+  @Matches(/^c[0-9a-z]{24}$/, { message: 'Exam ID must be a valid CUID' })
   examId: string;
 
   @ApiProperty({ example: true, required: false })

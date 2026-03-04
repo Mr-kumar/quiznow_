@@ -1,17 +1,20 @@
-import { IsNotEmpty, IsUUID } from 'class-validator';
+import { IsNotEmpty, IsUUID, Matches } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateAttemptDto {
-  @ApiProperty({ example: 'uuid-of-test', description: 'The Test ID' })
+  @ApiProperty({
+    example: 'c1234567890abcdef1234567890abcdef',
+    description: 'The Test ID',
+  })
   @IsNotEmpty()
-  @IsUUID()
+  @Matches(/^c[0-9a-z]{24}$/, { message: 'Test ID must be a valid CUID' })
   testId: string;
 
   @ApiProperty({
-    example: 'uuid-of-user',
+    example: 'c1234567890abcdef1234567890abcdef',
     description: 'The Student ID (Hardcode for now)',
   })
   @IsNotEmpty()
-  @IsUUID()
+  @Matches(/^c[0-9a-z]{24}$/, { message: 'User ID must be a valid CUID' })
   userId: string;
 }

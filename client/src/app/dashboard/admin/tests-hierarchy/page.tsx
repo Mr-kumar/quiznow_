@@ -50,12 +50,18 @@ const createCategorySchema = z.object({
 
 const createExamSchema = z.object({
   name: z.string().min(1, "Name is required"),
-  categoryId: z.string().min(1, "Category is required"),
+  categoryId: z
+    .string()
+    .min(1, "Category is required")
+    .regex(/^c[0-9a-z]{24}$/, "Category ID must be a valid CUID"),
 });
 
 const createSeriesSchema = z.object({
   title: z.string().min(1, "Title is required"),
-  examId: z.string().min(1, "Exam is required"),
+  examId: z
+    .string()
+    .min(1, "Exam is required")
+    .regex(/^c[0-9a-z]{24}$/, "Exam ID must be a valid CUID"),
 });
 
 type CreateCategoryForm = z.infer<typeof createCategorySchema>;
@@ -123,10 +129,14 @@ export default function TestsHierarchyPage() {
   const handleItemDelete = async (item: any) => {
     if (!confirm(`Are you sure you want to delete ${item.name}?`)) return;
 
+    const typeToEndpoint: Record<string, string> = {
+      category: "categories",
+      exam: "exams",
+      series: "test-series",
+      test: "tests",
+    };
     try {
-      await api.delete(
-        `/${item.type === "category" ? "categories" : item.type + "s"}/${item.id}`,
-      );
+      await api.delete(`/${typeToEndpoint[item.type]}/${item.id}`);
       toast({
         title: "Success",
         description: `${item.type} deleted successfully`,

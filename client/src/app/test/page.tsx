@@ -1,35 +1,35 @@
-'use client';
+"use client";
 
-import { useAuthStore } from '../../stores/auth-store';
-import api from '../../lib/api';
-import { useState } from 'react';
+import { useAuthStore } from "../../stores/auth-store";
+import api from "../../lib/api";
+import { useState } from "react";
 
 export default function TestPage() {
   const { user, token, login, logout, isAuthenticated } = useAuthStore();
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState("");
 
   const testLogin = async () => {
     setLoading(true);
     try {
-      const response = await api.post('/auth/dev-login', {
-        email: 'admin@quiznow.com'
+      const response = await api.post("/auth/dev-login", {
+        email: "admin@quiznow.com",
       });
-      
+
       const { access_token } = response.data;
-      
+
       // Mock user data (in real app, this would come from the API)
       const mockUser = {
-        id: '2dfab947-92c5-4c66-b8e9-83f47643d6c2',
-        email: 'admin@quiznow.com',
-        name: 'Super Admin',
-        role: 'ADMIN' as const
+        id: "c1234567890abcdef1234567890abcdef",
+        email: "admin@quiznow.com",
+        name: "Super Admin",
+        role: "ADMIN" as const,
       };
-      
+
       login(mockUser, access_token);
-      setMessage('✅ Login successful!');
+      setMessage("✅ Login successful!");
     } catch (error) {
-      setMessage('❌ Login failed: ' + (error as any).message);
+      setMessage("❌ Login failed: " + (error as any).message);
     } finally {
       setLoading(false);
     }
@@ -38,10 +38,10 @@ export default function TestPage() {
   const testAPI = async () => {
     setLoading(true);
     try {
-      const response = await api.get('/tests');
+      const response = await api.get("/tests");
       setMessage(`✅ API call successful! Found ${response.data.length} tests`);
     } catch (error) {
-      setMessage('❌ API call failed: ' + (error as any).message);
+      setMessage("❌ API call failed: " + (error as any).message);
     } finally {
       setLoading(false);
     }
@@ -51,20 +51,31 @@ export default function TestPage() {
     <div className="min-h-screen bg-background p-8">
       <div className="max-w-2xl mx-auto">
         <h1 className="text-3xl font-bold mb-8">QuizNow Foundation Test</h1>
-        
+
         {/* Auth Status */}
         <div className="bg-card p-6 rounded-lg border mb-6">
           <h2 className="text-xl font-semibold mb-4">Auth Status</h2>
           <div className="space-y-2">
-            <p><strong>Authenticated:</strong> {isAuthenticated ? 'Yes' : 'No'}</p>
+            <p>
+              <strong>Authenticated:</strong> {isAuthenticated ? "Yes" : "No"}
+            </p>
             {user && (
               <>
-                <p><strong>Name:</strong> {user.name}</p>
-                <p><strong>Email:</strong> {user.email}</p>
-                <p><strong>Role:</strong> {user.role}</p>
+                <p>
+                  <strong>Name:</strong> {user.name}
+                </p>
+                <p>
+                  <strong>Email:</strong> {user.email}
+                </p>
+                <p>
+                  <strong>Role:</strong> {user.role}
+                </p>
               </>
             )}
-            <p><strong>Token:</strong> {token ? `${token.substring(0, 20)}...` : 'None'}</p>
+            <p>
+              <strong>Token:</strong>{" "}
+              {token ? `${token.substring(0, 20)}...` : "None"}
+            </p>
           </div>
         </div>
 
@@ -75,17 +86,25 @@ export default function TestPage() {
             disabled={loading || isAuthenticated}
             className="w-full bg-primary text-primary-foreground p-3 rounded-lg hover:bg-primary/90 disabled:opacity-50"
           >
-            {loading ? 'Loading...' : isAuthenticated ? 'Already Logged In' : 'Test Login'}
+            {loading
+              ? "Loading..."
+              : isAuthenticated
+                ? "Already Logged In"
+                : "Test Login"}
           </button>
-          
+
           <button
             onClick={testAPI}
             disabled={loading || !isAuthenticated}
             className="w-full bg-secondary text-secondary-foreground p-3 rounded-lg hover:bg-secondary/90 disabled:opacity-50"
           >
-            {loading ? 'Loading...' : !isAuthenticated ? 'Login First' : 'Test API Call'}
+            {loading
+              ? "Loading..."
+              : !isAuthenticated
+                ? "Login First"
+                : "Test API Call"}
           </button>
-          
+
           {isAuthenticated && (
             <button
               onClick={logout}

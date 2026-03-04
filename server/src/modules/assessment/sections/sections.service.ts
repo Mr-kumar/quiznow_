@@ -11,6 +11,29 @@ import { UpdateSectionDto } from './dto/update-section.dto';
 export class SectionsService {
   constructor(private prisma: PrismaService) {}
 
+  /**
+   * 🚨 LIVE EDIT SHIELD: Prevents editing sections of live tests
+   */
+  private async validateTestNotLive(sectionId: string, operation: string) {
+    const section = await this.prisma.section.findUnique({
+      where: { id: sectionId },
+      select: {
+        id: true,
+        test: { select: { id: true, isLive: true, title: true } },
+      },
+    });
+
+    if (!section) {
+      throw new NotFoundException('Section not found');
+    }
+
+    if (section.test.isLive) {
+      throw new BadRequestException(
+        `Cannot ${operation} questions in a live test. Please turn off the test "${section.test.title}" before making changes. This protects active student sessions from crashing.`,
+      );
+    }
+  }
+
   async create(dto: CreateSectionDto) {
     const test = await this.prisma.test.findUnique({
       where: { id: dto.testId },
@@ -65,6 +88,9 @@ export class SectionsService {
 
   // 🗝️ NEW: Vault Linking API (Fixes "Missing Linker" issue)
   async linkExistingQuestions(sectionId: string, questionIds: string[]) {
+    // 🚨 LIVE EDIT SHIELD: Prevent linking questions to live tests
+    await this.validateTestNotLive(sectionId, 'link questions to');
+
     // This creates lightweight links without duplicating questions!
     const links = questionIds.map((qId, index) => ({
       sectionId,
@@ -100,6 +126,9 @@ export class SectionsService {
 
   // NEW: Unlink Question from Section (God Mode Feature)
   async unlinkQuestion(sectionId: string, questionId: string) {
+    // 🚨 LIVE EDIT SHIELD: Prevent unlinking questions from live tests
+    await this.validateTestNotLive(sectionId, 'unlink questions from');
+
     try {
       return await this.prisma.sectionQuestion.delete({
         where: {

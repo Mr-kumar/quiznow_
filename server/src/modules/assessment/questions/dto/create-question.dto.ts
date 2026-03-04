@@ -6,6 +6,7 @@ import {
   IsInt,
   Min,
   IsOptional,
+  Matches,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
@@ -18,10 +19,21 @@ export class CreateQuestionDto {
   @IsString()
   content: string;
 
-  @ApiProperty({ example: 'uuid-of-section', description: 'Section ID' })
+  @ApiProperty({
+    example: 'c1234567890abcdef1234567890abcdef',
+    description: 'Section ID',
+  })
   @IsNotEmpty()
-  @IsUUID()
+  @Matches(/^c[0-9a-z]{24}$/, { message: 'Section ID must be a valid CUID' })
   sectionId: string;
+
+  @ApiProperty({
+    example: 'c1234567890abcdef1234567890abcdef',
+    description: 'Topic ID (Required - prevents Ghost Questions)',
+  })
+  @IsNotEmpty()
+  @Matches(/^c[0-9a-z]{24}$/, { message: 'Topic ID must be a valid CUID' })
+  topicId: string;
 
   @ApiProperty({
     example: ['H2O', 'CO2', 'O2', 'NaCl'],

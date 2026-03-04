@@ -8,17 +8,20 @@ export class TopicsService {
   constructor(private prisma: PrismaService) {}
 
   async create(dto: CreateTopicDto) {
-    return this.prisma.topic.create({
-      data: {
-        name: dto.name,
-        subject: dto.subject,
-      },
-    });
+    const data: any = { name: dto.name };
+    if (dto.subjectId) data.subjectId = dto.subjectId;
+    if (dto.parentId) data.parentId = dto.parentId;
+    return this.prisma.topic.create({ data });
   }
 
   findAll() {
     return this.prisma.topic.findMany({
+      where: {
+        deletedAt: null,
+      },
       include: {
+        subject: true,
+        parent: true,
         questions: {
           select: {
             id: true,
@@ -36,10 +39,24 @@ export class TopicsService {
     });
   }
 
+  findBySubject(subjectId: string) {
+    return this.prisma.topic.findMany({
+      where: {
+        subjectId,
+        deletedAt: null,
+      },
+      orderBy: {
+        name: 'asc',
+      },
+    });
+  }
+
   findOne(id: string) {
     return this.prisma.topic.findUnique({
       where: { id },
       include: {
+        subject: true,
+        parent: true,
         questions: true,
         userStats: true,
       },
@@ -53,24 +70,30 @@ export class TopicsService {
     });
   }
 
+  async softDelete(id: string) {
+    return this.prisma.topic.update({
+      where: { id },
+      data: {
+        deletedAt: new Date(),
+      },
+    });
+  }
+
   remove(id: string) {
     return this.prisma.topic.delete({ where: { id } });
   }
 
-  // Get unique subjects
+  // Get unique subjects (updated for new schema)
   async getUniqueSubjects() {
-    const topics = await this.prisma.topic.findMany({
+    const subjects = await this.prisma.subject.findMany({
       where: {
-        subject: {
-          not: null,
-        },
+        isActive: true,
       },
-      select: {
-        subject: true,
+      orderBy: {
+        name: 'asc',
       },
-      distinct: ['subject'],
     });
 
-    return topics.map((topic) => topic.subject).filter(Boolean);
+    return subjects;
   }
 }

@@ -69,22 +69,58 @@ export function useCursorPagination(options: UseCursorPaginationOptions = {}) {
 
         const response = await adminQuestionsApi.getCursorPaginated(params);
 
-        if (direction === "forward") {
-          if (resetCursor !== undefined) {
-            // Fresh load (new search or filter)
-            setData(response.data.data);
-          } else {
-            // Load more (append)
-            setData((prev) => [...prev, ...response.data.data]);
-          }
-          setCursor(response.data.pagination.nextCursor || undefined);
-        } else {
-          // Load previous (prepend)
-          setData((prev) => [...response.data.data, ...prev]);
-          setCursor(response.data.pagination.prevCursor || undefined);
+        // DEBUG: Log the response structure for troubleshooting
+        console.log('API Response structure:', {
+          hasData: !!response.data,
+          hasDataData: !!(response.data && response.data.data),
+          hasPagination: !!(response.data && response.data.pagination),
+          dataIsArray: Array.isArray(response.data?.data),
+          responseKeys: Object.keys(response),
+          dataKeys: response.data ? Object.keys(response.data) : [],
+          status: response.status,
+          statusText: response.statusText
+        });
+
+        // Handle authentication failures and empty responses
+        if (response.status === 401 || response.status === 403) {
+          setError('Authentication required. Please log in again.');
+          setData([]);
+          return;
         }
 
-        setPagination(response.data.pagination);
+        // Handle empty or invalid responses
+        if (!response.data || Object.keys(response.data).length === 0) {
+          setError('Server returned empty response. Please try again.');
+          setData([]);
+          return;
+        }
+
+        // SAFE ACCESS: Handle potential response structure issues
+        if (response.data && Array.isArray(response.data.data)) {
+          if (direction === "forward") {
+            if (resetCursor !== undefined) {
+              // Fresh load (new search or filter)
+              setData(response.data.data);
+            } else {
+              // Load more (append)
+              setData((prev) => [...prev, ...response.data.data]);
+            }
+            setCursor(response.data.pagination?.nextCursor || undefined);
+          } else {
+            // Load previous (prepend)
+            setData((prev) => [...response.data.data, ...prev]);
+            setCursor(response.data.pagination?.prevCursor || undefined);
+          }
+
+          if (response.data.pagination) {
+            setPagination(response.data.pagination);
+          }
+        } else {
+          // Handle unexpected response structure
+          console.error('Unexpected API response structure:', response);
+          setError('Invalid response format from server');
+          setData([]);
+        }
       } catch (err) {
         const message =
           typeof err === "object" &&

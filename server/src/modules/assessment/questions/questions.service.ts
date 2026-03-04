@@ -15,19 +15,32 @@ export class QuestionsService {
   constructor(private prisma: PrismaService) {}
 
   async create(dto: CreateQuestionDto) {
+    // 🚨 GHOST QUESTION GUARD: Validate topicId is provided
+    if (!dto.topicId) {
+      throw new BadRequestException(
+        'Topic ID is required. Every question must be categorized under a topic to prevent Ghost Questions.',
+      );
+    }
+
     // Check Section exists
     const section = await this.prisma.section.findUnique({
       where: { id: dto.sectionId },
     });
     if (!section) throw new NotFoundException('Section not found');
 
+    // Check Topic exists
+    const topic = await this.prisma.topic.findUnique({
+      where: { id: dto.topicId },
+    });
+    if (!topic) throw new NotFoundException('Topic not found');
+
     // Create the Question and Translation in a transaction
     return this.prisma.$transaction(async (tx) => {
       // Create the base Question
       const question = await tx.question.create({
         data: {
-          correctAnswer: dto.correctAnswer,
           hash: this.generateHash(dto.content), // Generate hash for uniqueness
+          topicId: dto.topicId, // 🚨 GHOST QUESTION GUARD: Always assign topic
           isActive: true,
         },
       });
@@ -36,11 +49,10 @@ export class QuestionsService {
       await tx.questionTranslation.create({
         data: {
           questionId: question.id,
-          lang: dto.lang || 'en',
+          lang: (dto.lang as any)?.toString?.().toUpperCase?.() || 'EN',
           content: dto.content,
-          options: dto.options,
           explanation: dto.explanation,
-        },
+        } as any,
       });
 
       // Link Question to Section
@@ -104,12 +116,16 @@ export class QuestionsService {
         explanation !== undefined
       ) {
         await tx.questionTranslation.updateMany({
-          where: { questionId: id, lang: lang || 'en' },
+          where: lang
+            ? {
+                questionId: id,
+                lang: lang?.toString?.().toUpperCase?.(),
+              }
+            : { questionId: id },
           data: {
             ...(content !== undefined ? { content } : {}),
-            ...(options !== undefined ? { options } : {}),
             ...(explanation !== undefined ? { explanation } : {}),
-          },
+          } as any,
         });
       }
 
@@ -181,9 +197,7 @@ export class QuestionsService {
       where,
       include: {
         topic: true,
-        translations: {
-          where: { lang: 'en' },
-        },
+        translations: true,
       },
       orderBy: {
         createdAt: 'desc',
@@ -334,17 +348,15 @@ export class QuestionsService {
           // 2. If it is brand new, create it in the Global Bank
           question = await tx.question.create({
             data: {
-              correctAnswer: processedRow.correctIndex,
               hash: processedRow.uniqueHash,
               translations: {
                 create: {
-                  lang: 'en',
+                  lang: 'EN' as any,
                   content: processedRow.questionText,
-                  options: processedRow.options,
                   explanation: processedRow.explanation,
-                },
+                } as any,
               },
-            },
+            } as any,
           });
           // Add to map for potential duplicate questions in the same upload
           hashToQuestionMap.set(processedRow.uniqueHash, question);
@@ -464,7 +476,7 @@ export class QuestionsService {
       skip = 0,
       where = {},
       orderBy = { id: 'asc' },
-      lang = 'en',
+      lang = 'EN',
     } = params;
 
     const questions = await this.prisma.question.findMany({
@@ -477,7 +489,6 @@ export class QuestionsService {
       },
       include: {
         translations: {
-          where: { lang }, // Only requested language translations
           take: 1,
         },
         topic: true,

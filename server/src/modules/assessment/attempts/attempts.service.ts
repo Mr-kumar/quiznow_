@@ -54,53 +54,43 @@ export class AttemptsService {
 
     // Check max attempts
     if (test.maxAttempts) {
-      const attemptCount = await this.prisma.attempt.count({
-        where: {
-          userId: dto.userId,
-          testId: dto.testId,
-        },
+      const previous = await this.prisma.attempt.count({
+        where: { testId: dto.testId, userId: dto.userId },
       });
-      if (attemptCount >= test.maxAttempts) {
+      if (previous >= test.maxAttempts) {
         throw new ValidationException(
-          `Maximum attempts (${test.maxAttempts}) reached for this test`,
-          'MAX_ATTEMPTS_EXCEEDED',
+          `Maximum attempts reached (${test.maxAttempts})`,
+          'MAX_ATTEMPTS_REACHED',
         );
       }
     }
 
-    // Get the next attempt number for this user-test combination
-    const lastAttempt = await this.prisma.attempt.findFirst({
-      where: {
-        userId: dto.userId,
-        testId: dto.testId,
-      },
-      orderBy: {
-        attemptNumber: 'desc',
-      },
-    });
-
-    const nextAttemptNumber = lastAttempt ? lastAttempt.attemptNumber + 1 : 1;
+    const nextAttemptNumber =
+      (await this.prisma.attempt.count({
+        where: { testId: dto.testId, userId: dto.userId },
+      })) + 1;
 
     return this.prisma.attempt.create({
       data: {
-        testId: dto.testId,
         userId: dto.userId,
+        testId: dto.testId,
+        attemptNumber: nextAttemptNumber,
         status: 'STARTED',
         startTime: new Date(),
-        attemptNumber: nextAttemptNumber,
       },
     });
   }
 
   // 2. Submit & Save Answers with validation
-  async submit(attemptId: string, dto: SubmitAttemptDto) {
-    const attempt = await this.prisma.attempt.findUnique({
-      where: { id: attemptId },
+  async submit(attemptId: string | number | bigint, dto: SubmitAttemptDto) {
+    const whereId: any = attemptId as any;
+    const attempt: any = await this.prisma.attempt.findUnique({
+      where: { id: whereId },
       include: { test: true },
     });
 
     if (!attempt) {
-      throw new ResourceNotFoundException('Attempt', attemptId);
+      throw new ResourceNotFoundException('Attempt', String(attemptId));
     }
 
     if (attempt.status === 'SUBMITTED') {
@@ -118,9 +108,11 @@ export class AttemptsService {
     }
 
     // Check if attempt is expired based on duration
-    const isExpired = await this.schedulerService.isAttemptExpired(attemptId);
+    const isExpired = await this.schedulerService.isAttemptExpired(
+      attemptId as any,
+    );
     if (isExpired) {
-      await this.schedulerService.forceExpireAttempt(attemptId);
+      await this.schedulerService.forceExpireAttempt(attemptId as any);
       throw new ValidationException(
         'Test time limit has exceeded',
         'TIME_LIMIT_EXCEEDED',
@@ -139,21 +131,25 @@ export class AttemptsService {
         },
       },
       include: {
-        translations: {
-          where: { lang: 'en' },
-        },
+        translations: true,
       },
     });
 
     // Build question map with validation info
     const questionMap = new Map(
-      questions.map((q) => [
-        q.id,
-        {
-          correctAnswer: q.correctAnswer,
-          totalOptions: (q.translations[0]?.options as any)?.length || 4,
-        },
-      ]),
+      questions.map((q) => {
+        const qAny: any = q as any;
+        const optionsLength = Array.isArray(qAny?.translations?.[0]?.options)
+          ? qAny.translations[0].options.length
+          : 4;
+        return [
+          qAny.id,
+          {
+            correctAnswer: qAny.correctAnswer,
+            totalOptions: optionsLength,
+          },
+        ];
+      }),
     );
 
     // Validate answers before processing
@@ -191,18 +187,18 @@ export class AttemptsService {
           Number(answer.selectedOptionIndex) === Number(question.correctAnswer);
 
         if (isCorrect) {
-          score += attempt.test.positiveMark || 1;
+          score += (attempt.test?.positiveMark as number) || 1;
           correctCount++;
         } else if (
           answer.selectedOptionIndex !== null &&
           answer.selectedOptionIndex !== undefined
         ) {
-          score -= attempt.test.negativeMark || 0;
+          score -= (attempt.test?.negativeMark as number) || 0;
           wrongCount++;
         }
 
         return {
-          attemptId: attemptId,
+          attemptId: whereId,
           questionId: answer.questionId,
           selectedOption: answer.selectedOptionIndex,
           isCorrect: isCorrect,
@@ -227,13 +223,13 @@ export class AttemptsService {
       await this.prisma.$transaction([
         // A. Save individual answers
         this.prisma.attemptAnswer.createMany({
-          data: answerData,
+          data: answerData as any,
           skipDuplicates: true, // Prevent duplicate insertion
         }),
 
         // B. Update Attempt Status & Score
         this.prisma.attempt.update({
-          where: { id: attemptId },
+          where: { id: whereId },
           data: {
             status: 'SUBMITTED',
             endTime: new Date(),
@@ -269,10 +265,11 @@ export class AttemptsService {
   }
 
   // 3. Get Review / Solutions (THE NEW FEATURE 🚀)
-  async getReview(attemptId: string) {
+  async getReview(attemptId: string | number | bigint) {
+    const whereId: any = attemptId as any;
     // Fetch Attempt + User's Answers
-    const attempt = await this.prisma.attempt.findUnique({
-      where: { id: attemptId },
+    const attempt: any = await this.prisma.attempt.findUnique({
+      where: { id: whereId },
       include: {
         test: true,
         answers: true, // Fetch the rows we just saved
@@ -295,24 +292,22 @@ export class AttemptsService {
         },
       },
       include: {
-        translations: {
-          where: { lang: 'en' }, // Default to English
-          select: { content: true, options: true, explanation: true },
-        },
+        translations: true,
       },
     });
 
     // Combine Data for Frontend
     const detailedAnalysis = questions.map((q) => {
-      const userAnswer = attempt.answers.find((a) => a.questionId === q.id);
-      const translation = q.translations[0]; // Get first translation
+      const qAny: any = q as any;
+      const userAnswer = attempt.answers.find((a) => a.questionId === qAny.id);
+      const translation: any = qAny.translations?.[0];
 
       return {
-        questionId: q.id,
+        questionId: qAny.id,
         questionText: translation?.content || 'Content missing',
         options: translation?.options || [],
         explanation: translation?.explanation || 'No explanation provided', // 👈 Solution
-        correctOptionIndex: q.correctAnswer,
+        correctOptionIndex: qAny.correctAnswer,
         userSelectedOption: userAnswer?.selectedOption ?? null,
         status: userAnswer
           ? userAnswer.isCorrect
@@ -342,9 +337,9 @@ export class AttemptsService {
   }
 
   // 4. Get Result (Basic)
-  findOne(id: string) {
+  findOne(id: string | number | bigint) {
     return this.prisma.attempt.findUnique({
-      where: { id },
+      where: { id: id as any },
       include: {
         test: true,
         user: true,
@@ -359,14 +354,14 @@ export class AttemptsService {
     });
   }
 
-  update(id: string, dto: any) {
+  update(id: string | number | bigint, dto: any) {
     return this.prisma.attempt.update({
-      where: { id },
+      where: { id: id as any },
       data: dto,
     });
   }
 
-  remove(id: string) {
-    return this.prisma.attempt.delete({ where: { id } });
+  remove(id: string | number | bigint) {
+    return this.prisma.attempt.delete({ where: { id: id as any } });
   }
 }

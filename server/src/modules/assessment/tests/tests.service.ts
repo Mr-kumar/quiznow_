@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { PrismaService } from 'src/services/prisma/prisma.service';
 import { CreateTestDto } from './dto/create-test.dto';
 import { UpdateTestDto } from './dto/update-test.dto';
@@ -14,6 +14,26 @@ export class TestsService {
   private readonly logger = new Logger(TestsService.name);
 
   constructor(private prisma: PrismaService) {}
+
+  /**
+   * 🚨 LIVE EDIT SHIELD: Prevents editing live tests to protect student sessions
+   */
+  private async validateTestNotLive(testId: string, operation: string) {
+    const test = await this.prisma.test.findUnique({
+      where: { id: testId },
+      select: { id: true, isLive: true, title: true },
+    });
+
+    if (!test) {
+      throw new ResourceNotFoundException('Test', testId);
+    }
+
+    if (test.isLive) {
+      throw new BadRequestException(
+        `Cannot ${operation} a live test. Please turn off the test "${test.title}" before making changes. This protects active student sessions from crashing.`,
+      );
+    }
+  }
 
   // 🚀 Atomic Test + Section Creation with validation
   async createTestWithSection(dto: CreateTestDto) {
@@ -149,7 +169,10 @@ export class TestsService {
     return test;
   }
   // 4. Update with validation
-  update(id: string, dto: UpdateTestDto) {
+  async update(id: string, dto: UpdateTestDto) {
+    // 🚨 LIVE EDIT SHIELD: Prevent editing live tests
+    await this.validateTestNotLive(id, 'edit');
+
     try {
       return this.prisma.test.update({
         where: { id },
@@ -314,7 +337,8 @@ export class TestsService {
         const translation = question.translations[0];
 
         if (translation) {
-          const options = translation.options as string[];
+          const tAny: any = translation as any;
+          const options = (tAny.options as string[]) || [];
           const correctMap = ['A', 'B', 'C', 'D'];
           worksheetData.push([
             translation.content,
@@ -322,7 +346,7 @@ export class TestsService {
             options[1] || '',
             options[2] || '',
             options[3] || '',
-            correctMap[question.correctAnswer] || 'A',
+            correctMap[(question as any).correctAnswer] || 'A',
             translation.explanation || '',
           ]);
         }
@@ -347,6 +371,9 @@ export class TestsService {
 
   // 5. Delete
   async remove(id: string) {
+    // 🚨 LIVE EDIT SHIELD: Prevent deleting live tests
+    await this.validateTestNotLive(id, 'delete');
+
     return this.prisma.test.delete({ where: { id } });
   }
 }

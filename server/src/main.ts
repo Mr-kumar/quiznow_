@@ -3,6 +3,7 @@ import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { rateLimit } from 'express-rate-limit';
+import { BigIntInterceptor } from './common/interceptors/bigint.interceptor';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -62,6 +63,9 @@ async function bootstrap() {
     origin: process.env.FRONTEND_URL || ['http://localhost:3000'],
     credentials: true,
   });
+
+  // 🔁 Global interceptor to serialize BigInt to string in all responses
+  app.useGlobalInterceptors(new BigIntInterceptor());
 
   // 📚 Rule 3: Swagger (Documentation)
   const config = new DocumentBuilder()

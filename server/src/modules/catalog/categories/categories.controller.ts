@@ -6,13 +6,21 @@ import {
   Patch,
   Param,
   Delete,
+  UseGuards,
 } from '@nestjs/common';
 import { CategoriesService } from './categories.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../../iam/auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../../iam/auth/guards/roles.guard';
+import { Roles } from '../../iam/auth/decorators/roles.decorator';
+import { Role } from '@prisma/client';
 
 @ApiTags('Catalog (Categories)') // 👈 Groups this in Swagger
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(Role.ADMIN)
 @Controller('categories')
 export class CategoriesController {
   constructor(private readonly categoriesService: CategoriesService) {}
@@ -46,5 +54,12 @@ export class CategoriesController {
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.categoriesService.remove(id);
+  }
+
+  // 🚀 NEW: Get Full Tree for Enterprise Syllabus Manager
+  @Get('tree')
+  @ApiOperation({ summary: 'Get Full Recursive Tree (Enterprise Feature)' })
+  async getFullTree() {
+    return this.categoriesService.getFullTree();
   }
 }

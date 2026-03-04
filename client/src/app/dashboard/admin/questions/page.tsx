@@ -102,9 +102,15 @@ export default function GlobalQuestionVaultPage() {
 
   useEffect(() => {
     adminTopicsApi.getAll(1, 1000).then((r) => setTopics(r.data.data || []));
-    adminTopicsApi
-      .getUniqueSubjects()
-      .then((r) => setSubjects(r.data.data || []));
+    adminTopicsApi.getUniqueSubjects().then((r) => {
+      const raw = r.data.data || [];
+      const names = Array.isArray(raw)
+        ? raw
+            .map((s: any) => (typeof s === "string" ? s : s?.name))
+            .filter(Boolean)
+        : [];
+      setSubjects(names);
+    });
   }, []);
 
   const onToggleSelect = (id: string) => {
