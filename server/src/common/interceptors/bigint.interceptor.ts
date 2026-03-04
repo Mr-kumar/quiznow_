@@ -10,19 +10,26 @@ import { map } from 'rxjs/operators';
 @Injectable()
 export class BigIntInterceptor implements NestInterceptor {
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
-    return next.handle().pipe(map((data) => this.convertBigIntToString(data)));
+    return next.handle().pipe(map((data) => this.safeConvert(data)));
   }
 
-  private convertBigIntToString(data: any): any {
+  private safeConvert(data: any, seen = new WeakSet()): any {
     if (data === null || data === undefined) return data;
+
+    // RECURSION GUARD: Stop infinite loops
+    if (typeof data === 'object' && data !== null) {
+      if (seen.has(data)) return '[Circular]';
+      seen.add(data);
+    }
+
     if (typeof data === 'bigint') return data.toString();
     if (Array.isArray(data))
-      return data.map((item) => this.convertBigIntToString(item));
+      return data.map((item) => this.safeConvert(item, seen));
+
     if (typeof data === 'object' && !(data instanceof Date)) {
-      // Don't break date objects!
       const result: any = {};
       for (const key in data) {
-        result[key] = this.convertBigIntToString(data[key]);
+        result[key] = this.safeConvert(data[key], seen);
       }
       return result;
     }

@@ -5,6 +5,7 @@ import {
   CursorPaginationResponse,
   Question,
 } from "@/lib/admin-api";
+import { useDebounce } from "./use-debounce";
 
 interface UseCursorPaginationOptions {
   initialLimit?: number;
@@ -46,6 +47,9 @@ export function useCursorPagination(options: UseCursorPaginationOptions = {}) {
     lang: initialLang,
   });
 
+  // 🛡️ DEBOUNCE: Prevent search spam on every keystroke
+  const debouncedSearch = useDebounce(filters.search, 400);
+
   const [cursor, setCursor] = useState<string | undefined>(undefined);
 
   const fetch = useCallback(
@@ -67,30 +71,21 @@ export function useCursorPagination(options: UseCursorPaginationOptions = {}) {
           lang: filters.lang || undefined,
         };
 
-        const response = await adminQuestionsApi.getCursorPaginated(params);
-
-        // DEBUG: Log the response structure for troubleshooting
-        console.log('API Response structure:', {
-          hasData: !!response.data,
-          hasDataData: !!(response.data && response.data.data),
-          hasPagination: !!(response.data && response.data.pagination),
-          dataIsArray: Array.isArray(response.data?.data),
-          responseKeys: Object.keys(response),
-          dataKeys: response.data ? Object.keys(response.data) : [],
-          status: response.status,
-          statusText: response.statusText
+        const response = await adminQuestionsApi.getCursorPaginated({
+          ...params,
+          search: debouncedSearch, // 🛡️ Use debounced search instead of raw search
         });
 
         // Handle authentication failures and empty responses
         if (response.status === 401 || response.status === 403) {
-          setError('Authentication required. Please log in again.');
+          setError("Authentication required. Please log in again.");
           setData([]);
           return;
         }
 
         // Handle empty or invalid responses
         if (!response.data || Object.keys(response.data).length === 0) {
-          setError('Server returned empty response. Please try again.');
+          setError("Server returned empty response. Please try again.");
           setData([]);
           return;
         }
@@ -117,8 +112,8 @@ export function useCursorPagination(options: UseCursorPaginationOptions = {}) {
           }
         } else {
           // Handle unexpected response structure
-          console.error('Unexpected API response structure:', response);
-          setError('Invalid response format from server');
+          console.error("Unexpected API response structure:", response);
+          setError("Invalid response format from server");
           setData([]);
         }
       } catch (err) {
@@ -146,6 +141,7 @@ export function useCursorPagination(options: UseCursorPaginationOptions = {}) {
     filters.subject,
     filters.lang,
     pagination.limit,
+    // Remove fetch from dependencies to prevent infinite loops
   ]);
 
   // Load more

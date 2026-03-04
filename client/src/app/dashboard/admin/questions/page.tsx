@@ -94,28 +94,37 @@ export default function GlobalQuestionVaultPage() {
           loadMore();
         }
       },
-      { rootMargin: "200px" }
+      { rootMargin: "200px" },
     );
     io.observe(observerEl);
     return () => io.disconnect();
   }, [observerEl, hasMore, loading, loadMore]);
 
   useEffect(() => {
-    adminTopicsApi.getAll(1, 1000).then((r) => setTopics(r.data.data || []));
-    adminTopicsApi.getUniqueSubjects().then((r) => {
-      const raw = r.data.data || [];
-      const names = Array.isArray(raw)
-        ? raw
-            .map((s: any) => (typeof s === "string" ? s : s?.name))
-            .filter(Boolean)
-        : [];
-      setSubjects(names);
-    });
+    const loadTopics = async () => {
+      try {
+        const topicsResponse = await adminTopicsApi.getAll(1, 1000);
+        setTopics(topicsResponse.data.data || []);
+
+        const subjectsResponse = await adminTopicsApi.getUniqueSubjects();
+        const raw = subjectsResponse.data.data || [];
+        const names = Array.isArray(raw)
+          ? raw
+              .map((s: any) => (typeof s === "string" ? s : s?.name))
+              .filter(Boolean)
+          : [];
+        setSubjects(names);
+      } catch (error) {
+        console.error("Failed to load topics/subjects:", error);
+      }
+    };
+
+    loadTopics();
   }, []);
 
   const onToggleSelect = (id: string) => {
     setSelected((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
     );
   };
 
@@ -125,7 +134,7 @@ export default function GlobalQuestionVaultPage() {
     setSelected(
       allSelected
         ? selected.filter((id) => !ids.includes(id))
-        : [...new Set([...selected, ...ids])]
+        : [...new Set([...selected, ...ids])],
     );
   };
 
@@ -598,7 +607,7 @@ export default function GlobalQuestionVaultPage() {
                     variant="outline"
                     onClick={() =>
                       setEditOptions((o) =>
-                        o.slice(0, Math.max(0, o.length - 1))
+                        o.slice(0, Math.max(0, o.length - 1)),
                       )
                     }
                   >

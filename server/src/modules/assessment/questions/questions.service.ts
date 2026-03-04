@@ -1,9 +1,10 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { PrismaService } from 'src/services/prisma/prisma.service';
+import { PrismaService } from '../../../services/prisma/prisma.service';
 import { CreateQuestionDto } from './dto/create-question.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
 import * as crypto from 'crypto';
@@ -479,9 +480,12 @@ export class QuestionsService {
       lang = 'EN',
     } = params;
 
+    // 🛡️ ENFORCE LIMITS: Prevent memory overload
+    const enforcedTake = Math.min(take, 100); // Hard cap at 100
+
     const questions = await this.prisma.question.findMany({
       cursor,
-      take,
+      take: enforcedTake,
       skip,
       where: {
         isActive: true, // Only active questions

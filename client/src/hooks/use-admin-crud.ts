@@ -53,7 +53,7 @@ export function useListData<T>(
 
   useEffect(() => {
     loadData(page, limit, search);
-  }, [page, limit, search, loadData]);
+  }, [page, limit, search]); // Remove loadData to prevent infinite re-renders
 
   return {
     data,
