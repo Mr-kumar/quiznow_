@@ -196,6 +196,11 @@ export default function CreateTestWizard() {
       const testId = testRes.data?.test?.id || testRes.data?.test?.id;
       const sectionId = testRes.data?.section?.id || testRes.data?.section?.id;
 
+      console.log("=== API RESPONSE DEBUG ===");
+      console.log("testRes:", testRes);
+      console.log("testId:", testId);
+      console.log("sectionId:", sectionId);
+
       toast({
         title: "Test Created!",
         description:
