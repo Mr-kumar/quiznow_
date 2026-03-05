@@ -22,11 +22,13 @@ import { SettingsModule } from './modules/admin/settings/settings.module';
 import { AuditLogsModule } from './modules/admin/audit-logs/audit-logs.module';
 import { CacheModule } from './cache/cache.module';
 import { SchedulerService } from './common/services/scheduler.service';
+import { SchedulerModule } from './common/services/scheduler.module';
 
 @Module({
   imports: [
     ScheduleModule.forRoot(), // Enable scheduling
     PrismaModule,
+    SchedulerModule,
     AuthModule,
     UsersModule,
     CategoriesModule,
@@ -47,6 +49,6 @@ import { SchedulerService } from './common/services/scheduler.service';
     CacheModule,
   ],
   controllers: [AppController],
-  providers: [AppService, SchedulerService],
+  providers: [AppService],
 })
 export class AppModule {}

@@ -815,7 +815,7 @@ export class QuestionsService {
 
     // Detect duplicates within file based on hash
     const seen = new Map<string, number>(); // hash -> firstRow
-    const validResults = [];
+    const validResults: any[] = []; // Use any[] to avoid type issues
     for (const res of results) {
       if (seen.has(res.hash)) {
         errors.push({
@@ -826,19 +826,19 @@ export class QuestionsService {
         });
       } else {
         seen.set(res.hash, res.rowNumber);
-        results.push(res);
+        validResults.push(res);
       }
     }
 
     // Check existing DB duplicates
-    const hashes = results.map((r) => r.hash);
+    const hashes = validResults.map((r) => r.hash);
     if (hashes.length) {
       const existing = await this.prisma.question.findMany({
         where: { hash: { in: hashes } },
         select: { hash: true },
       });
       const existingSet = new Set(existing.map((e) => e.hash));
-      for (const r of results) {
+      for (const r of validResults) {
         if (existingSet.has(r.hash)) {
           errors.push({
             row: r.rowNumber,
@@ -849,16 +849,16 @@ export class QuestionsService {
     }
 
     // Filter out rows with errors from valid results
-    const finalValidResults = results.filter(
+    const finalValidResults = validResults.filter(
       (r) => !errors.some((e) => e.row === r.rowNumber),
     );
 
     return {
       totalRows: rows.length,
-      validCount: results.length,
+      validCount: validResults.length,
       errors,
-      preview: results.slice(0, 5), // Show first 5 valid rows as preview
-      allValidRows: results as any[], // Cast to any[] to avoid type issues
+      preview: finalValidResults.slice(0, 5), // Show first 5 valid rows as preview
+      allValidRows: finalValidResults as any[], // Cast to any[] to avoid type issues
     };
   }
 

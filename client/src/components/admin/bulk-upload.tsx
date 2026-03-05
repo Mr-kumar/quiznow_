@@ -125,23 +125,14 @@ export default function BulkQuestionUpload({
   const handleUpload = async () => {
     if (!file || !sectionId) return;
 
-    // Validate topic selection
-    if (!selectedTopicId) {
-      handleError(new Error("Please select a topic for the questions"), {
-        showToast: true,
-        fallbackMessage: "Topic selection is required for bulk upload.",
-      });
-      return;
-    }
-
     setIsUploading(true);
 
     try {
-      // Use authenticated admin API call with topic ID
+      // Use authenticated admin API call with topic ID (optional)
       const response = await adminQuestionsApi.bulkUpload(
         file,
         sectionId,
-        selectedTopicId,
+        selectedTopicId || undefined, // Pass undefined if no topic selected
       );
       toast({
         title: "Upload Successful",

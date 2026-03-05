@@ -64,17 +64,29 @@ export class TopicsService {
       where: {
         deletedAt: null,
       },
-      include: {
-        subject: true,
-        parent: true,
-        questions: {
+      select: {
+        id: true,
+        name: true,
+        subjectId: true,
+        parentId: true,
+        createdAt: true,
+        updatedAt: true,
+        subject: {
           select: {
             id: true,
+            name: true,
           },
         },
-        userStats: {
+        parent: {
           select: {
             id: true,
+            name: true,
+          },
+        },
+        _count: {
+          select: {
+            questions: true,
+            children: true,
           },
         },
       },

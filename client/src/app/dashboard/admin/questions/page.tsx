@@ -105,7 +105,7 @@ export default function GlobalQuestionVaultPage() {
   useEffect(() => {
     const loadTopics = async () => {
       try {
-        const topicsResponse = await adminTopicsApi.getAll(1, 1000);
+        const topicsResponse = await adminTopicsApi.getAll(1, 100);
         setTopics(topicsResponse.data.data || []);
 
         const subjectsResponse = await adminTopicsApi.getUniqueSubjects();

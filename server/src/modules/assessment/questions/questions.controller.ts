@@ -120,7 +120,7 @@ export class QuestionsController {
   })
   async uploadQuestions(
     @UploadedFile() file: Express.Multer.File,
-    @Body('sectionId', ParseUUIDPipe) sectionId: string,
+    @Body('sectionId') sectionId: string,
   ) {
     return this.questionsService.bulkUpload(file, sectionId);
   }
@@ -130,7 +130,7 @@ export class QuestionsController {
     summary: 'Inject questions from Question Bank into a section',
   })
   async injectQuestions(
-    @Param('sectionId', ParseUUIDPipe) sectionId: string,
+    @Param('sectionId') sectionId: string,
     @Body() body: any,
   ) {
     const questionIds = Array.isArray(body?.questionIds)

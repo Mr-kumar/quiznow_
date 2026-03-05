@@ -22,26 +22,12 @@ export class SchedulerService {
   async expireAttempts() {
     try {
       const now = new Date();
-
-      // Find all STARTED attempts that have exceeded their test duration
-      const startedAttempts = await this.prisma.attempt.findMany({
+      const result = await this.prisma.attempt.updateMany({
         where: {
           status: Status.STARTED,
           startTime: {
             lt: new Date(now.getTime() - 24 * 60 * 60 * 1000), // Older than 24 hours
           },
-        },
-        include: { test: true },
-      });
-
-      if (startedAttempts.length === 0) {
-        return;
-      }
-
-      // Mark them as expired
-      await this.prisma.attempt.updateMany({
-        where: {
-          id: { in: startedAttempts.map((a) => a.id) },
         },
         data: {
           status: Status.EXPIRED,
@@ -49,9 +35,11 @@ export class SchedulerService {
         },
       });
 
-      this.logger.log(
-        `Expired ${startedAttempts.length} attempts older than 24 hours`,
-      );
+      if (result.count > 0) {
+        this.logger.log(
+          `Expired ${result.count} attempts older than 24 hours`,
+        );
+      }
     } catch (error) {
       this.logger.error('Failed to expire attempts:', error);
     }
