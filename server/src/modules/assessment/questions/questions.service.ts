@@ -258,6 +258,10 @@ export class QuestionsService {
     sectionId?: string,
     topicId?: string,
   ) {
+    console.log('=== BULK UPLOAD START ===');
+    console.log('sectionId:', sectionId);
+    console.log('topicId:', topicId);
+
     // Validate section exists if provided
     if (sectionId) {
       const section = await this.prisma.section.findUnique({
@@ -378,6 +382,7 @@ export class QuestionsService {
           uniqueHash,
           explanation: row['Explanation'] || null,
           index: index + 2, // for error reporting
+          rawRow: row, // <-- add this so we can resolve topic per-row later
         });
 
         allHashes.push(uniqueHash);
@@ -406,16 +411,30 @@ export class QuestionsService {
 
         if (!question) {
           // 2. If it is brand new, create it in the Global Bank with topic assignment
-          if (!topicId) {
-            throw new BadRequestException(
-              'Topic ID is required for bulk upload. Please select a topic.',
-            );
+          // Resolve topic for this row if not provided globally
+          let rowTopicId = topicId; // selectedTopicId (global) if provided
+
+          // if global topicId is not provided, and row provides Topic/Subject or topicId column,
+          // use resolveTopicForRow (same as validate)
+          if (!rowTopicId) {
+            try {
+              const resolvedTopic = await this.resolveTopicForRow(
+                processedRow.rawRow,
+                topicId,
+              );
+              rowTopicId = resolvedTopic.id;
+            } catch (err: any) {
+              // Provide a clear message which row and why it failed
+              throw new BadRequestException(
+                `Row ${processedRow.index}: Topic resolution failed - ${err?.message || String(err)}`,
+              );
+            }
           }
 
           question = await tx.question.create({
             data: {
               hash: processedRow.uniqueHash,
-              topicId: topicId, // 🚨 CRITICAL: Assign question to topic
+              topicId: rowTopicId, // Use resolved topic ID
               translations: {
                 create: {
                   lang: 'EN' as any,
@@ -449,6 +468,8 @@ export class QuestionsService {
 
         count++;
       }
+      console.log('=== BULK UPLOAD END ===');
+      console.log('Final count:', count);
       return { success: true, count };
     });
   }
