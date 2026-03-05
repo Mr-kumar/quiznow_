@@ -2,8 +2,9 @@ import axios from "axios";
 import { useAuthStore } from "../stores/auth-store";
 
 // 1. Create the Axios Instance
+const baseURL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
 const api = axios.create({
-  baseURL: "http://localhost:4000/api", // Your NestJS Backend URL with /api prefix
+  baseURL, // Use environment variable for API URL
   headers: {
     "Content-Type": "application/json",
   },

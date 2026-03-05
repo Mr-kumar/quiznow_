@@ -248,4 +248,53 @@ export class QuestionsController {
       },
     };
   }
+
+  @Post('bulk/validate')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: {
+        fileSize: 10 * 1024 * 1024, // 10MB limit
+      },
+    }),
+  )
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Validate bulk upload file before import' })
+  @ApiConsumes('multipart/form-data')
+  async bulkValidate(
+    @UploadedFile() file: Express.Multer.File,
+    @Body('selectedTopicId') selectedTopicId?: string,
+  ) {
+    if (!file) {
+      throw new BadRequestException('No file uploaded');
+    }
+
+    return this.questionsService.validateBulkFile(file.buffer, selectedTopicId);
+  }
+
+  @Post('bulk/import')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: {
+        fileSize: 10 * 1024 * 1024, // 10MB limit
+      },
+    }),
+  )
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Import validated bulk upload file' })
+  @ApiConsumes('multipart/form-data')
+  async bulkImport(
+    @UploadedFile() file: Express.Multer.File,
+    @Body('selectedTopicId') selectedTopicId?: string,
+    @Body('onlyValid') onlyValid: boolean = true,
+  ) {
+    if (!file) {
+      throw new BadRequestException('No file uploaded');
+    }
+
+    return this.questionsService.importBulkFile(
+      file.buffer,
+      selectedTopicId,
+      onlyValid,
+    );
+  }
 }

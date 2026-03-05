@@ -2,9 +2,9 @@ import { Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { PrismaModule } from './services/prisma/prisma.module';
 import { AuthModule } from './modules/iam/auth/auth.module';
 import { UsersModule } from './modules/iam/users/users.module';
-import { PrismaService } from './services/prisma/prisma.service';
 import { CategoriesModule } from './modules/catalog/categories/categories.module';
 import { ExamsModule } from './modules/assessment/exams/exams.module';
 import { TestSeriesModule } from './modules/assessment/test-series/test-series.module';
@@ -26,6 +26,7 @@ import { SchedulerService } from './common/services/scheduler.service';
 @Module({
   imports: [
     ScheduleModule.forRoot(), // Enable scheduling
+    PrismaModule,
     AuthModule,
     UsersModule,
     CategoriesModule,
@@ -46,6 +47,6 @@ import { SchedulerService } from './common/services/scheduler.service';
     CacheModule,
   ],
   controllers: [AppController],
-  providers: [AppService, PrismaService, SchedulerService],
+  providers: [AppService, SchedulerService],
 })
 export class AppModule {}
