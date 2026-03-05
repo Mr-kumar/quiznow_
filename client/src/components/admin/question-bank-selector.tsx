@@ -230,8 +230,8 @@ export function QuestionBankSelector({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Subjects</SelectItem>
-            {getUniqueSubjects().map((subject) => (
-              <SelectItem key={subject} value={subject}>
+            {getUniqueSubjects().map((subject, index) => (
+              <SelectItem key={`${subject}-${index}`} value={subject}>
                 {subject}
               </SelectItem>
             ))}

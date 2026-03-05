@@ -122,7 +122,9 @@ function SelectItem({
           <CheckIcon className="size-4" />
         </SelectPrimitive.ItemIndicator>
       </span>
-      <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
+      <SelectPrimitive.ItemText>
+        {typeof children === "string" ? children : JSON.stringify(children)}
+      </SelectPrimitive.ItemText>
     </SelectPrimitive.Item>
   );
 }
