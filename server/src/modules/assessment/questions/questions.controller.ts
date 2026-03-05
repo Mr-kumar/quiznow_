@@ -152,8 +152,8 @@ export class QuestionsController {
       ? body.questionIds
       : [];
     return this.questionsService.injectQuestionsIntoSection(
-      sectionId,
       questionIds,
+      sectionId,
     );
   }
 

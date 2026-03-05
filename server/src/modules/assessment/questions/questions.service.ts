@@ -278,15 +278,14 @@ export class QuestionsService {
       if (!topic) throw new BadRequestException('Topic not found');
     }
 
-    const workbook = XLSX.read(file.buffer, { type: 'buffer' });
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const rows: any[] = XLSX.utils.sheet_to_json(sheet);
+    // Use the same parsing logic as validation (with normalization)
+    const parsedRows = this.parseFile(file.buffer);
 
-    if (!rows || rows.length === 0)
+    if (!parsedRows || parsedRows.length === 0)
       throw new BadRequestException('Excel sheet is empty');
 
     // 🚨 NEW: Excel Upload Limit (God Mode Feature)
-    if (rows.length > 500) {
+    if (parsedRows.length > 500) {
       throw new BadRequestException(
         'For system stability, please upload a maximum of 500 questions per Excel file.',
       );
@@ -297,40 +296,47 @@ export class QuestionsService {
       const processedRows: any[] = [];
       const allHashes: string[] = [];
 
-      for (const [index, row] of rows.entries()) {
-        // Support multiple column naming formats (same as validateBulkFile)
+      for (const [index, parsedRow] of parsedRows.entries()) {
+        const row = parsedRow.data;
+        // Support multiple column naming formats (same as validateBulkFile) with normalized keys
         const rawQuestion =
-          row['Question EN'] ||
-          row['Question'] ||
+          row['question en'] ||
+          row['question'] ||
           row['question_en'] ||
           row['question'];
 
-        if (!rawQuestion) continue; // Skip empty rows
+        if (!rawQuestion) {
+          console.warn(`⚠️ Skipping empty row ${parsedRow.rowNumber}:`, row);
+          continue; // Skip empty rows
+        }
 
         const questionText = rawQuestion.toString().trim();
         const options = [
-          row['Option A EN'] ||
-            row['Option A'] ||
+          row['option a en'] ||
+            row['option a'] ||
             row['option_a_en'] ||
             row['option_a'],
-          row['Option B EN'] ||
-            row['Option B'] ||
+          row['option b en'] ||
+            row['option b'] ||
             row['option_b_en'] ||
             row['option_b'],
-          row['Option C EN'] ||
-            row['Option C'] ||
+          row['option c en'] ||
+            row['option c'] ||
             row['option_c_en'] ||
             row['option_c'],
-          row['Option D EN'] ||
-            row['Option D'] ||
+          row['option d en'] ||
+            row['option d'] ||
             row['option_d_en'] ||
             row['option_d'],
         ].filter(Boolean);
 
+        // Debug logging for options
+        console.log(`Row ${parsedRow.rowNumber} options:`, options);
+
         // 🚀 NEW: Validation Layer (Fixes "Blind Trust" issue)
         const validAnswers = ['A', 'B', 'C', 'D', '1', '2', '3', '4'];
         const rawCorrectAnswer =
-          row['Correct Answer'] || row['correct_answer'] || row['correct'];
+          row['correct answer'] || row['correct_answer'] || row['correct'];
         const correctAnswer = rawCorrectAnswer?.toString().trim().toUpperCase();
 
         // 🛡️ SMART ANSWER VALIDATION: Auto-fix common issues
@@ -399,11 +405,11 @@ export class QuestionsService {
           correctIndex,
           uniqueHash,
           explanation:
-            row['Explanation EN'] ||
+            row['explanation en'] ||
             row['explanation_en'] ||
-            row['Explanation'] ||
+            row['explanation'] ||
             null,
-          index: index + 2, // for error reporting
+          index: parsedRow.rowNumber, // for error reporting
           rawRow: row, // <-- add this so we can resolve topic per-row later
         });
 
@@ -476,20 +482,21 @@ export class QuestionsService {
                   {
                     lang: 'EN' as any,
                     content:
-                      processedRow.rawRow['Question EN'] ||
+                      processedRow.rawRow['question en'] ||
                       processedRow.questionText,
                     explanation:
-                      processedRow.rawRow['Explanation EN'] ||
+                      processedRow.rawRow['explanation en'] ||
                       processedRow.explanation,
                   },
                   // Add Hindi translation if present
-                  ...(processedRow.rawRow['Question HI']
+                  ...(processedRow.rawRow['question hi']?.trim()
                     ? [
                         {
                           lang: 'HI' as any,
-                          content: processedRow.rawRow['Question HI'],
+                          content: processedRow.rawRow['question hi'],
                           explanation:
-                            processedRow.rawRow['Explanation HI'] || null,
+                            processedRow.rawRow['explanation hi']?.trim() ||
+                            null,
                         },
                       ]
                     : []),
@@ -507,13 +514,13 @@ export class QuestionsService {
                       },
                       // Add Hindi option translation if present
                       ...(processedRow.rawRow[
-                        `Option ${String.fromCharCode(65 + idx)} HI`
-                      ]
+                        `option ${String.fromCharCode(97 + idx)} hi`
+                      ]?.trim()
                         ? [
                             {
                               lang: 'HI' as any,
                               text: processedRow.rawRow[
-                                `Option ${String.fromCharCode(65 + idx)} HI`
+                                `option ${String.fromCharCode(97 + idx)} hi`
                               ],
                             },
                           ]
@@ -559,7 +566,13 @@ export class QuestionsService {
     return crypto.createHash('sha256').update(content).digest('hex');
   }
 
-  async injectQuestionsIntoSection(sectionId: string, questionIds: string[]) {
+  async injectQuestionsIntoSection(questionIds: string[], sectionId?: string) {
+    if (!sectionId) {
+      throw new BadRequestException(
+        'Section ID is required for injecting questions',
+      );
+    }
+
     // Validate section exists
     const section = await this.prisma.section.findUnique({
       where: { id: sectionId },
@@ -712,6 +725,15 @@ export class QuestionsService {
   }
 
   // Parse xlsx buffer and produce rows with rowNumber
+  private normalizeRowKeys(raw: Record<string, any>) {
+    const normalized: Record<string, any> = {};
+    for (const k of Object.keys(raw)) {
+      const nk = k.toString().trim().toLowerCase();
+      normalized[nk] = raw[k];
+    }
+    return normalized;
+  }
+
   private parseFile(buffer: Buffer) {
     const workbook = XLSX.read(buffer, { type: 'buffer' });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -719,8 +741,10 @@ export class QuestionsService {
       defval: '',
     });
 
-    // sheet_to_json returns array index 0 = first data row; row numbers helpful for errors:
-    return rawRows.map((r, i) => ({ rowNumber: i + 2, data: r })); // +2 because header is row1
+    return rawRows.map((r, i) => ({
+      rowNumber: i + 2,
+      data: this.normalizeRowKeys(r),
+    }));
   }
 
   // Resolve topic per precedence
@@ -739,11 +763,11 @@ export class QuestionsService {
     }
 
     // 2) Topic + Subject present
-    if (row['Topic'] && row['Subject']) {
+    if (row['topic'] && row['subject']) {
       const topic = await this.prisma.topic.findFirst({
         where: {
-          name: String(row['Topic']).trim(),
-          subject: { name: String(row['Subject']).trim() },
+          name: String(row['topic']).trim(),
+          subject: { name: String(row['subject']).trim() },
         },
         include: { subject: true },
       });
@@ -753,7 +777,7 @@ export class QuestionsService {
     }
 
     // 3) Topic present alone and selectedTopicId is provided: verify it belongs to same subject (best-effort)
-    if (row['Topic'] && selectedTopicId) {
+    if (row['topic'] && selectedTopicId) {
       const sel = await this.prisma.topic.findUnique({
         where: { id: selectedTopicId },
         include: { subject: true },
@@ -761,11 +785,11 @@ export class QuestionsService {
       if (!sel) throw new BadRequestException('Selected topic not found');
 
       // if the row topic name equals the selected topic name, accept it; otherwise attempt to find topic with same name under selected subject
-      if (String(row['Topic']).trim() === sel.name) return sel;
+      if (String(row['topic']).trim() === sel.name) return sel;
 
       const topic = await this.prisma.topic.findFirst({
         where: {
-          name: String(row['Topic']).trim(),
+          name: String(row['topic']).trim(),
           subjectId: sel.subjectId,
         },
         include: { subject: true },
@@ -800,52 +824,91 @@ export class QuestionsService {
         const raw = r.data;
 
         // Basic required columns (support multiple naming conventions)
-        const qEn =
-          raw['Question EN'] ||
-          raw['Question'] ||
+        // Extract values using normalized keys (case-insensitive, trimmed)
+        const qEn = (
+          raw['question en'] ||
+          raw['question'] ||
           raw['question_en'] ||
-          raw['question'];
-        const qHi = raw['Question HI'] || raw['question_hi'] || '';
-        const optAEn =
-          raw['Option A EN'] ||
-          raw['Option A'] ||
+          ''
+        )
+          .toString()
+          .trim();
+        const qHi = (raw['question hi'] || raw['question_hi'] || '')
+          .toString()
+          .trim();
+
+        // Debug logging for Hindi content
+        console.log(
+          `Row ${r.rowNumber} question_hi length: ${qHi ? qHi.length : 0}`,
+        );
+
+        const optAEn = (
+          raw['option a en'] ||
+          raw['option a'] ||
           raw['option_a_en'] ||
-          raw['option_a'];
-        const optBEn =
-          raw['Option B EN'] ||
-          raw['Option B'] ||
+          raw['option_a'] ||
+          ''
+        )
+          .toString()
+          .trim();
+        const optBEn = (
+          raw['option b en'] ||
+          raw['option b'] ||
           raw['option_b_en'] ||
-          raw['option_b'];
-        const optCEn =
-          raw['Option C EN'] ||
-          raw['Option C'] ||
+          raw['option_b'] ||
+          ''
+        )
+          .toString()
+          .trim();
+        const optCEn = (
+          raw['option c en'] ||
+          raw['option c'] ||
           raw['option_c_en'] ||
           raw['option_c'] ||
-          '';
-        const optDEn =
-          raw['Option D EN'] ||
-          raw['Option D'] ||
+          ''
+        )
+          .toString()
+          .trim();
+        const optDEn = (
+          raw['option d en'] ||
+          raw['option d'] ||
           raw['option_d_en'] ||
           raw['option_d'] ||
-          '';
-        const optAHI = raw['Option A HI'] || raw['option_a_hi'] || '';
-        const optBHI = raw['Option B HI'] || raw['option_b_hi'] || '';
-        const optCHI = raw['Option C HI'] || raw['option_c_hi'] || '';
-        const optDHI = raw['Option D HI'] || raw['option_d_hi'] || '';
+          ''
+        )
+          .toString()
+          .trim();
+        const optAHI = (raw['option a hi'] || raw['option_a_hi'] || '')
+          .toString()
+          .trim();
+        const optBHI = (raw['option b hi'] || raw['option_b_hi'] || '')
+          .toString()
+          .trim();
+        const optCHI = (raw['option c hi'] || raw['option_c_hi'] || '')
+          .toString()
+          .trim();
+        const optDHI = (raw['option d hi'] || raw['option_d_hi'] || '')
+          .toString()
+          .trim();
         const correct = (
-          raw['Correct Answer'] ||
+          raw['correct answer'] ||
           raw['correct_answer'] ||
           raw['correct'] ||
           ''
         )
           .toString()
           .trim();
-        const expEn =
-          raw['Explanation EN'] ||
+        const expEn = (
+          raw['explanation en'] ||
           raw['explanation_en'] ||
-          raw['Explanation'] ||
-          '';
-        const expHi = raw['Explanation HI'] || raw['explanation_hi'] || '';
+          raw['explanation'] ||
+          ''
+        )
+          .toString()
+          .trim();
+        const expHi = (raw['explanation hi'] || raw['explanation_hi'] || '')
+          .toString()
+          .trim();
 
         // Validation
         const validationErrors: string[] = [];
