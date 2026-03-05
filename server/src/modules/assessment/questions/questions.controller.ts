@@ -122,6 +122,21 @@ export class QuestionsController {
     @UploadedFile() file: Express.Multer.File,
     @Body('sectionId') sectionId: string,
   ) {
+    // 🚨 DEBUG: Validate sectionId is not a filename
+    console.log('=== SERVER DEBUG ===');
+    console.log('Received sectionId:', sectionId);
+    console.log('File originalname:', file?.originalname);
+
+    if (
+      sectionId.includes('.xlsx') ||
+      sectionId.includes('.xls') ||
+      sectionId.includes('.csv')
+    ) {
+      console.error('❌ FILENAME DETECTED AS sectionId:', sectionId);
+      throw new BadRequestException(
+        `Invalid sectionId: "${sectionId}". Section ID should be a UUID, not a filename.`,
+      );
+    }
     return this.questionsService.bulkUpload(file, sectionId);
   }
 

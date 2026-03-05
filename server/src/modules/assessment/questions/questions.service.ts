@@ -418,9 +418,17 @@ export class QuestionsService {
           // use resolveTopicForRow (same as validate)
           if (!rowTopicId) {
             try {
+              console.log(
+                `🔍 Resolving topic for row ${processedRow.index}:`,
+                processedRow.rawRow,
+              );
               const resolvedTopic = await this.resolveTopicForRow(
                 processedRow.rawRow,
                 topicId,
+              );
+              console.log(
+                `✅ Topic resolved for row ${processedRow.index}:`,
+                resolvedTopic,
               );
               rowTopicId = resolvedTopic.id;
             } catch (err: any) {

@@ -47,6 +47,8 @@ import BulkQuestionUpload from "@/components/admin/bulk-upload";
 import { QuestionBankSelector } from "@/components/admin/question-bank-selector";
 
 export default function CreateTestWizard() {
+  console.log("🚀 CreateTestWizard: Component loaded");
+
   const router = useRouter();
   const { toast } = useToast();
 
@@ -200,6 +202,18 @@ export default function CreateTestWizard() {
       console.log("testRes:", testRes);
       console.log("testId:", testId);
       console.log("sectionId:", sectionId);
+
+      alert(`DEBUG: sectionId = ${sectionId}`);
+
+      if (
+        !sectionId ||
+        sectionId.includes(".xlsx") ||
+        sectionId.includes(".xls")
+      ) {
+        console.error("❌ INVALID SECTION ID:", sectionId);
+        alert("ERROR: Invalid section ID detected! Check console.");
+        return;
+      }
 
       toast({
         title: "Test Created!",
