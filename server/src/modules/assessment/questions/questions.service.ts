@@ -298,22 +298,40 @@ export class QuestionsService {
       const allHashes: string[] = [];
 
       for (const [index, row] of rows.entries()) {
-        if (!row['Question']) continue; // Skip empty rows
+        // Support multiple column naming formats (same as validateBulkFile)
+        const rawQuestion =
+          row['Question EN'] ||
+          row['Question'] ||
+          row['question_en'] ||
+          row['question'];
 
-        const questionText = row['Question'].toString().trim();
+        if (!rawQuestion) continue; // Skip empty rows
+
+        const questionText = rawQuestion.toString().trim();
         const options = [
-          row['Option A'],
-          row['Option B'],
-          row['Option C'],
-          row['Option D'],
+          row['Option A EN'] ||
+            row['Option A'] ||
+            row['option_a_en'] ||
+            row['option_a'],
+          row['Option B EN'] ||
+            row['Option B'] ||
+            row['option_b_en'] ||
+            row['option_b'],
+          row['Option C EN'] ||
+            row['Option C'] ||
+            row['option_c_en'] ||
+            row['option_c'],
+          row['Option D EN'] ||
+            row['Option D'] ||
+            row['option_d_en'] ||
+            row['option_d'],
         ].filter(Boolean);
 
         // 🚀 NEW: Validation Layer (Fixes "Blind Trust" issue)
         const validAnswers = ['A', 'B', 'C', 'D', '1', '2', '3', '4'];
-        const correctAnswer = row['Correct Answer']
-          ?.toString()
-          .trim()
-          .toUpperCase();
+        const rawCorrectAnswer =
+          row['Correct Answer'] || row['correct_answer'] || row['correct'];
+        const correctAnswer = rawCorrectAnswer?.toString().trim().toUpperCase();
 
         // 🛡️ SMART ANSWER VALIDATION: Auto-fix common issues
         let finalCorrectAnswer = correctAnswer;
@@ -380,7 +398,11 @@ export class QuestionsService {
           options,
           correctIndex,
           uniqueHash,
-          explanation: row['Explanation'] || null,
+          explanation:
+            row['Explanation EN'] ||
+            row['explanation_en'] ||
+            row['Explanation'] ||
+            null,
           index: index + 2, // for error reporting
           rawRow: row, // <-- add this so we can resolve topic per-row later
         });
