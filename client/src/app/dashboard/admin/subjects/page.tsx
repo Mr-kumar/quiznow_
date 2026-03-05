@@ -19,6 +19,38 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { useToast } from "@/components/ui/use-toast";
+import { useErrorHandler, errorHandlers } from "@/hooks/use-error-handler";
+import {
+  ErrorDisplay,
+  ValidationErrorDisplay,
+} from "@/components/ui/error-display";
+import {
+  Plus,
+  Search,
+  Filter,
+  Grid3X3,
+  List,
+  ChevronDown,
+  ChevronRight,
+  Edit,
+  Trash2,
+  BookOpen,
+  Tag,
+  MoreHorizontal,
+  Eye,
+  EyeOff,
+  SortAsc,
+  SortDesc,
+  TrendingUp,
+  Users,
+  Grid,
+  RefreshCw,
+  FolderOpen,
+  Folder,
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,28 +62,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useToast } from "@/components/ui/use-toast";
-import {
-  BookOpen,
-  Plus,
-  Edit,
-  Trash2,
-  Users,
-  TrendingUp,
-  Search,
-  RefreshCw,
-  ChevronDown,
-  ChevronRight,
-  Tag,
-  Folder,
-  FolderOpen,
-  Grid,
-  List,
-  Filter,
-  MoreHorizontal,
-} from "lucide-react";
 import { adminSubjectsApi, type Subject } from "@/lib/admin-subjects-api";
 import {
   adminTopicsApi,
@@ -92,6 +102,7 @@ type SortOption = "name" | "topics" | "created";
 
 export default function SubjectsPage() {
   const { toast } = useToast();
+  const { handleError, errors, clearError } = useErrorHandler();
   const [subjects, setSubjects] = useState<SubjectWithTopics[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");

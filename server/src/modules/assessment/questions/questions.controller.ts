@@ -6,15 +6,15 @@ import {
   Patch,
   Param,
   Delete,
-  UseInterceptors,
-  ParseUUIDPipe,
-  UseGuards,
   Query,
-  NotFoundException,
+  UseInterceptors,
+  UploadedFile,
   BadRequestException,
+  UseGuards,
+  NotFoundException,
+  ParseUUIDPipe,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express/multer';
-import { UploadedFile } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { QuestionsService } from './questions.service';
 import { CreateQuestionDto } from './dto/create-question.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
@@ -130,8 +130,8 @@ export class QuestionsController {
 
   @Post('upload')
   @UseInterceptors(FileInterceptor('file'))
+  @ApiOperation({ summary: 'Bulk upload questions from Excel file' })
   @ApiConsumes('multipart/form-data')
-  @ApiOperation({ summary: 'Bulk upload questions via Excel' })
   @ApiBody({
     schema: {
       type: 'object',
@@ -142,15 +142,11 @@ export class QuestionsController {
         },
         sectionId: {
           type: 'string',
-          format: 'uuid',
         },
         topicId: {
           type: 'string',
-          format: 'uuid',
-          description: 'Topic ID to assign questions to',
         },
       },
-      required: ['file', 'sectionId'],
     },
   })
   async uploadQuestions(
@@ -159,6 +155,36 @@ export class QuestionsController {
     @Body('topicId', ParseUUIDPipe) topicId?: string,
   ) {
     return this.questionsService.bulkUpload(file, sectionId, topicId);
+  }
+
+  @Post('bulk/validate')
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiOperation({ summary: 'Validate bulk upload file before import' })
+  @ApiConsumes('multipart/form-data')
+  async validateBulkUpload(
+    @UploadedFile() file: Express.Multer.File,
+    @Body('selectedTopicId') selectedTopicId?: string,
+  ) {
+    if (!file) throw new BadRequestException('Missing file');
+    return this.questionsService.validateBulkFile(file.buffer, selectedTopicId);
+  }
+
+  @Post('bulk/import')
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiOperation({ summary: 'Import validated bulk upload file' })
+  @ApiConsumes('multipart/form-data')
+  async importBulkUpload(
+    @UploadedFile() file: Express.Multer.File,
+    @Body('selectedTopicId') selectedTopicId?: string,
+    @Body('onlyValid') onlyValid?: string,
+  ) {
+    if (!file) throw new BadRequestException('Missing file');
+    const onlyValidFlag = onlyValid === 'true';
+    return this.questionsService.importBulkFile(
+      file.buffer,
+      selectedTopicId,
+      onlyValidFlag,
+    );
   }
 
   @Post('inject-questions/:sectionId')

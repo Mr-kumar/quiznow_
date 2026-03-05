@@ -5,6 +5,12 @@ import { adminQuestionsApi, adminTopicsApi, type Topic } from "@/lib/admin-api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
+import { useErrorHandler, errorHandlers } from "@/hooks/use-error-handler";
+import {
+  ErrorDisplay,
+  ValidationErrorDisplay,
+  ServerError,
+} from "@/components/ui/error-display";
 import {
   Loader2,
   Upload,
@@ -28,13 +34,19 @@ interface BulkUploadProps {
   onSuccess?: (uploadedCount: number) => void;
 }
 
-export function BulkQuestionUpload({ sectionId, onSuccess }: BulkUploadProps) {
+export default function BulkQuestionUpload({
+  sectionId,
+  onSuccess,
+}: BulkUploadProps) {
+  const { toast } = useToast();
+  const { handleError, errors, clearError } = useErrorHandler();
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [selectedTopicId, setSelectedTopicId] = useState<string>("");
   const [topics, setTopics] = useState<Topic[]>([]);
   const [topicsLoading, setTopicsLoading] = useState(false);
-  const { toast } = useToast();
+  const [validation, setValidation] = useState<any>(null);
+  const [showValidation, setShowValidation] = useState(false);
 
   // Load topics for selection
   useEffect(() => {
@@ -56,16 +68,75 @@ export function BulkQuestionUpload({ sectionId, onSuccess }: BulkUploadProps) {
     loadTopics();
   }, [toast]);
 
+  // Handle validation
+  const handleValidate = async () => {
+    if (!file) return;
+
+    setIsUploading(true);
+    clearError(); // Clear previous errors
+
+    try {
+      const response = await adminQuestionsApi.bulkValidate(
+        file,
+        selectedTopicId || undefined,
+      );
+      setValidation(response.data);
+      setShowValidation(true);
+      toast({
+        title: "Validation Complete",
+        description: `${response.data.validCount} valid rows, ${response.data.errors.length} errors`,
+      });
+    } catch (error: any) {
+      handleError(error, { showToast: true });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // Handle import after validation
+  const handleImport = async (onlyValid = true) => {
+    if (!file) return;
+
+    setIsUploading(true);
+
+    try {
+      const response = await adminQuestionsApi.bulkImport(
+        file,
+        selectedTopicId || undefined,
+        onlyValid,
+      );
+      toast({
+        title: "Import Successful",
+        description: `${response.data.imported} questions imported successfully`,
+      });
+      onSuccess?.(response.data.imported);
+      // Reset state
+      setFile(null);
+      setValidation(null);
+      setShowValidation(false);
+    } catch (error: any) {
+      handleError(error, { showToast: true });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // Handle upload (legacy - for backward compatibility)
   const handleUpload = async () => {
     if (!file || !sectionId) return;
 
     // Validate topic selection
     if (!selectedTopicId) {
-      toast({
-        title: "Validation Error",
-        description: "Please select a topic for the questions",
-        variant: "destructive",
-      });
+      handleError(
+        {
+          response: {
+            data: {
+              message: "Please select a topic for the questions",
+            },
+          },
+        },
+        { showToast: true },
+      );
       return;
     }
 
@@ -78,27 +149,14 @@ export function BulkQuestionUpload({ sectionId, onSuccess }: BulkUploadProps) {
         sectionId,
         selectedTopicId,
       );
-
       toast({
-        title: "Success!",
-        description: `Questions uploaded successfully. Created ${response.data?.count || 0} questions.`,
+        title: "Upload Successful",
+        description: `${response.data.count} questions uploaded successfully`,
       });
-      if (onSuccess) onSuccess(response.data?.count || 0);
-      setFile(null); // Reset
+      onSuccess?.(response.data.count);
+      setFile(null);
     } catch (error: any) {
-      console.error("Upload Error:", error);
-
-      // Extract the real error message from NestJS
-      const backendError = error?.response?.data?.message || error?.message;
-      const displayError = Array.isArray(backendError)
-        ? backendError[0]
-        : backendError || error?.toString() || "Unknown upload error";
-
-      toast({
-        title: "Upload Failed",
-        description: `Error: ${displayError}`, // 👈 Now it will tell you EXACTLY what's wrong
-        variant: "destructive",
-      });
+      handleError(error, { showToast: true });
     } finally {
       setIsUploading(false);
     }
@@ -111,32 +169,59 @@ export function BulkQuestionUpload({ sectionId, onSuccess }: BulkUploadProps) {
           <FileSpreadsheet className="h-6 w-6 text-green-600 dark:text-green-400" />
         </div>
 
-        <div className="space-y-1">
-          <h3 className="text-lg font-medium">Upload Question Sheet</h3>
-          <p className="text-sm text-zinc-500 max-w-sm mx-auto">
-            Drag and drop your Excel file here. Ensure columns match template.
-          </p>
+        {/* Error Display */}
+        {errors.length > 0 && (
+          <div className="w-full max-w-md">
+            {errors.map((errorItem) => (
+              <ErrorDisplay
+                key={errorItem.id}
+                type={errorItem.error.type as any}
+                title={errorItem.error.title}
+                message={errorItem.error.message}
+                details={errorItem.error.details}
+                action={
+                  errorItem.error.action
+                    ? {
+                        label: errorItem.error.action,
+                        onClick: () => clearError(errorItem.id),
+                      }
+                    : undefined
+                }
+                onClose={() => clearError(errorItem.id)}
+                className="mb-2"
+              />
+            ))}
+          </div>
+        )}
+
+        <div className="max-w-xs w-full mx-auto">
+          <Input
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            onChange={(e) => {
+              setFile(e.target.files?.[0] || null);
+              setValidation(null);
+              setShowValidation(false);
+            }}
+            className="cursor-pointer bg-white dark:bg-zinc-950"
+          />
         </div>
 
-        {/* Topic Selection */}
-        <div className="w-full max-w-xs mx-auto">
+        {/* Topic Selection & Info */}
+        <div className="w-full max-w-xs mx-auto space-y-2">
           <Select value={selectedTopicId} onValueChange={setSelectedTopicId}>
             <SelectGroup>
-              <SelectLabel>Select Topic</SelectLabel>
+              <SelectLabel>Select Topic (Optional)</SelectLabel>
               <SelectTrigger>
                 <SelectValue placeholder="Choose a topic for questions" />
               </SelectTrigger>
               <SelectContent>
-                {topicsLoading ? (
-                  <div className="px-2 py-1 text-sm text-muted-foreground">
-                    Loading topics...
-                  </div>
-                ) : !topics || topics.length === 0 ? (
+                {!topics || topics.length === 0 ? (
                   <div className="px-2 py-1 text-sm text-muted-foreground">
                     No topics available
                   </div>
                 ) : (
-                  topics?.map((topic) => (
+                  topics.map((topic) => (
                     <SelectItem key={topic.id} value={topic.id}>
                       {topic.name}
                     </SelectItem>
@@ -145,32 +230,108 @@ export function BulkQuestionUpload({ sectionId, onSuccess }: BulkUploadProps) {
               </SelectContent>
             </SelectGroup>
           </Select>
+
+          <div className="text-xs text-muted-foreground text-center">
+            <p>
+              {" "}
+              <strong>Topic Resolution Priority:</strong>
+            </p>
+            <p>1. topicId column in Excel</p>
+            <p>2. Topic + Subject columns</p>
+            <p>3. Selected topic (fallback)</p>
+          </div>
         </div>
 
-        <div className="max-w-xs w-full mx-auto">
-          <Input
-            type="file"
-            accept=".xlsx,.xls,.csv"
-            onChange={(e) => setFile(e.target.files?.[0] || null)}
-            className="cursor-pointer bg-white dark:bg-zinc-950"
-          />
+        {/* Action Buttons */}
+        <div className="flex gap-2 max-w-xs w-full mx-auto">
+          <Button
+            onClick={handleValidate}
+            disabled={!file || isUploading}
+            className="flex-1"
+            variant="outline"
+          >
+            {isUploading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Validating...
+              </>
+            ) : (
+              <>
+                <CheckCircle className="h-4 w-4 mr-2" />
+                Validate
+              </>
+            )}
+          </Button>
+
+          <Button
+            onClick={handleUpload}
+            disabled={!file || isUploading}
+            className="flex-1"
+          >
+            {isUploading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Uploading...
+              </>
+            ) : (
+              <>
+                <Upload className="h-4 w-4 mr-2" />
+                Quick Upload
+              </>
+            )}
+          </Button>
         </div>
 
-        <Button
-          onClick={handleUpload}
-          disabled={!file || isUploading}
-          className="w-full max-w-xs bg-green-600 hover:bg-green-700 text-white"
-        >
-          {isUploading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing...
-            </>
-          ) : (
-            <>
-              <Upload className="mr-2 h-4 w-4" /> Upload Questions
-            </>
-          )}
-        </Button>
+        {showValidation && validation && (
+          <div className="max-w-xs w-full mx-auto mt-4">
+            <Alert>
+              <AlertTitle>Validation Results</AlertTitle>
+              <AlertDescription>
+                <p>Valid rows: {validation.validCount}</p>
+                <p>Errors: {validation.errors.length}</p>
+                {validation.validCount > 0 && (
+                  <div className="mt-2 space-y-2">
+                    <Button
+                      onClick={() => handleImport(true)}
+                      className="w-full"
+                      size="sm"
+                    >
+                      Import Valid Rows ({validation.validCount})
+                    </Button>
+                    {validation.errors.length === 0 && (
+                      <Button
+                        onClick={() => handleImport(false)}
+                        variant="outline"
+                        className="w-full"
+                        size="sm"
+                      >
+                        Import All Rows ({validation.totalRows})
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </AlertDescription>
+            </Alert>
+
+            {validation.errors.length > 0 && (
+              <div className="mt-2 max-h-32 overflow-y-auto">
+                <p className="text-sm font-medium text-red-600 mb-1">Errors:</p>
+                {validation.errors
+                  .slice(0, 5)
+                  .map((error: any, idx: number) => (
+                    <div key={idx} className="text-xs text-red-600">
+                      Row {error.row}: {error.errors.join(", ")}
+                    </div>
+                  ))}
+                {validation.errors.length > 5 && (
+                  <div className="text-xs text-red-600">
+                    ... and {validation.errors.length - 5} more errors
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="text-xs text-zinc-400 pt-2">
           Supported formats: .xlsx, .csv

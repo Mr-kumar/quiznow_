@@ -30,7 +30,7 @@ import {
   ArrowDown,
 } from "lucide-react";
 import api from "@/lib/api";
-import { BulkQuestionUpload } from "@/components/admin/bulk-upload";
+import BulkQuestionUpload from "@/components/admin/bulk-upload";
 import { QuestionBankSelector } from "@/components/admin/question-bank-selector";
 import {
   Table,

@@ -367,6 +367,45 @@ export const adminQuestionsApi = {
     );
   },
 
+  bulkValidate: (file: File, selectedTopicId?: string) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    if (selectedTopicId) {
+      formData.append("selectedTopicId", selectedTopicId);
+    }
+
+    return api.post<{
+      totalRows: number;
+      validCount: number;
+      errors: Array<{ row: number; errors: string[]; raw?: any }>;
+      preview: any[];
+      allValidRows: any[];
+    }>("/questions/bulk/validate", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+  },
+
+  bulkImport: (file: File, selectedTopicId?: string, onlyValid = true) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    if (selectedTopicId) {
+      formData.append("selectedTopicId", selectedTopicId);
+    }
+    formData.append("onlyValid", onlyValid ? "true" : "false");
+
+    return api.post<{
+      imported: number;
+      total: number;
+      errors: number;
+    }>("/questions/bulk/import", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+  },
+
   bulkTag: (questionIds: string[], topicId: string) =>
     api.patch<{ success: boolean; updatedCount: number }>(
       "/questions/bulk-tag",

@@ -10,6 +10,28 @@ import { UpdateQuestionDto } from './dto/update-question.dto';
 import * as crypto from 'crypto';
 import { randomUUID } from 'crypto';
 import * as XLSX from 'xlsx';
+import { Language } from '@prisma/client';
+
+// Type definitions for bulk upload
+interface ValidatedRow {
+  rowNumber: number;
+  topicId: string;
+  subjectId: string;
+  question_en: string;
+  question_hi: string;
+  options_en: string[];
+  options_hi: string[];
+  correctIndex: number;
+  hash: string;
+  explanation_en: string;
+  explanation_hi: string;
+}
+
+interface ValidationError {
+  row: number;
+  errors: string[];
+  raw?: any;
+}
 
 @Injectable()
 export class QuestionsService {
@@ -571,6 +593,340 @@ export class QuestionsService {
       // total: 0, // Not needed for cursor pagination
       // totalPages: 0, // Not needed for cursor pagination
       // currentPage: 0, // Not needed for cursor pagination
+    };
+  }
+
+  // ===== NEW: COMPREHENSIVE BULK VALIDATION & IMPORT =====
+
+  // Helper: normalize text for hashing
+  private normalize(str?: string) {
+    return (str || '').replace(/\s+/g, ' ').trim().toLowerCase();
+  }
+
+  private makeHash(en?: string, hi?: string) {
+    const norm = `${this.normalize(en)}|${this.normalize(hi)}`;
+    return crypto.createHash('sha256').update(norm).digest('hex');
+  }
+
+  // Parse xlsx buffer and produce rows with rowNumber
+  private parseFile(buffer: Buffer) {
+    const workbook = XLSX.read(buffer, { type: 'buffer' });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rawRows = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, {
+      defval: '',
+    });
+
+    // sheet_to_json returns array index 0 = first data row; row numbers helpful for errors:
+    return rawRows.map((r, i) => ({ rowNumber: i + 2, data: r })); // +2 because header is row1
+  }
+
+  // Resolve topic per precedence
+  private async resolveTopicForRow(
+    row: Record<string, any>,
+    selectedTopicId?: string,
+  ) {
+    // 1) topicId present
+    if (row['topicId']) {
+      const topic = await this.prisma.topic.findUnique({
+        where: { id: String(row['topicId']) },
+        include: { subject: true },
+      });
+      if (!topic) throw new Error('topicId not found');
+      return topic;
+    }
+
+    // 2) Topic + Subject present
+    if (row['Topic'] && row['Subject']) {
+      const topic = await this.prisma.topic.findFirst({
+        where: {
+          name: String(row['Topic']).trim(),
+          subject: { name: String(row['Subject']).trim() },
+        },
+        include: { subject: true },
+      });
+      if (!topic) throw new Error('Topic not found for provided Subject');
+      return topic;
+    }
+
+    // 3) Topic present alone and selectedTopicId is provided: verify it belongs to same subject (best-effort)
+    if (row['Topic'] && selectedTopicId) {
+      const sel = await this.prisma.topic.findUnique({
+        where: { id: selectedTopicId },
+        include: { subject: true },
+      });
+      if (!sel) throw new Error('Selected topic not found');
+
+      // if the row topic name equals the selected topic name, accept it; otherwise attempt to find topic with same name under selected subject
+      if (String(row['Topic']).trim() === sel.name) return sel;
+
+      const topic = await this.prisma.topic.findFirst({
+        where: {
+          name: String(row['Topic']).trim(),
+          subjectId: sel.subjectId,
+        },
+        include: { subject: true },
+      });
+      if (topic) return topic;
+      throw new Error('Topic name mismatch with selected topic/subject');
+    }
+
+    // 4) fallback: if selectedTopicId present, use it for all rows
+    if (selectedTopicId) {
+      const topic = await this.prisma.topic.findUnique({
+        where: { id: selectedTopicId },
+        include: { subject: true },
+      });
+      if (!topic) throw new Error('Selected topic not found');
+      return topic;
+    }
+
+    throw new Error('Topic not provided');
+  }
+
+  // Validate rows and build DTOs
+  async validateBulkFile(buffer: Buffer, selectedTopicId?: string) {
+    const rows = this.parseFile(buffer);
+    const results: ValidatedRow[] = [];
+    const errors: ValidationError[] = [];
+
+    for (const r of rows) {
+      try {
+        const raw = r.data;
+
+        // Basic required columns (support multiple naming conventions)
+        const qEn =
+          raw['Question EN'] ||
+          raw['Question'] ||
+          raw['question_en'] ||
+          raw['question'];
+        const qHi = raw['Question HI'] || raw['question_hi'] || '';
+        const optAEn =
+          raw['Option A EN'] ||
+          raw['Option A'] ||
+          raw['option_a_en'] ||
+          raw['option_a'];
+        const optBEn =
+          raw['Option B EN'] ||
+          raw['Option B'] ||
+          raw['option_b_en'] ||
+          raw['option_b'];
+        const optCEn =
+          raw['Option C EN'] ||
+          raw['Option C'] ||
+          raw['option_c_en'] ||
+          raw['option_c'] ||
+          '';
+        const optDEn =
+          raw['Option D EN'] ||
+          raw['Option D'] ||
+          raw['option_d_en'] ||
+          raw['option_d'] ||
+          '';
+        const optAHI = raw['Option A HI'] || raw['option_a_hi'] || '';
+        const optBHI = raw['Option B HI'] || raw['option_b_hi'] || '';
+        const optCHI = raw['Option C HI'] || raw['option_c_hi'] || '';
+        const optDHI = raw['Option D HI'] || raw['option_d_hi'] || '';
+        const correct = (
+          raw['Correct Answer'] ||
+          raw['correct_answer'] ||
+          raw['correct'] ||
+          ''
+        )
+          .toString()
+          .trim();
+        const expEn =
+          raw['Explanation EN'] ||
+          raw['explanation_en'] ||
+          raw['Explanation'] ||
+          '';
+        const expHi = raw['Explanation HI'] || raw['explanation_hi'] || '';
+
+        // Validation
+        if (!qEn && !qHi) throw new Error('Missing Question text (EN or HI)');
+        if (!optAEn || !optBEn)
+          throw new Error('At least Option A and Option B are required');
+        if (!['A', 'B', 'C', 'D', '1', '2', '3', '4'].includes(correct)) {
+          throw new Error(
+            'Invalid Correct Answer (must be A/B/C/D or 1/2/3/4)',
+          );
+        }
+
+        // Resolve topic (could throw)
+        const topic = await this.resolveTopicForRow(raw, selectedTopicId);
+
+        // Build question DTO
+        const optionsEn = [optAEn, optBEn, optCEn, optDEn];
+        const optionsHi = [optAHI, optBHI, optCHI, optDHI];
+
+        // Compute correct index normalized to order (1-based)
+        let correctIndex = 0;
+        if (['A', 'B', 'C', 'D'].includes(correct))
+          correctIndex = ['A', 'B', 'C', 'D'].indexOf(correct) + 1;
+        else correctIndex = parseInt(correct, 10);
+
+        const hash = this.makeHash(qEn, qHi);
+
+        results.push({
+          rowNumber: r.rowNumber,
+          topicId: topic.id,
+          subjectId: topic.subjectId,
+          question_en: qEn,
+          question_hi: qHi,
+          options_en: optionsEn,
+          options_hi: optionsHi,
+          correctIndex,
+          hash,
+          explanation_en: expEn,
+          explanation_hi: expHi,
+        });
+      } catch (err: any) {
+        errors.push({
+          row: r.rowNumber,
+          errors: [err.message || String(err)],
+          raw: r.data,
+        });
+      }
+    }
+
+    // Detect duplicates within file based on hash
+    const seen = new Map<string, number>(); // hash -> firstRow
+    const validResults = [];
+    for (const res of results) {
+      if (seen.has(res.hash)) {
+        errors.push({
+          row: res.rowNumber,
+          errors: [
+            `Duplicate in file (same question as row ${seen.get(res.hash)})`,
+          ],
+        });
+      } else {
+        seen.set(res.hash, res.rowNumber);
+        validResults.push(res);
+      }
+    }
+
+    // Check existing DB duplicates
+    const hashes = validResults.map((r) => r.hash);
+    if (hashes.length) {
+      const existing = await this.prisma.question.findMany({
+        where: { hash: { in: hashes } },
+        select: { hash: true },
+      });
+      const existingSet = new Set(existing.map((e) => e.hash));
+      for (const r of validResults) {
+        if (existingSet.has(r.hash)) {
+          errors.push({
+            row: r.rowNumber,
+            errors: ['Question already exists in DB (duplicate hash)'],
+          });
+        }
+      }
+    }
+
+    // Filter out rows with errors from valid results
+    const finalValidResults = validResults.filter(
+      (r) => !errors.some((e) => e.row === r.rowNumber),
+    );
+
+    return {
+      totalRows: rows.length,
+      validCount: finalValidResults.length,
+      errors,
+      preview: finalValidResults.slice(0, 50), // show first 50 to admin
+      allValidRows: finalValidResults, // for import
+    };
+  }
+
+  // Import only valid rows
+  async importBulkFile(
+    buffer: Buffer,
+    selectedTopicId?: string,
+    onlyValid = true,
+  ) {
+    const validation = await this.validateBulkFile(buffer, selectedTopicId);
+
+    if (!onlyValid && validation.errors.length) {
+      throw new BadRequestException({
+        message: 'Validation failed',
+        errors: validation.errors,
+      });
+    }
+
+    const toInsert = validation.allValidRows;
+
+    if (toInsert.length === 0) {
+      throw new BadRequestException('No valid rows to import');
+    }
+
+    // Insert in transactions using batched operations
+    await this.prisma.$transaction(async (tx) => {
+      for (const q of toInsert) {
+        // Create Question
+        const createdQ = await tx.question.create({
+          data: {
+            topicId: q.topicId,
+            hash: q.hash,
+          },
+        });
+
+        // Create translations
+        await tx.questionTranslation.createMany({
+          data: [
+            {
+              questionId: createdQ.id,
+              lang: 'EN' as Language,
+              content: q.question_en,
+              explanation: q.explanation_en || null,
+            },
+            {
+              questionId: createdQ.id,
+              lang: 'HI' as Language,
+              content: q.question_hi || null,
+              explanation: q.explanation_hi || null,
+            },
+          ].filter((t) => t.content), // Only create if content exists
+        });
+
+        // Create options
+        const optionCreateData = q.options_en.map((optText, idx) => ({
+          questionId: createdQ.id,
+          order: idx + 1,
+          isCorrect: idx + 1 === q.correctIndex,
+        }));
+        const createdOptions = [];
+        for (const oc of optionCreateData) {
+          const op = await tx.questionOption.create({ data: oc });
+          createdOptions.push(op);
+        }
+
+        // Option translations
+        const optionTrans = [];
+        for (let i = 0; i < createdOptions.length; i++) {
+          const op = createdOptions[i];
+          if (q.options_en[i])
+            optionTrans.push({
+              optionId: op.id,
+              lang: 'EN' as Language,
+              text: q.options_en[i],
+            });
+          if (q.options_hi[i])
+            optionTrans.push({
+              optionId: op.id,
+              lang: 'HI' as Language,
+              text: q.options_hi[i],
+            });
+        }
+        if (optionTrans.length)
+          await tx.optionTranslation.createMany({
+            data: optionTrans,
+          });
+      }
+    });
+
+    return {
+      imported: toInsert.length,
+      total: validation.totalRows,
+      errors: validation.errors.length,
     };
   }
 }
