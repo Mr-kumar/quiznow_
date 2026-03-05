@@ -178,17 +178,46 @@ export default function SubjectsPage() {
 
       const response = await adminTopicsApi.create(topicData);
 
+      console.log("Topic creation response:", response);
+
+      // Handle different response structures
+      const newTopic = response.data?.data || response.data;
+      console.log("New topic extracted:", newTopic);
+
       // Update subjects state with new topic
-      setSubjects((prev) =>
-        prev.map((subject) =>
+      setSubjects((prev) => {
+        const updated = prev.map((subject) =>
           subject.id === subjectId
-            ? { ...subject, topics: [...subject.topics, response.data.data] }
+            ? { ...subject, topics: [...subject.topics, newTopic] }
             : subject,
-        ),
-      );
+        );
+        console.log("Updated subjects state:", updated);
+        return updated;
+      });
 
       // Clear the topic form for this subject
       setTopicForms((prev) => ({ ...prev, [subjectId]: { name: "" } }));
+
+      // Optionally reload topics for this subject to ensure UI updates
+      try {
+        const topicsResponse = await adminTopicsApi.getAll(1, 1000);
+        const allTopics =
+          topicsResponse.data?.data || topicsResponse.data || [];
+        const subjectTopics = Array.isArray(allTopics)
+          ? allTopics.filter((topic: any) => topic.subjectId === subjectId)
+          : [];
+
+        // Update just this subject's topics
+        setSubjects((prev) =>
+          prev.map((subject) =>
+            subject.id === subjectId
+              ? { ...subject, topics: subjectTopics }
+              : subject,
+          ),
+        );
+      } catch (error) {
+        console.error("Failed to reload topics:", error);
+      }
 
       toast({
         title: "Success",

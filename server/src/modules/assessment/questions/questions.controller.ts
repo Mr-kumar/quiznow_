@@ -6,15 +6,15 @@ import {
   Patch,
   Param,
   Delete,
-  Query,
   UseInterceptors,
-  UploadedFile,
-  BadRequestException,
-  UseGuards,
-  NotFoundException,
   ParseUUIDPipe,
+  UseGuards,
+  Query,
+  NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FileInterceptor } from '@nestjs/platform-express/multer';
+import { UploadedFile } from '@nestjs/common';
 import { QuestionsService } from './questions.service';
 import { CreateQuestionDto } from './dto/create-question.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
@@ -50,36 +50,13 @@ export class QuestionsController {
     @Query('subject') subject?: string,
     @Query('topic') topic?: string,
   ) {
-    const result = await this.questionsService.getPaginatedQuestions({
+    return this.questionsService.getPaginatedQuestions({
       cursor,
       limit,
       search,
       subject,
       topic,
     });
-
-    // Ensure we always have an array (not null)
-    const safeQuestions = Array.isArray(result.questions)
-      ? result.questions
-      : [];
-
-    // Use safeQuestions throughout the controller
-    const nextCursor =
-      safeQuestions.length > 0
-        ? safeQuestions[safeQuestions.length - 1]?.id
-        : null;
-
-    return {
-      data: safeQuestions, // Always an array
-      pagination: {
-        nextCursor: result.nextCursor,
-        prevCursor: cursor || null,
-        hasMore: result.hasMore,
-        hasPrevious: !!cursor,
-        limit: result.limit,
-        count: result.count,
-      },
-    };
   }
 
   @Get()
@@ -130,61 +107,22 @@ export class QuestionsController {
 
   @Post('upload')
   @UseInterceptors(FileInterceptor('file'))
-  @ApiOperation({ summary: 'Bulk upload questions from Excel file' })
   @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Bulk upload questions via Excel' })
   @ApiBody({
     schema: {
       type: 'object',
       properties: {
-        file: {
-          type: 'string',
-          format: 'binary',
-        },
-        sectionId: {
-          type: 'string',
-        },
-        topicId: {
-          type: 'string',
-        },
+        sectionId: { type: 'string', format: 'uuid' },
+        file: { type: 'string', format: 'binary' },
       },
     },
   })
   async uploadQuestions(
     @UploadedFile() file: Express.Multer.File,
     @Body('sectionId', ParseUUIDPipe) sectionId: string,
-    @Body('topicId', ParseUUIDPipe) topicId?: string,
   ) {
-    return this.questionsService.bulkUpload(file, sectionId, topicId);
-  }
-
-  @Post('bulk/validate')
-  @UseInterceptors(FileInterceptor('file'))
-  @ApiOperation({ summary: 'Validate bulk upload file before import' })
-  @ApiConsumes('multipart/form-data')
-  async validateBulkUpload(
-    @UploadedFile() file: Express.Multer.File,
-    @Body('selectedTopicId') selectedTopicId?: string,
-  ) {
-    if (!file) throw new BadRequestException('Missing file');
-    return this.questionsService.validateBulkFile(file.buffer, selectedTopicId);
-  }
-
-  @Post('bulk/import')
-  @UseInterceptors(FileInterceptor('file'))
-  @ApiOperation({ summary: 'Import validated bulk upload file' })
-  @ApiConsumes('multipart/form-data')
-  async importBulkUpload(
-    @UploadedFile() file: Express.Multer.File,
-    @Body('selectedTopicId') selectedTopicId?: string,
-    @Body('onlyValid') onlyValid?: string,
-  ) {
-    if (!file) throw new BadRequestException('Missing file');
-    const onlyValidFlag = onlyValid === 'true';
-    return this.questionsService.importBulkFile(
-      file.buffer,
-      selectedTopicId,
-      onlyValidFlag,
-    );
+    return this.questionsService.bulkUpload(file, sectionId);
   }
 
   @Post('inject-questions/:sectionId')
@@ -283,25 +221,20 @@ export class QuestionsController {
       orderBy,
     });
 
-    // Ensure we always have an array (not null)
-    const safeQuestions = Array.isArray(questions) ? questions : [];
-
     // Get metadata (OPTIMIZED - No slow count queries)
     const metadata = await this.questionsService.getCursorMetadata(
-      safeQuestions,
+      questions,
       limit,
       direction,
     );
 
     // Determine next/previous cursors
     const nextCursor =
-      safeQuestions.length > 0
-        ? safeQuestions[safeQuestions.length - 1].id
-        : null;
-    const prevCursor = cursor ? safeQuestions[0]?.id : null;
+      questions.length > 0 ? questions[questions.length - 1].id : null;
+    const prevCursor = cursor ? questions[0]?.id : null;
 
     return {
-      data: safeQuestions,
+      data: questions,
       pagination: {
         nextCursor,
         prevCursor,

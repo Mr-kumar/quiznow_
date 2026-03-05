@@ -75,6 +75,20 @@ export function useErrorHandler() {
 }
 
 function extractErrorInfo(error: any, fallbackMessage: string) {
+  // Handle empty or undefined errors
+  if (
+    !error ||
+    (typeof error === "object" && Object.keys(error).length === 0)
+  ) {
+    return {
+      type: "error",
+      title: "Error",
+      message: fallbackMessage || "An unexpected error occurred.",
+      details: "No additional error information was provided.",
+      action: "Try Again",
+    };
+  }
+
   // Network errors
   if (error?.code === "NETWORK_ERROR" || error?.message?.includes("fetch")) {
     return {

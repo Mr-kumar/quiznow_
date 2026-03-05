@@ -13,7 +13,7 @@ import * as XLSX from 'xlsx';
 import { Language } from '@prisma/client';
 
 // Type definitions for bulk upload
-interface ValidatedRow {
+export interface ValidatedRow {
   rowNumber: number;
   topicId: string;
   subjectId: string;
@@ -27,7 +27,7 @@ interface ValidatedRow {
   explanation_hi: string;
 }
 
-interface ValidationError {
+export interface ValidationError {
   row: number;
   errors: string[];
   raw?: any;
@@ -255,21 +255,23 @@ export class QuestionsService {
 
   async bulkUpload(
     file: Express.Multer.File,
-    sectionId: string,
+    sectionId?: string,
     topicId?: string,
   ) {
-    const section = await this.prisma.section.findUnique({
-      where: { id: sectionId },
-    });
-    if (!section) throw new NotFoundException('Section not found');
+    // Validate section exists if provided
+    if (sectionId) {
+      const section = await this.prisma.section.findUnique({
+        where: { id: sectionId },
+      });
+      if (!section) throw new BadRequestException('Section not found');
+    }
 
-    // Validate topic if provided
-    let topic: any = null;
+    // Validate topic exists if provided
     if (topicId) {
-      topic = await this.prisma.topic.findUnique({
+      const topic = await this.prisma.topic.findUnique({
         where: { id: topicId },
       });
-      if (!topic) throw new NotFoundException('Topic not found');
+      if (!topic) throw new BadRequestException('Topic not found');
     }
 
     const workbook = XLSX.read(file.buffer, { type: 'buffer' });
@@ -428,20 +430,22 @@ export class QuestionsService {
         }
 
         // 3. Connect the question (new or existing) to the specific Test Section safely
-        await tx.sectionQuestion.upsert({
-          where: {
-            sectionId_questionId: {
+        if (sectionId) {
+          await tx.sectionQuestion.upsert({
+            where: {
+              sectionId_questionId: {
+                sectionId: sectionId,
+                questionId: question.id,
+              },
+            },
+            update: {}, // Do nothing if it's already linked to this section
+            create: {
               sectionId: sectionId,
               questionId: question.id,
+              order: count + 1,
             },
-          },
-          update: {}, // Do nothing if it's already linked to this section
-          create: {
-            sectionId: sectionId,
-            questionId: question.id,
-            order: count + 1,
-          },
-        });
+          });
+        }
 
         count++;
       }
@@ -449,19 +453,17 @@ export class QuestionsService {
     });
   }
 
-  // Helper method to generate MD5 hash
+  // Helper method to generate SHA-256 hash
   private generateHash(content: string): string {
-    return crypto.createHash('md5').update(content).digest('hex');
+    return crypto.createHash('sha256').update(content).digest('hex');
   }
 
-  // Inject questions from Question Bank into a section
   async injectQuestionsIntoSection(sectionId: string, questionIds: string[]) {
+    // Validate section exists
     const section = await this.prisma.section.findUnique({
       where: { id: sectionId },
-      include: { questions: true },
     });
-
-    if (!section) throw new NotFoundException('Section not found');
+    if (!section) throw new BadRequestException('Section not found');
 
     return this.prisma.$transaction(async (tx) => {
       let injectedCount = 0;
@@ -631,7 +633,7 @@ export class QuestionsService {
         where: { id: String(row['topicId']) },
         include: { subject: true },
       });
-      if (!topic) throw new Error('topicId not found');
+      if (!topic) throw new BadRequestException('topicId not found');
       return topic;
     }
 
@@ -644,7 +646,8 @@ export class QuestionsService {
         },
         include: { subject: true },
       });
-      if (!topic) throw new Error('Topic not found for provided Subject');
+      if (!topic)
+        throw new BadRequestException('Topic not found for provided Subject');
       return topic;
     }
 
@@ -654,7 +657,7 @@ export class QuestionsService {
         where: { id: selectedTopicId },
         include: { subject: true },
       });
-      if (!sel) throw new Error('Selected topic not found');
+      if (!sel) throw new BadRequestException('Selected topic not found');
 
       // if the row topic name equals the selected topic name, accept it; otherwise attempt to find topic with same name under selected subject
       if (String(row['Topic']).trim() === sel.name) return sel;
@@ -667,7 +670,9 @@ export class QuestionsService {
         include: { subject: true },
       });
       if (topic) return topic;
-      throw new Error('Topic name mismatch with selected topic/subject');
+      throw new BadRequestException(
+        'Topic name mismatch with selected topic/subject',
+      );
     }
 
     // 4) fallback: if selectedTopicId present, use it for all rows
@@ -676,17 +681,17 @@ export class QuestionsService {
         where: { id: selectedTopicId },
         include: { subject: true },
       });
-      if (!topic) throw new Error('Selected topic not found');
+      if (!topic) throw new BadRequestException('Selected topic not found');
       return topic;
     }
 
-    throw new Error('Topic not provided');
+    throw new BadRequestException('Topic not provided');
   }
 
   // Validate rows and build DTOs
   async validateBulkFile(buffer: Buffer, selectedTopicId?: string) {
     const rows = this.parseFile(buffer);
-    const results: ValidatedRow[] = [];
+    const results: any[] = []; // Use any[] temporarily to avoid type issues
     const errors: ValidationError[] = [];
 
     for (const r of rows) {
@@ -742,17 +747,37 @@ export class QuestionsService {
         const expHi = raw['Explanation HI'] || raw['explanation_hi'] || '';
 
         // Validation
-        if (!qEn && !qHi) throw new Error('Missing Question text (EN or HI)');
+        const validationErrors: string[] = [];
+        if (!qEn && !qHi)
+          validationErrors.push('Missing Question text (EN or HI)');
         if (!optAEn || !optBEn)
-          throw new Error('At least Option A and Option B are required');
+          validationErrors.push('At least Option A and Option B are required');
         if (!['A', 'B', 'C', 'D', '1', '2', '3', '4'].includes(correct)) {
-          throw new Error(
+          validationErrors.push(
             'Invalid Correct Answer (must be A/B/C/D or 1/2/3/4)',
           );
         }
 
+        if (validationErrors.length > 0) {
+          errors.push({ row: r.rowNumber, errors: validationErrors });
+          continue;
+        }
+
         // Resolve topic (could throw)
-        const topic = await this.resolveTopicForRow(raw, selectedTopicId);
+        let topic;
+        try {
+          topic = await this.resolveTopicForRow(raw, selectedTopicId);
+        } catch (error) {
+          errors.push({
+            row: r.rowNumber,
+            errors: [
+              error instanceof Error
+                ? error.message
+                : 'Topic resolution failed',
+            ],
+          });
+          continue;
+        }
 
         // Build question DTO
         const optionsEn = [optAEn, optBEn, optCEn, optDEn];
@@ -801,19 +826,19 @@ export class QuestionsService {
         });
       } else {
         seen.set(res.hash, res.rowNumber);
-        validResults.push(res);
+        results.push(res);
       }
     }
 
     // Check existing DB duplicates
-    const hashes = validResults.map((r) => r.hash);
+    const hashes = results.map((r) => r.hash);
     if (hashes.length) {
       const existing = await this.prisma.question.findMany({
         where: { hash: { in: hashes } },
         select: { hash: true },
       });
       const existingSet = new Set(existing.map((e) => e.hash));
-      for (const r of validResults) {
+      for (const r of results) {
         if (existingSet.has(r.hash)) {
           errors.push({
             row: r.rowNumber,
@@ -824,16 +849,16 @@ export class QuestionsService {
     }
 
     // Filter out rows with errors from valid results
-    const finalValidResults = validResults.filter(
+    const finalValidResults = results.filter(
       (r) => !errors.some((e) => e.row === r.rowNumber),
     );
 
     return {
       totalRows: rows.length,
-      validCount: finalValidResults.length,
+      validCount: results.length,
       errors,
-      preview: finalValidResults.slice(0, 50), // show first 50 to admin
-      allValidRows: finalValidResults, // for import
+      preview: results.slice(0, 5), // Show first 5 valid rows as preview
+      allValidRows: results as any[], // Cast to any[] to avoid type issues
     };
   }
 
@@ -893,14 +918,14 @@ export class QuestionsService {
           order: idx + 1,
           isCorrect: idx + 1 === q.correctIndex,
         }));
-        const createdOptions = [];
+        const createdOptions: any[] = [];
         for (const oc of optionCreateData) {
           const op = await tx.questionOption.create({ data: oc });
           createdOptions.push(op);
         }
 
         // Option translations
-        const optionTrans = [];
+        const optionTrans: any[] = [];
         for (let i = 0; i < createdOptions.length; i++) {
           const op = createdOptions[i];
           if (q.options_en[i])

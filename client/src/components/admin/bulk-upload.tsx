@@ -127,16 +127,10 @@ export default function BulkQuestionUpload({
 
     // Validate topic selection
     if (!selectedTopicId) {
-      handleError(
-        {
-          response: {
-            data: {
-              message: "Please select a topic for the questions",
-            },
-          },
-        },
-        { showToast: true },
-      );
+      handleError(new Error("Please select a topic for the questions"), {
+        showToast: true,
+        fallbackMessage: "Topic selection is required for bulk upload.",
+      });
       return;
     }
 
@@ -156,7 +150,14 @@ export default function BulkQuestionUpload({
       onSuccess?.(response.data.count);
       setFile(null);
     } catch (error: any) {
-      handleError(error, { showToast: true });
+      console.error("Bulk upload error:", error);
+
+      // Provide better error context
+      handleError(error, {
+        showToast: true,
+        fallbackMessage:
+          "Failed to upload questions. Please check the file format and try again.",
+      });
     } finally {
       setIsUploading(false);
     }

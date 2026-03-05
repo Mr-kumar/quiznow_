@@ -4,7 +4,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { PrismaService } from 'src/services/prisma/prisma.service';
+import { PrismaService } from '../../../services/prisma/prisma.service';
 import { CreateAttemptDto } from './dto/create-attempt.dto';
 import { SubmitAttemptDto } from './dto/submit-attempt.dto';
 import { AnswerValidator } from 'src/common/validators/answer.validator';
