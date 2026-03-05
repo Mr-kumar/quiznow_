@@ -281,6 +281,10 @@ export class QuestionsService {
     // Use the same parsing logic as validation (with normalization)
     const parsedRows = this.parseFile(file.buffer);
 
+    // 👈 ADD THIS to verify keys!
+    console.log('=== FIRST CLEANED ROW DEBUG ===');
+    console.log('First cleaned row:', parsedRows[0]);
+
     if (!parsedRows || parsedRows.length === 0)
       throw new BadRequestException('Excel sheet is empty');
 
@@ -298,9 +302,9 @@ export class QuestionsService {
 
       for (const [index, parsedRow] of parsedRows.entries()) {
         const row = parsedRow.data;
-        // Support multiple column naming formats (same as validateBulkFile) with normalized keys
+        // Support clean keys (God-Mode parser)
         const rawQuestion =
-          row['question en'] ||
+          row['questionen'] ||
           row['question'] ||
           row['question_en'] ||
           row['question'];
@@ -312,20 +316,20 @@ export class QuestionsService {
 
         const questionText = rawQuestion.toString().trim();
         const options = [
-          row['option a en'] ||
-            row['option a'] ||
+          row['optionaen'] ||
+            row['optiona'] ||
             row['option_a_en'] ||
             row['option_a'],
-          row['option b en'] ||
-            row['option b'] ||
+          row['optionben'] ||
+            row['optionb'] ||
             row['option_b_en'] ||
             row['option_b'],
-          row['option c en'] ||
-            row['option c'] ||
+          row['optioncen'] ||
+            row['optionc'] ||
             row['option_c_en'] ||
             row['option_c'],
-          row['option d en'] ||
-            row['option d'] ||
+          row['optionden'] ||
+            row['optiond'] ||
             row['option_d_en'] ||
             row['option_d'],
         ].filter(Boolean);
@@ -336,7 +340,7 @@ export class QuestionsService {
         // 🚀 NEW: Validation Layer (Fixes "Blind Trust" issue)
         const validAnswers = ['A', 'B', 'C', 'D', '1', '2', '3', '4'];
         const rawCorrectAnswer =
-          row['correct answer'] || row['correct_answer'] || row['correct'];
+          row['correctanswer'] || row['correct_answer'] || row['correct'];
         const correctAnswer = rawCorrectAnswer?.toString().trim().toUpperCase();
 
         // 🛡️ SMART ANSWER VALIDATION: Auto-fix common issues
@@ -405,7 +409,7 @@ export class QuestionsService {
           correctIndex,
           uniqueHash,
           explanation:
-            row['explanation en'] ||
+            row['explanationen'] ||
             row['explanation_en'] ||
             row['explanation'] ||
             null,
@@ -482,20 +486,24 @@ export class QuestionsService {
                   {
                     lang: 'EN' as any,
                     content:
-                      processedRow.rawRow['question en'] ||
+                      processedRow.rawRow['questionen'] ||
+                      processedRow.rawRow['question_en'] ||
+                      processedRow.rawRow['question'] ||
                       processedRow.questionText,
                     explanation:
-                      processedRow.rawRow['explanation en'] ||
+                      processedRow.rawRow['explanationen'] ||
+                      processedRow.rawRow['explanation_en'] ||
+                      processedRow.rawRow['explanation'] ||
                       processedRow.explanation,
                   },
                   // Add Hindi translation if present
-                  ...(processedRow.rawRow['question hi']?.trim()
+                  ...(processedRow.rawRow['questionhi']?.trim()
                     ? [
                         {
                           lang: 'HI' as any,
-                          content: processedRow.rawRow['question hi'],
+                          content: processedRow.rawRow['questionhi'],
                           explanation:
-                            processedRow.rawRow['explanation hi']?.trim() ||
+                            processedRow.rawRow['explanationhi']?.trim() ||
                             null,
                         },
                       ]
@@ -514,13 +522,13 @@ export class QuestionsService {
                       },
                       // Add Hindi option translation if present
                       ...(processedRow.rawRow[
-                        `option ${String.fromCharCode(97 + idx)} hi`
+                        `option${String.fromCharCode(97 + idx)}hi`
                       ]?.trim()
                         ? [
                             {
                               lang: 'HI' as any,
                               text: processedRow.rawRow[
-                                `option ${String.fromCharCode(97 + idx)} hi`
+                                `option${String.fromCharCode(97 + idx)}hi`
                               ],
                             },
                           ]
@@ -727,9 +735,11 @@ export class QuestionsService {
   // Parse xlsx buffer and produce rows with rowNumber
   private normalizeRowKeys(raw: Record<string, any>) {
     const normalized: Record<string, any> = {};
-    for (const k of Object.keys(raw)) {
-      const nk = k.toString().trim().toLowerCase();
-      normalized[nk] = raw[k];
+    for (const key in raw) {
+      // 🛡️ God-Mode Fix: Remove spaces, underscores, parentheses and make lowercase
+      // e.g., "Option A" -> "optiona", "Question_HI" -> "questionhi", "Question (EN)" -> "questionen"
+      const cleanKey = key.toLowerCase().replace(/[\s_()]/g, '');
+      normalized[cleanKey] = raw[key];
     }
     return normalized;
   }
@@ -824,91 +834,40 @@ export class QuestionsService {
         const raw = r.data;
 
         // Basic required columns (support multiple naming conventions)
-        // Extract values using normalized keys (case-insensitive, trimmed)
-        const qEn = (
-          raw['question en'] ||
-          raw['question'] ||
-          raw['question_en'] ||
-          ''
-        )
+        // Extract values using clean keys (God-Mode parser)
+        const qEn = (raw['questionen'] || raw['question'] || '')
           .toString()
           .trim();
-        const qHi = (raw['question hi'] || raw['question_hi'] || '')
-          .toString()
-          .trim();
+        const qHi = (raw['questionhi'] || '').toString().trim();
 
         // Debug logging for Hindi content
         console.log(
-          `Row ${r.rowNumber} question_hi length: ${qHi ? qHi.length : 0}`,
+          `Row ${r.rowNumber} questionhi length: ${qHi ? qHi.length : 0}`,
         );
 
-        const optAEn = (
-          raw['option a en'] ||
-          raw['option a'] ||
-          raw['option_a_en'] ||
-          raw['option_a'] ||
-          ''
-        )
+        const optAEn = (raw['optionaen'] || raw['optiona'] || '')
           .toString()
           .trim();
-        const optBEn = (
-          raw['option b en'] ||
-          raw['option b'] ||
-          raw['option_b_en'] ||
-          raw['option_b'] ||
-          ''
-        )
+        const optBEn = (raw['optionben'] || raw['optionb'] || '')
           .toString()
           .trim();
-        const optCEn = (
-          raw['option c en'] ||
-          raw['option c'] ||
-          raw['option_c_en'] ||
-          raw['option_c'] ||
-          ''
-        )
+        const optCEn = (raw['optioncen'] || raw['optionc'] || '')
           .toString()
           .trim();
-        const optDEn = (
-          raw['option d en'] ||
-          raw['option d'] ||
-          raw['option_d_en'] ||
-          raw['option_d'] ||
-          ''
-        )
+        const optDEn = (raw['optionden'] || raw['optiond'] || '')
           .toString()
           .trim();
-        const optAHI = (raw['option a hi'] || raw['option_a_hi'] || '')
+        const optAHI = (raw['optionahi'] || '').toString().trim();
+        const optBHI = (raw['optionbhi'] || '').toString().trim();
+        const optCHI = (raw['optionchi'] || '').toString().trim();
+        const optDHI = (raw['optiondhi'] || '').toString().trim();
+        const correct = (raw['correctanswer'] || raw['correct'] || '')
           .toString()
           .trim();
-        const optBHI = (raw['option b hi'] || raw['option_b_hi'] || '')
+        const expEn = (raw['explanationen'] || raw['explanation'] || '')
           .toString()
           .trim();
-        const optCHI = (raw['option c hi'] || raw['option_c_hi'] || '')
-          .toString()
-          .trim();
-        const optDHI = (raw['option d hi'] || raw['option_d_hi'] || '')
-          .toString()
-          .trim();
-        const correct = (
-          raw['correct answer'] ||
-          raw['correct_answer'] ||
-          raw['correct'] ||
-          ''
-        )
-          .toString()
-          .trim();
-        const expEn = (
-          raw['explanation en'] ||
-          raw['explanation_en'] ||
-          raw['explanation'] ||
-          ''
-        )
-          .toString()
-          .trim();
-        const expHi = (raw['explanation hi'] || raw['explanation_hi'] || '')
-          .toString()
-          .trim();
+        const expHi = (raw['explanationhi'] || '').toString().trim();
 
         // Validation
         const validationErrors: string[] = [];
