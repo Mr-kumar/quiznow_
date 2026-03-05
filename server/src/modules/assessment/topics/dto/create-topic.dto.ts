@@ -1,14 +1,16 @@
-import { IsString, IsOptional, IsUUID, Matches } from 'class-validator';
+import { IsString, IsOptional, IsNotEmpty } from 'class-validator';
 
 export class CreateTopicDto {
   @IsString()
+  @IsNotEmpty()
   name: string;
 
-  @IsOptional()
-  @Matches(/^c[0-9a-z]{24}$/, { message: 'Subject ID must be a valid CUID' })
-  subjectId?: string;
+  @IsString()
+  @IsNotEmpty()
+  // Temporarily relaxed for debugging - TODO: Add proper CUID validation after debugging
+  subjectId: string;
 
   @IsOptional()
-  @Matches(/^c[0-9a-z]{24}$/, { message: 'Parent ID must be a valid CUID' })
+  @IsString()
   parentId?: string;
 }

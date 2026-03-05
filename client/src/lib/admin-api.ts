@@ -348,10 +348,13 @@ export interface UpdateQuestionRequest {
 
 export const adminQuestionsApi = {
   // Bulk operations (God Mode)
-  bulkUpload: (file: File, sectionId: string) => {
+  bulkUpload: (file: File, sectionId: string, topicId?: string) => {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("sectionId", sectionId);
+    if (topicId) {
+      formData.append("topicId", topicId);
+    }
 
     return api.post<{ success: boolean; count: number }>(
       "/questions/upload",
@@ -360,7 +363,7 @@ export const adminQuestionsApi = {
         headers: {
           "Content-Type": "multipart/form-data",
         },
-      }
+      },
     );
   },
 
@@ -370,7 +373,7 @@ export const adminQuestionsApi = {
       {
         questionIds,
         topicId,
-      }
+      },
     ),
 
   // 🚀 NEW: Cursor-based pagination (Enterprise Scale)
@@ -478,13 +481,13 @@ export const adminSubscriptionsApi = {
   create: (subscriptionData: CreateSubscriptionRequest) =>
     api.post<ApiResponse<Subscription>>(
       "/admin/subscriptions",
-      subscriptionData
+      subscriptionData,
     ),
 
   update: (id: string, subscriptionData: UpdateSubscriptionRequest) =>
     api.patch<ApiResponse<Subscription>>(
       `/admin/subscriptions/${id}`,
-      subscriptionData
+      subscriptionData,
     ),
 
   delete: (id: string) =>
@@ -546,19 +549,26 @@ export const adminAuditLogsApi = {
 export interface Topic {
   id: string;
   name: string;
-  subject?: string;
+  subjectId?: string;
+  subject?: {
+    id: string;
+    name: string;
+    isActive: boolean;
+    createdAt: string;
+    updatedAt: string;
+  };
   createdAt: string;
   updatedAt: string;
 }
 
 export interface CreateTopicRequest {
   name: string;
-  subject?: string;
+  subjectId: string;
 }
 
 export interface UpdateTopicRequest {
   name?: string;
-  subject?: string;
+  subjectId?: string;
 }
 
 // 🚀 Cursor-Based Pagination Types

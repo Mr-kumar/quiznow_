@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   adminTopicsApi,
   type Topic,
   type CreateTopicRequest,
   type UpdateTopicRequest,
 } from "@/lib/admin-api";
+import { adminSubjectsApi, type Subject } from "@/lib/admin-subjects-api";
 import { useListData, useCrudOperations } from "@/hooks/use-admin-crud";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -43,10 +44,18 @@ import * as z from "zod";
 import { BookOpen, Plus, Edit, Trash2, Tag, Search } from "lucide-react";
 import { DataTable } from "@/components/admin/admin-data-table";
 import { ColumnDef } from "@tanstack/react-table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const topicFormSchema = z.object({
   name: z.string().min(1, "Topic name is required"),
-  subject: z.string().optional(),
+  subjectId: z.string().min(1, "Subject is required"),
 });
 
 type TopicFormValues = z.infer<typeof topicFormSchema>;
@@ -58,6 +67,8 @@ export default function AdminTopicsPage() {
   const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [topicToDelete, setTopicToDelete] = useState<Topic | null>(null);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [subjectsLoading, setSubjectsLoading] = useState(false);
 
   const {
     data: topics,
@@ -93,8 +104,28 @@ export default function AdminTopicsPage() {
 
   const createForm = useForm<TopicFormValues>({
     resolver: zodResolver(topicFormSchema),
-    defaultValues: { name: "", subject: "" },
+    defaultValues: { name: "", subjectId: "" },
   });
+
+  // Load subjects for dropdown
+  useEffect(() => {
+    const loadSubjects = async () => {
+      setSubjectsLoading(true);
+      try {
+        const response = await adminSubjectsApi.getAll();
+        setSubjects(response.data); // axios returns {data: Subject[]}
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to load subjects",
+          variant: "destructive",
+        });
+      } finally {
+        setSubjectsLoading(false);
+      }
+    };
+    loadSubjects();
+  }, [toast]);
 
   const editForm = useForm<TopicFormValues>({
     resolver: zodResolver(topicFormSchema),
@@ -113,7 +144,7 @@ export default function AdminTopicsPage() {
       setSelectedTopic(topic);
       editForm.reset({
         name: topic.name,
-        subject: topic.subject || "",
+        subjectId: topic.subjectId || "",
       });
       setIsEditDialogOpen(true);
     },
@@ -153,18 +184,22 @@ export default function AdminTopicsPage() {
     {
       accessorKey: "subject",
       header: "Subject",
-      cell: ({ row }) => (
-        <div className="flex items-center gap-2">
-          {row.getValue("subject") ? (
-            <>
-              <Tag className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm">{row.getValue("subject")}</span>
-            </>
-          ) : (
-            <span className="text-sm text-muted-foreground">—</span>
-          )}
-        </div>
-      ),
+      cell: ({ row }) => {
+        const topic = row.original;
+        const subjectName = topic.subject?.name;
+        return (
+          <div className="flex items-center gap-2">
+            {subjectName ? (
+              <>
+                <Tag className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm">{subjectName}</span>
+              </>
+            ) : (
+              <span className="text-sm text-muted-foreground">—</span>
+            )}
+          </div>
+        );
+      },
     },
     {
       accessorKey: "createdAt",
@@ -256,16 +291,25 @@ export default function AdminTopicsPage() {
                   />
                   <FormField
                     control={createForm.control}
-                    name="subject"
+                    name="subjectId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Subject (Optional)</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="e.g., Physics, Mathematics"
-                            {...field}
-                          />
-                        </FormControl>
+                        <FormLabel>Subject</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a subject" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {subjects.map((subject) => (
+                              <SelectItem key={subject.id} value={subject.id}>
+                                {subject.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -367,16 +411,22 @@ export default function AdminTopicsPage() {
               />
               <FormField
                 control={editForm.control}
-                name="subject"
+                name="subjectId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Subject (Optional)</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="e.g., Physics, Mathematics"
-                        {...field}
-                      />
-                    </FormControl>
+                    <FormLabel>Subject</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a subject" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {subjects.map((subject) => (
+                          <SelectItem key={subject.id} value={subject.id}>
+                            {subject.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}

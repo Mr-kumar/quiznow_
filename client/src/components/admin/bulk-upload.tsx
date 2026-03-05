@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { adminQuestionsApi } from "@/lib/admin-api";
+import { useState, useEffect } from "react";
+import { adminQuestionsApi, adminTopicsApi, type Topic } from "@/lib/admin-api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
@@ -13,6 +13,15 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface BulkUploadProps {
   sectionId: string;
@@ -22,16 +31,53 @@ interface BulkUploadProps {
 export function BulkQuestionUpload({ sectionId, onSuccess }: BulkUploadProps) {
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [selectedTopicId, setSelectedTopicId] = useState<string>("");
+  const [topics, setTopics] = useState<Topic[]>([]);
+  const [topicsLoading, setTopicsLoading] = useState(false);
   const { toast } = useToast();
+
+  // Load topics for selection
+  useEffect(() => {
+    const loadTopics = async () => {
+      setTopicsLoading(true);
+      try {
+        const response = await adminTopicsApi.getAll(1, 1000); // Get all topics
+        setTopics(response.data.data); // axios returns {data: {data: Topic[], total, page, limit}}
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to load topics",
+          variant: "destructive",
+        });
+      } finally {
+        setTopicsLoading(false);
+      }
+    };
+    loadTopics();
+  }, [toast]);
 
   const handleUpload = async () => {
     if (!file || !sectionId) return;
 
+    // Validate topic selection
+    if (!selectedTopicId) {
+      toast({
+        title: "Validation Error",
+        description: "Please select a topic for the questions",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsUploading(true);
 
     try {
-      // Use authenticated admin API call
-      const response = await adminQuestionsApi.bulkUpload(file, sectionId);
+      // Use authenticated admin API call with topic ID
+      const response = await adminQuestionsApi.bulkUpload(
+        file,
+        sectionId,
+        selectedTopicId,
+      );
 
       toast({
         title: "Success!",
@@ -70,6 +116,35 @@ export function BulkQuestionUpload({ sectionId, onSuccess }: BulkUploadProps) {
           <p className="text-sm text-zinc-500 max-w-sm mx-auto">
             Drag and drop your Excel file here. Ensure columns match template.
           </p>
+        </div>
+
+        {/* Topic Selection */}
+        <div className="w-full max-w-xs mx-auto">
+          <Select value={selectedTopicId} onValueChange={setSelectedTopicId}>
+            <SelectGroup>
+              <SelectLabel>Select Topic</SelectLabel>
+              <SelectTrigger>
+                <SelectValue placeholder="Choose a topic for questions" />
+              </SelectTrigger>
+              <SelectContent>
+                {topicsLoading ? (
+                  <div className="px-2 py-1 text-sm text-muted-foreground">
+                    Loading topics...
+                  </div>
+                ) : !topics || topics.length === 0 ? (
+                  <div className="px-2 py-1 text-sm text-muted-foreground">
+                    No topics available
+                  </div>
+                ) : (
+                  topics?.map((topic) => (
+                    <SelectItem key={topic.id} value={topic.id}>
+                      {topic.name}
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </SelectGroup>
+          </Select>
         </div>
 
         <div className="max-w-xs w-full mx-auto">

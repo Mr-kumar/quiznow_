@@ -9,6 +9,7 @@ import {
   Select,
   SelectContent,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -232,7 +233,8 @@ export function PaginatedQuestionTable({
             />
           </div>
           <Select value={selectedSubject} onValueChange={handleSubjectChange}>
-            <SelectTrigger>
+            <SelectLabel>Subject Filter</SelectLabel>
+            <SelectTrigger aria-label="Filter by subject">
               <SelectValue placeholder="Select Subject" />
             </SelectTrigger>
             <SelectContent>
@@ -245,7 +247,8 @@ export function PaginatedQuestionTable({
             </SelectContent>
           </Select>
           <Select value={selectedTopic} onValueChange={handleTopicChange}>
-            <SelectTrigger>
+            <SelectLabel>Topic Filter</SelectLabel>
+            <SelectTrigger aria-label="Filter by topic">
               <SelectValue placeholder="Select Topic" />
             </SelectTrigger>
             <SelectContent>

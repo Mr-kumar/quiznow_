@@ -8,7 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -225,38 +227,50 @@ export function QuestionBankSelector({
         </div>
 
         <Select value={selectedSubject} onValueChange={setSelectedSubject}>
-          <SelectTrigger className="w-full md:w-48">
-            <SelectValue placeholder="Subject" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Subjects</SelectItem>
-            {getUniqueSubjects().map((subject, index) => (
-              <SelectItem key={`${subject}-${index}`} value={subject}>
-                {subject}
-              </SelectItem>
-            ))}
-          </SelectContent>
+          <SelectGroup>
+            <SelectLabel>Subject Filter</SelectLabel>
+            <SelectTrigger
+              className="w-full md:w-48"
+              aria-label="Filter by subject"
+            >
+              <SelectValue placeholder="All subjects" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Subjects</SelectItem>
+              {getUniqueSubjects().map((subject, index) => (
+                <SelectItem key={`${subject}-${index}`} value={subject}>
+                  {subject}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </SelectGroup>
         </Select>
 
         <Select value={selectedTopic} onValueChange={setSelectedTopic}>
-          <SelectTrigger className="w-full md:w-48">
-            <SelectValue placeholder="Topic" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Topics</SelectItem>
-            {topics
-              .filter(
-                (t) =>
-                  !selectedSubject ||
-                  selectedSubject === "all" ||
-                  t.subject === selectedSubject,
-              )
-              .map((topic) => (
-                <SelectItem key={topic.id} value={topic.id}>
-                  {topic.name}
-                </SelectItem>
-              ))}
-          </SelectContent>
+          <SelectGroup>
+            <SelectLabel>Topic Filter</SelectLabel>
+            <SelectTrigger
+              className="w-full md:w-48"
+              aria-label="Filter by topic"
+            >
+              <SelectValue placeholder="All topics" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Topics</SelectItem>
+              {topics
+                .filter(
+                  (t) =>
+                    !selectedSubject ||
+                    selectedSubject === "all" ||
+                    t.subject === selectedSubject,
+                )
+                .map((topic) => (
+                  <SelectItem key={topic.id} value={topic.id}>
+                    {topic.name}
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </SelectGroup>
         </Select>
 
         <Button variant="outline" onClick={fetchQuestions} disabled={isLoading}>

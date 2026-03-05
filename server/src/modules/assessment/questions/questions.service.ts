@@ -231,11 +231,24 @@ export class QuestionsService {
     };
   }
 
-  async bulkUpload(file: Express.Multer.File, sectionId: string) {
+  async bulkUpload(
+    file: Express.Multer.File,
+    sectionId: string,
+    topicId?: string,
+  ) {
     const section = await this.prisma.section.findUnique({
       where: { id: sectionId },
     });
     if (!section) throw new NotFoundException('Section not found');
+
+    // Validate topic if provided
+    let topic: any = null;
+    if (topicId) {
+      topic = await this.prisma.topic.findUnique({
+        where: { id: topicId },
+      });
+      if (!topic) throw new NotFoundException('Topic not found');
+    }
 
     const workbook = XLSX.read(file.buffer, { type: 'buffer' });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -368,10 +381,17 @@ export class QuestionsService {
         let question = hashToQuestionMap.get(processedRow.uniqueHash);
 
         if (!question) {
-          // 2. If it is brand new, create it in the Global Bank
+          // 2. If it is brand new, create it in the Global Bank with topic assignment
+          if (!topicId) {
+            throw new BadRequestException(
+              'Topic ID is required for bulk upload. Please select a topic.',
+            );
+          }
+
           question = await tx.question.create({
             data: {
               hash: processedRow.uniqueHash,
+              topicId: topicId, // 🚨 CRITICAL: Assign question to topic
               translations: {
                 create: {
                   lang: 'EN' as any,

@@ -137,12 +137,11 @@ function TreeNode({
   return (
     <div className="select-none">
       <div
-        className={`flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer transition-colors`}
-        style={
-          {
-            "--indent-level": `${level * 20 + 8}px`,
-          } as React.CSSProperties
-        }
+        className={`flex items-center gap-2 py-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer transition-colors`}
+        style={{
+          paddingLeft: `${level * 20 + 8}px`,
+          paddingRight: "8px",
+        }}
         onClick={() => {
           if (hasChildren) {
             setIsExpanded(!isExpanded);

@@ -136,16 +136,29 @@ export class QuestionsController {
     schema: {
       type: 'object',
       properties: {
-        sectionId: { type: 'string', format: 'uuid' },
-        file: { type: 'string', format: 'binary' },
+        file: {
+          type: 'string',
+          format: 'binary',
+        },
+        sectionId: {
+          type: 'string',
+          format: 'uuid',
+        },
+        topicId: {
+          type: 'string',
+          format: 'uuid',
+          description: 'Topic ID to assign questions to',
+        },
       },
+      required: ['file', 'sectionId'],
     },
   })
   async uploadQuestions(
     @UploadedFile() file: Express.Multer.File,
     @Body('sectionId', ParseUUIDPipe) sectionId: string,
+    @Body('topicId', ParseUUIDPipe) topicId?: string,
   ) {
-    return this.questionsService.bulkUpload(file, sectionId);
+    return this.questionsService.bulkUpload(file, sectionId, topicId);
   }
 
   @Post('inject-questions/:sectionId')

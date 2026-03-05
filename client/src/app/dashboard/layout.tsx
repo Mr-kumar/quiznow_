@@ -23,6 +23,7 @@ import {
   Bell,
   Menu,
   X,
+  Library,
 } from "lucide-react";
 
 export default function DashboardLayout({
@@ -81,6 +82,11 @@ export default function DashboardLayout({
       href: "/dashboard/admin/questions",
       label: "Global Question Vault",
       icon: BookOpen,
+    },
+    {
+      href: "/dashboard/admin/subjects",
+      label: "Subject Management",
+      icon: Library,
     },
     {
       href: "/dashboard/admin/users",

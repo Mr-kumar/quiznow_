@@ -15,7 +15,9 @@ import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -240,16 +242,19 @@ export default function GlobalQuestionVaultPage() {
                       {selected.length} selected
                     </div>
                     <Select value={bulkTopicId} onValueChange={setBulkTopicId}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select topic" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {topics.map((t) => (
-                          <SelectItem key={t.id} value={t.id}>
-                            {t.subject ? `${t.subject} — ${t.name}` : t.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
+                      <SelectGroup>
+                        <SelectLabel>Bulk Topic Assignment</SelectLabel>
+                        <SelectTrigger aria-label="Select topic for bulk assignment">
+                          <SelectValue placeholder="Select topic" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {topics.map((t) => (
+                            <SelectItem key={t.id} value={t.id}>
+                              {t.subject ? `${t.subject} — ${t.name}` : t.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </SelectGroup>
                     </Select>
                     <div className="flex gap-2">
                       <Button
@@ -285,16 +290,19 @@ export default function GlobalQuestionVaultPage() {
                 updateFilters({ subject: v === "all" ? "" : v })
               }
             >
-              <SelectTrigger>
-                <SelectValue placeholder="Subject" />
-              </SelectTrigger>
-              <SelectContent>
-                {subjectOptions.map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {s}
-                  </SelectItem>
-                ))}
-              </SelectContent>
+              <SelectGroup>
+                <SelectLabel>Subject Filter</SelectLabel>
+                <SelectTrigger aria-label="Filter by subject">
+                  <SelectValue placeholder="Subject" />
+                </SelectTrigger>
+                <SelectContent>
+                  {subjectOptions.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {s}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </SelectGroup>
             </Select>
             <Select
               value={filters.topicId || "all"}
