@@ -432,9 +432,15 @@ export class QuestionsService {
               );
               rowTopicId = resolvedTopic.id;
             } catch (err: any) {
+              console.error(
+                `❌ Topic resolution failed for row ${processedRow.index}:`,
+                err,
+              );
               // Provide a clear message which row and why it failed
               throw new BadRequestException(
-                `Row ${processedRow.index}: Topic resolution failed - ${err?.message || String(err)}`,
+                `Row ${processedRow.index}: Topic resolution failed - ${
+                  err?.message || String(err)
+                }`,
               );
             }
           }
