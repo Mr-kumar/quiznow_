@@ -472,11 +472,55 @@ export class QuestionsService {
               hash: processedRow.uniqueHash,
               topicId: rowTopicId, // Use resolved topic ID
               translations: {
-                create: {
-                  lang: 'EN' as any,
-                  content: processedRow.questionText,
-                  explanation: processedRow.explanation,
-                } as any,
+                create: [
+                  {
+                    lang: 'EN' as any,
+                    content:
+                      processedRow.rawRow['Question EN'] ||
+                      processedRow.questionText,
+                    explanation:
+                      processedRow.rawRow['Explanation EN'] ||
+                      processedRow.explanation,
+                  },
+                  // Add Hindi translation if present
+                  ...(processedRow.rawRow['Question HI']
+                    ? [
+                        {
+                          lang: 'HI' as any,
+                          content: processedRow.rawRow['Question HI'],
+                          explanation:
+                            processedRow.rawRow['Explanation HI'] || null,
+                        },
+                      ]
+                    : []),
+                ],
+              },
+              options: {
+                create: processedRow.options.map((optionText, idx) => ({
+                  order: idx + 1,
+                  isCorrect: idx === processedRow.correctIndex,
+                  translations: {
+                    create: [
+                      {
+                        lang: 'EN' as any,
+                        text: optionText,
+                      },
+                      // Add Hindi option translation if present
+                      ...(processedRow.rawRow[
+                        `Option ${String.fromCharCode(65 + idx)} HI`
+                      ]
+                        ? [
+                            {
+                              lang: 'HI' as any,
+                              text: processedRow.rawRow[
+                                `Option ${String.fromCharCode(65 + idx)} HI`
+                              ],
+                            },
+                          ]
+                        : []),
+                    ],
+                  },
+                })),
               },
             } as any,
           });
