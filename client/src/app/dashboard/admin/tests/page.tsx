@@ -1,106 +1,273 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/components/ui/use-toast";
 import {
-  Loader2,
-  Layers,
+  ChevronRight,
+  ChevronDown,
+  Search,
+  Pencil,
   Trash2,
   Clock,
   Award,
-  Search,
-  ChevronDown,
-  ChevronRight,
-  FolderOpen,
-  BookOpen,
-  Zap,
-  ArrowUp,
-  ArrowDown,
-  Edit2,
+  Layers,
+  GraduationCap,
+  Library,
+  X,
+  RefreshCw,
+  Plus,
+  Star,
 } from "lucide-react";
 import api from "@/lib/api";
+import { cn } from "@/lib/utils";
 
-export default function ManageTestsCommandCenter() {
+interface Test {
+  id: string;
+  title: string;
+  isLive: boolean;
+  isPremium?: boolean;
+  isActive: boolean;
+  durationMins: number;
+  totalMarks: number;
+  passMarks: number;
+}
+interface Series {
+  id: string;
+  title: string;
+  tests: Test[];
+}
+interface Exam {
+  id: string;
+  name: string;
+  series: Series[];
+}
+interface Category {
+  id: string;
+  name: string;
+  exams: Exam[];
+}
+
+function countTests(c: Category) {
+  return c.exams.reduce(
+    (n, e) => n + e.series.reduce((m, s) => m + s.tests.length, 0),
+    0,
+  );
+}
+
+function TestRow({
+  test,
+  onToggleLive,
+  onArchive,
+}: {
+  test: Test;
+  onToggleLive: (id: string, current: boolean) => void;
+  onArchive: (t: Test) => void;
+}) {
+  return (
+    <div
+      className={cn(
+        "group flex items-center gap-3 px-4 py-3 rounded-lg border transition-all",
+        "bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700",
+        "hover:border-zinc-300 dark:hover:border-zinc-600 hover:shadow-sm",
+      )}
+    >
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 truncate">
+            {test.title}
+          </span>
+          {test.isLive ? (
+            <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              LIVE
+            </span>
+          ) : (
+            <span className="text-[10px] font-medium text-zinc-400">DRAFT</span>
+          )}
+          {test.isPremium && (
+            <Star className="h-3 w-3 text-amber-500 fill-amber-400 shrink-0" />
+          )}
+        </div>
+        <div className="flex items-center gap-3 mt-0.5 text-[11px] text-zinc-400">
+          <span className="flex items-center gap-1">
+            <Clock className="h-3 w-3" />
+            {test.durationMins}m
+          </span>
+          <span className="flex items-center gap-1">
+            <Award className="h-3 w-3" />
+            {test.totalMarks} pts
+          </span>
+          <span>Pass: {test.passMarks}</span>
+        </div>
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        <Switch
+          checked={test.isLive}
+          onCheckedChange={() => onToggleLive(test.id, test.isLive)}
+          className="h-4 data-[state=checked]:bg-emerald-500"
+        />
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-7 w-7 text-zinc-400 hover:text-indigo-600"
+            asChild
+          >
+            <Link href={`/dashboard/admin/tests/${test.id}`}>
+              <Pencil className="h-3.5 w-3.5" />
+            </Link>
+          </Button>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-7 w-7 text-zinc-400 hover:text-red-500"
+            onClick={() => onArchive(test)}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TreeHeader({
+  label,
+  count,
+  isOpen,
+  onToggle,
+  icon: Icon,
+  iconColor,
+  iconBg,
+  level,
+}: {
+  label: string;
+  count: number;
+  isOpen: boolean;
+  onToggle: () => void;
+  icon: React.ElementType;
+  iconColor: string;
+  iconBg: string;
+  level: 0 | 1 | 2;
+}) {
+  return (
+    <button
+      onClick={onToggle}
+      className={cn(
+        "w-full flex items-center gap-2 rounded-lg transition-colors text-left",
+        level === 0 ? "py-2.5 px-3" : level === 1 ? "py-2 px-3" : "py-1.5 px-3",
+        "hover:bg-zinc-100 dark:hover:bg-zinc-800/60",
+        isOpen && "bg-zinc-50 dark:bg-zinc-800/40",
+      )}
+    >
+      {isOpen ? (
+        <ChevronDown className="h-3.5 w-3.5 text-zinc-400 shrink-0" />
+      ) : (
+        <ChevronRight className="h-3.5 w-3.5 text-zinc-400 shrink-0" />
+      )}
+      <div
+        className={cn(
+          "shrink-0 flex items-center justify-center rounded-md",
+          level === 0 ? "h-6 w-6" : "h-5 w-5",
+          iconBg,
+        )}
+      >
+        <Icon
+          className={cn(iconColor, level === 0 ? "h-3.5 w-3.5" : "h-3 w-3")}
+        />
+      </div>
+      <span
+        className={cn(
+          "flex-1 truncate text-zinc-800 dark:text-zinc-200",
+          level === 0
+            ? "text-sm font-bold"
+            : level === 1
+              ? "text-sm font-semibold"
+              : "text-xs font-semibold",
+        )}
+      >
+        {label}
+      </span>
+      <span
+        className={cn(
+          "text-[10px] font-semibold tabular-nums shrink-0",
+          count > 0 ? "text-zinc-500" : "text-zinc-300",
+        )}
+      >
+        {count} tests
+      </span>
+    </button>
+  );
+}
+
+export default function ManageTestsPage() {
   const { toast } = useToast();
-  const [categories, setCategories] = useState<any[]>([]);
-  const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
-  const [expandedExam, setExpandedExam] = useState<string | null>(null);
-  const [expandedSeries, setExpandedSeries] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [search, setSearch] = useState("");
+  const [openCategories, setOpenCategories] = useState<Set<string>>(new Set());
+  const [openExams, setOpenExams] = useState<Set<string>>(new Set());
+  const [openSeries, setOpenSeries] = useState<Set<string>>(new Set());
+  const [archiveTarget, setArchiveTarget] = useState<Test | null>(null);
+  const [archiving, setArchiving] = useState(false);
 
-  const fetchHierarchy = async () => {
-    setIsLoading(true);
+  const fetchHierarchy = async (silent = false) => {
+    if (!silent) setLoading(true);
+    else setRefreshing(true);
     try {
-      // Fetch all data in parallel
-      const [categoriesRes, examsRes, seriesRes, testsRes] = await Promise.all([
+      const [catRes, examRes, seriesRes, testsRes] = await Promise.all([
         api.get("/categories"),
         api.get("/exams"),
         api.get("/test-series"),
         api.get("/tests"),
       ]);
-
-      const allCategories = categoriesRes.data.data || categoriesRes.data;
-      const allExams = examsRes.data.data || examsRes.data;
-      const allSeries = seriesRes.data.data || seriesRes.data;
-      const allTests = (testsRes.data.data || testsRes.data).filter(
+      const cats: any[] = catRes.data.data ?? catRes.data;
+      const exams: any[] = examRes.data.data ?? examRes.data;
+      const series: any[] = seriesRes.data.data ?? seriesRes.data;
+      const tests: any[] = (testsRes.data.data ?? testsRes.data).filter(
         (t: any) => t.isActive !== false,
       );
-
-      console.log("All Tests Fetched:", allTests);
-      console.log("All Series Fetched:", allSeries);
-
-      // Build hierarchy by grouping data
-      const categoriesWithData = allCategories.map((category: any) => {
-        const exams = allExams.filter((e: any) => e.categoryId === category.id);
-
-        const examsWithSeries = exams.map((exam: any) => {
-          const series = allSeries.filter((s: any) => s.examId === exam.id);
-
-          const seriesWithTests = series.map((s: any) => {
-            // Try multiple field names for series relationship
-            const tests = allTests.filter((t: any) => {
-              return (
-                t.seriesId === s.id ||
-                t.testSeriesId === s.id ||
-                (t.series && t.series.id === s.id)
-              );
-            });
-
-            console.log(
-              `Series ${s.id} (${s.title || s.name}) found ${tests.length} tests`,
-            );
-
-            return { ...s, tests };
-          });
-
-          return { ...exam, series: seriesWithTests };
-        });
-
-        return { ...category, exams: examsWithSeries };
-      });
-
-      setCategories(categoriesWithData);
-    } catch (error) {
-      console.error("Error fetching hierarchy:", error);
-      toast({
-        title: "Failed to load hierarchy",
-        variant: "destructive",
-      });
+      const built: Category[] = cats.map((cat) => ({
+        ...cat,
+        exams: exams
+          .filter((e) => e.categoryId === cat.id)
+          .map((exam) => ({
+            ...exam,
+            series: series
+              .filter((s) => s.examId === exam.id)
+              .map((s) => ({
+                ...s,
+                tests: tests.filter(
+                  (t) =>
+                    t.seriesId === s.id ||
+                    t.testSeriesId === s.id ||
+                    t.series?.id === s.id,
+                ),
+              })),
+          })),
+      }));
+      setCategories(built);
+    } catch {
+      toast({ title: "Failed to load tests", variant: "destructive" });
     } finally {
-      setIsLoading(false);
+      setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -108,418 +275,311 @@ export default function ManageTestsCommandCenter() {
     fetchHierarchy();
   }, []);
 
-  const toggleLiveStatus = async (id: string, currentStatus: boolean) => {
+  const handleToggleLive = async (id: string, current: boolean) => {
     try {
-      const response = await api.patch(`/tests/${id}/publish`, {
-        isLive: !currentStatus,
-      });
-
-      if (response.status === 200 || response.status === 201) {
-        toast({
-          title: !currentStatus
-            ? "Test Published! 🟢"
-            : "Test moved to Draft ⚪",
-          description: !currentStatus
-            ? "Students can now see and take this test."
-            : "This test is now hidden from students.",
-        });
-        fetchHierarchy();
-      }
-    } catch (error: any) {
-      const errorMessage =
-        error?.response?.data?.message || "Failed to update test status";
-
+      await api.patch(`/tests/${id}/publish`, { isLive: !current });
+      toast({ title: !current ? "Test is now Live 🟢" : "Moved to Draft" });
+      fetchHierarchy(true);
+    } catch (err: any) {
       toast({
-        title: "Failed to Update Status",
-        description: errorMessage,
+        title: "Failed to update",
+        description: err?.response?.data?.message,
         variant: "destructive",
       });
     }
   };
 
-  const handleSoftDelete = async (id: string) => {
-    if (
-      !confirm(
-        "Archive this test? It will be hidden but data will be preserved.",
-      )
-    )
-      return;
-
+  const handleArchive = async () => {
+    if (!archiveTarget) return;
+    setArchiving(true);
     try {
-      const response = await api.patch(`/tests/${id}`, { isActive: false });
-
-      if (response.status === 200 || response.status === 201) {
-        toast({
-          title: "Test Archived ✓",
-          description: "Test has been safely archived.",
-        });
-        fetchHierarchy();
-      }
-    } catch (error: any) {
-      const errorMessage =
-        error?.response?.data?.message || "Failed to archive test";
-
+      await api.patch(`/tests/${archiveTarget.id}`, { isActive: false });
+      toast({ title: `"${archiveTarget.title}" archived` });
+      setArchiveTarget(null);
+      fetchHierarchy(true);
+    } catch (err: any) {
       toast({
-        title: "Failed to Archive Test",
-        description: errorMessage,
+        title: "Archive failed",
+        description: err?.response?.data?.message,
         variant: "destructive",
       });
+    } finally {
+      setArchiving(false);
     }
   };
 
-  // Filter tests by search term recursively
-  const getFilteredCategories = () => {
-    if (!searchTerm) return categories;
-
+  const filtered = useMemo(() => {
+    if (!search.trim()) return categories;
+    const q = search.toLowerCase();
     return categories
-      .map((category) => ({
-        ...category,
-        exams: category.exams
-          .map((exam: any) => ({
+      .map((cat) => ({
+        ...cat,
+        exams: cat.exams
+          .map((exam) => ({
             ...exam,
             series: exam.series
-              .map((s: any) => ({
+              .map((s) => ({
                 ...s,
-                tests: s.tests.filter((t: any) =>
-                  t.title?.toLowerCase().includes(searchTerm.toLowerCase()),
-                ),
+                tests: s.tests.filter((t) => t.title.toLowerCase().includes(q)),
               }))
-              .filter((s: any) => s.tests.length > 0),
+              .filter((s) => s.tests.length > 0),
           }))
-          .filter((exam: any) => exam.series.length > 0),
+          .filter((e) => e.series.length > 0),
       }))
-      .filter((category) => category.exams.length > 0);
-  };
+      .filter((c) => c.exams.length > 0);
+  }, [categories, search]);
 
-  // Get orphaned tests (not assigned to any series)
-  const getOrphanedTests = () => {
-    const allTestsInHierarchy = new Set<string>();
-    categories.forEach((cat) => {
-      cat.exams?.forEach((exam: any) => {
-        exam.series?.forEach((series: any) => {
-          series.tests?.forEach((test: any) => {
-            allTestsInHierarchy.add(test.id);
-          });
-        });
+  useEffect(() => {
+    if (!search.trim()) return;
+    const cats = new Set<string>();
+    const exms = new Set<string>();
+    const sers = new Set<string>();
+    filtered.forEach((c) => {
+      cats.add(c.id);
+      c.exams.forEach((e) => {
+        exms.add(e.id);
+        e.series.forEach((s) => sers.add(s.id));
       });
     });
+    setOpenCategories(cats);
+    setOpenExams(exms);
+    setOpenSeries(sers);
+  }, [search, filtered]);
 
-    // Fetch all tests and find orphaned ones
-    const allTests: any[] = [];
-    categories.forEach((cat) => {
-      cat.exams?.forEach((exam: any) => {
-        exam.series?.forEach((series: any) => {
-          series.tests?.forEach((test: any) => {
-            allTests.push(test);
-          });
-        });
-      });
-    });
-
-    return allTests;
+  const toggle = (
+    set: Set<string>,
+    setter: (s: Set<string>) => void,
+    id: string,
+  ) => {
+    const next = new Set(set);
+    next.has(id) ? next.delete(id) : next.add(id);
+    setter(next);
   };
 
-  const filteredCategories = getFilteredCategories();
-
-  const handleReorder = async (testId: string, direction: "up" | "down") => {
-    const flatTests: any[] = [];
-    categories.forEach((cat) => {
-      cat.exams?.forEach((exam: any) => {
-        exam.series?.forEach((series: any) => {
-          series.tests?.forEach((test: any) => {
-            flatTests.push({ ...test, seriesId: series.id });
-          });
-        });
-      });
-    });
-
-    const index = flatTests.findIndex((t) => t.id === testId);
-    if (
-      (direction === "up" && index <= 0) ||
-      (direction === "down" && index >= flatTests.length - 1)
-    )
-      return;
-
-    const newIndex = direction === "up" ? index - 1 : index + 1;
-    [flatTests[index], flatTests[newIndex]] = [
-      flatTests[newIndex],
-      flatTests[index],
-    ];
-
-    toast({
-      title: "Position updated",
-      description: `Test moved ${direction}`,
-    });
-  };
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
-          <p className="text-sm text-gray-600">Loading test hierarchy...</p>
-        </div>
-      </div>
-    );
-  }
+  const totalTests = categories.reduce((n, c) => n + countTests(c), 0);
+  const liveTests = categories.reduce(
+    (n, c) =>
+      n +
+      c.exams.reduce(
+        (m, e) =>
+          m +
+          e.series.reduce(
+            (k, s) => k + s.tests.filter((t) => t.isLive).length,
+            0,
+          ),
+        0,
+      ),
+    0,
+  );
 
   return (
-    <div className="w-full px-4 md:px-6 py-6 bg-white">
-      {/* Header Section */}
-      <div className="mb-6">
-        <div className="flex items-center gap-2 mb-3">
-          <div className="p-2 bg-linear-to-br from-indigo-500 to-blue-600 rounded-lg">
-            <Layers className="h-5 w-5 text-white" />
+    <div className="space-y-5">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-1.5 text-xs text-zinc-400 mb-1">
+            <span>Admin</span>
+            <ChevronRight className="h-3 w-3" />
+            <span className="text-zinc-600 dark:text-zinc-300 font-medium">
+              Manage Tests
+            </span>
           </div>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Manage Tests</h1>
-            <p className="text-sm text-gray-500">
-              View, organize & publish tests
+          <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
+            Tests
+          </h1>
+          {!loading && (
+            <p className="text-sm text-zinc-500 mt-0.5">
+              {totalTests} total · {liveTests} live
             </p>
-          </div>
+          )}
         </div>
-
-        {/* Search Bar */}
-        <div className="relative w-full md:w-80">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <Input
-            placeholder="Search tests..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 h-9 text-sm"
-          />
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 gap-1.5 text-xs"
+            onClick={() => fetchHierarchy(true)}
+            disabled={refreshing}
+          >
+            <RefreshCw
+              className={cn("h-3.5 w-3.5", refreshing && "animate-spin")}
+            />
+            Refresh
+          </Button>
+          <Button
+            size="sm"
+            className="h-8 gap-1.5 text-xs bg-indigo-600 hover:bg-indigo-700"
+            asChild
+          >
+            <Link href="/dashboard/admin/tests/create">
+              <Plus className="h-3.5 w-3.5" />
+              New Test
+            </Link>
+          </Button>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="space-y-3">
-        {filteredCategories.length === 0 ? (
-          <div className="text-center py-12 border border-dashed border-gray-300 rounded-lg">
-            <FolderOpen className="h-10 w-10 text-gray-300 mx-auto mb-2" />
-            <p className="text-gray-500 text-sm">
-              {searchTerm ? "No tests found" : "No categories available"}
-            </p>
-          </div>
-        ) : (
-          filteredCategories.map((category) => (
-            <div key={category.id} className="space-y-2">
-              {/* Category Header */}
-              <button
-                onClick={() =>
-                  setExpandedCategory(
-                    expandedCategory === category.id ? null : category.id,
-                  )
-                }
-                className="w-full flex items-center gap-2 p-3 bg-linear-to-r from-indigo-50 to-blue-50 hover:from-indigo-100 hover:to-blue-100 rounded-lg border border-indigo-100 transition-all text-left"
-              >
-                {expandedCategory === category.id ? (
-                  <ChevronDown className="h-4 w-4 text-indigo-600 shrink-0" />
-                ) : (
-                  <ChevronRight className="h-4 w-4 text-indigo-600 shrink-0" />
-                )}
-                <FolderOpen className="h-4 w-4 text-indigo-600 shrink-0" />
-                <span className="font-semibold text-gray-900 text-sm flex-1">
-                  {category.name}
-                </span>
-                <Badge
-                  variant="secondary"
-                  className="bg-indigo-100 text-indigo-700 text-xs"
-                >
-                  {category.exams.reduce(
-                    (total: number, exam: any) =>
-                      total +
-                      exam.series.reduce(
-                        (seriesTotal: number, s: any) =>
-                          seriesTotal + s.tests.length,
-                        0,
-                      ),
-                    0,
-                  )}{" "}
-                  tests
-                </Badge>
-              </button>
+      <div className="relative max-w-sm">
+        <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-zinc-400 pointer-events-none" />
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search tests…"
+          className="pl-8 h-8 text-xs"
+        />
+        {search && (
+          <button
+            onClick={() => setSearch("")}
+            className="absolute right-2.5 top-2.5 text-zinc-400 hover:text-zinc-600"
+            aria-label="Clear search"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </div>
 
-              {/* Exams & Tests */}
-              {expandedCategory === category.id && (
-                <div className="ml-4 space-y-2 border-l-2 border-indigo-200 pl-4">
-                  {category.exams.map((exam: any) => (
-                    <div key={exam.id} className="space-y-2">
-                      {/* Exam Header */}
-                      <button
-                        onClick={() =>
-                          setExpandedExam(
-                            expandedExam === exam.id ? null : exam.id,
-                          )
-                        }
-                        className="w-full flex items-center gap-2 p-2 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition-all text-left"
-                      >
-                        {expandedExam === exam.id ? (
-                          <ChevronDown className="h-3.5 w-3.5 text-blue-600 shrink-0" />
-                        ) : (
-                          <ChevronRight className="h-3.5 w-3.5 text-blue-600 shrink-0" />
-                        )}
-                        <BookOpen className="h-3.5 w-3.5 text-blue-600 shrink-0" />
-                        <span className="font-medium text-gray-800 text-xs flex-1">
-                          {exam.name}
-                        </span>
-                        <Badge
-                          variant="outline"
-                          className="bg-white text-blue-600 text-xs border-blue-200"
-                        >
-                          {exam.series.reduce(
-                            (total: number, s: any) => total + s.tests.length,
+      {loading ? (
+        <div className="space-y-2">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="flex items-center gap-2 px-3 py-2.5">
+              <Skeleton className="h-4 w-4 rounded" />
+              <Skeleton className="h-6 w-6 rounded-md" />
+              <Skeleton
+                className={cn("h-4 rounded", i % 2 === 0 ? "w-40" : "w-28")}
+              />
+            </div>
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 border border-dashed border-zinc-200 dark:border-zinc-700 rounded-xl">
+          <Layers className="h-10 w-10 text-zinc-300 mb-3" />
+          <p className="text-sm font-medium text-zinc-500">
+            {search ? "No tests match your search" : "No categories yet"}
+          </p>
+          {search && (
+            <button
+              onClick={() => setSearch("")}
+              className="mt-2 text-xs text-indigo-600 hover:underline"
+            >
+              Clear search
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-0.5">
+          {filtered.map((category) => (
+            <div key={category.id}>
+              <TreeHeader
+                label={category.name}
+                count={countTests(category)}
+                isOpen={openCategories.has(category.id)}
+                onToggle={() =>
+                  toggle(openCategories, setOpenCategories, category.id)
+                }
+                icon={Layers}
+                iconColor="text-blue-600 dark:text-blue-400"
+                iconBg="bg-blue-50 dark:bg-blue-950/40"
+                level={0}
+              />
+              {openCategories.has(category.id) && (
+                <div className="ml-4 pl-4 border-l border-zinc-200 dark:border-zinc-700 space-y-0.5 mt-0.5 mb-1">
+                  {category.exams.length === 0 ? (
+                    <p className="py-2 text-xs text-zinc-400 pl-2">No exams</p>
+                  ) : (
+                    category.exams.map((exam) => (
+                      <div key={exam.id}>
+                        <TreeHeader
+                          label={exam.name}
+                          count={exam.series.reduce(
+                            (n, s) => n + s.tests.length,
                             0,
                           )}
-                        </Badge>
-                      </button>
-
-                      {/* Test Series & Tests */}
-                      {expandedExam === exam.id && (
-                        <div className="ml-3 space-y-2 border-l-2 border-blue-200 pl-3">
-                          {exam.series.map((series: any) => (
-                            <div key={series.id} className="space-y-1.5">
-                              {/* Series Header */}
-                              <button
-                                onClick={() =>
-                                  setExpandedSeries(
-                                    expandedSeries === series.id
-                                      ? null
-                                      : series.id,
-                                  )
-                                }
-                                className="w-full flex items-center gap-2 p-2 bg-purple-50 hover:bg-purple-100 rounded-lg border border-purple-200 transition-all text-left"
-                              >
-                                {expandedSeries === series.id ? (
-                                  <ChevronDown className="h-3 w-3 text-purple-600 shrink-0" />
-                                ) : (
-                                  <ChevronRight className="h-3 w-3 text-purple-600 shrink-0" />
-                                )}
-                                <Zap className="h-3 w-3 text-purple-600 shrink-0" />
-                                <span className="font-medium text-gray-800 text-xs flex-1">
-                                  {series.title || series.name}
-                                </span>
-                                <Badge
-                                  variant="outline"
-                                  className="text-xs bg-white text-purple-600 border-purple-200"
-                                >
-                                  {series.tests.length}
-                                </Badge>
-                              </button>
-
-                              {/* Tests List */}
-                              {expandedSeries === series.id && (
-                                <div className="ml-2 space-y-1.5 border-l-2 border-purple-200 pl-3">
-                                  {series.tests.map(
-                                    (test: any, idx: number) => (
-                                      <div
-                                        key={test.id}
-                                        className="p-2.5 bg-white border border-gray-200 rounded-lg hover:shadow-md hover:border-indigo-300 transition-all text-xs group"
-                                      >
-                                        <div className="flex items-start gap-2.5">
-                                          {/* Test Info */}
-                                          <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-1.5 mb-1">
-                                              <h4 className="font-semibold text-gray-900 truncate leading-snug">
-                                                {test.title}
-                                              </h4>
-                                              <Badge
-                                                className={
-                                                  test.isLive
-                                                    ? "bg-green-100 text-green-700 text-xs"
-                                                    : "bg-gray-100 text-gray-700 text-xs"
-                                                }
-                                              >
-                                                {test.isLive ? "Live" : "Draft"}
-                                              </Badge>
-                                            </div>
-                                            <div className="flex flex-wrap gap-2 text-gray-600">
-                                              <span className="flex items-center gap-0.5 text-xs">
-                                                <Clock className="h-3 w-3" />
-                                                {test.durationMins}m
-                                              </span>
-                                              <span className="flex items-center gap-0.5 text-xs">
-                                                <Award className="h-3 w-3" />
-                                                {test.totalMarks}pts
-                                              </span>
-                                            </div>
-                                          </div>
-
-                                          {/* Publish Toggle */}
-                                          <Switch
-                                            checked={test.isLive}
-                                            onCheckedChange={() =>
-                                              toggleLiveStatus(
-                                                test.id,
-                                                test.isLive,
-                                              )
-                                            }
-                                            className="shrink-0 h-5"
+                          isOpen={openExams.has(exam.id)}
+                          onToggle={() =>
+                            toggle(openExams, setOpenExams, exam.id)
+                          }
+                          icon={GraduationCap}
+                          iconColor="text-emerald-600 dark:text-emerald-400"
+                          iconBg="bg-emerald-50 dark:bg-emerald-950/40"
+                          level={1}
+                        />
+                        {openExams.has(exam.id) && (
+                          <div className="ml-4 pl-4 border-l border-zinc-200 dark:border-zinc-700 space-y-0.5 mt-0.5 mb-1">
+                            {exam.series.length === 0 ? (
+                              <p className="py-2 text-xs text-zinc-400 pl-2">
+                                No test series
+                              </p>
+                            ) : (
+                              exam.series.map((s) => (
+                                <div key={s.id}>
+                                  <TreeHeader
+                                    label={s.title}
+                                    count={s.tests.length}
+                                    isOpen={openSeries.has(s.id)}
+                                    onToggle={() =>
+                                      toggle(openSeries, setOpenSeries, s.id)
+                                    }
+                                    icon={Library}
+                                    iconColor="text-violet-600 dark:text-violet-400"
+                                    iconBg="bg-violet-50 dark:bg-violet-950/40"
+                                    level={2}
+                                  />
+                                  {openSeries.has(s.id) && (
+                                    <div className="ml-4 pl-4 border-l border-zinc-200 dark:border-zinc-700 space-y-1.5 mt-1.5 mb-2">
+                                      {s.tests.length === 0 ? (
+                                        <p className="py-2 text-xs text-zinc-400 pl-2">
+                                          No tests yet
+                                        </p>
+                                      ) : (
+                                        s.tests.map((test) => (
+                                          <TestRow
+                                            key={test.id}
+                                            test={test}
+                                            onToggleLive={handleToggleLive}
+                                            onArchive={setArchiveTarget}
                                           />
-                                        </div>
-
-                                        {/* Action Buttons */}
-                                        <div className="mt-2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                          <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            className="h-6 px-1.5 text-xs text-indigo-600 hover:bg-indigo-50"
-                                            asChild
-                                          >
-                                            <Link
-                                              href={`/dashboard/admin/tests/${test.id}`}
-                                            >
-                                              <Edit2 className="h-3 w-3 mr-0.5" />
-                                              Edit
-                                            </Link>
-                                          </Button>
-                                          <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            className="h-6 px-1.5 text-xs text-blue-600 hover:bg-blue-50"
-                                            onClick={() =>
-                                              handleReorder(test.id, "up")
-                                            }
-                                          >
-                                            <ArrowUp className="h-3 w-3" />
-                                          </Button>
-                                          <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            className="h-6 px-1.5 text-xs text-blue-600 hover:bg-blue-50"
-                                            onClick={() =>
-                                              handleReorder(test.id, "down")
-                                            }
-                                          >
-                                            <ArrowDown className="h-3 w-3" />
-                                          </Button>
-                                          <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            className="h-6 px-1.5 text-xs text-red-600 hover:bg-red-50"
-                                            onClick={() =>
-                                              handleSoftDelete(test.id)
-                                            }
-                                          >
-                                            <Trash2 className="h-3 w-3" />
-                                          </Button>
-                                        </div>
-                                      </div>
-                                    ),
+                                        ))
+                                      )}
+                                    </div>
                                   )}
                                 </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                              ))
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
                 </div>
               )}
             </div>
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      )}
+
+      <AlertDialog
+        open={!!archiveTarget}
+        onOpenChange={(v) => !v && setArchiveTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Archive this test?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <strong>"{archiveTarget?.title}"</strong> will be hidden from
+              students. All attempt data is preserved.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={handleArchive}
+              disabled={archiving}
+            >
+              {archiving ? "Archiving…" : "Archive"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -112,11 +112,6 @@ export default function DashboardLayout({
       icon: FolderTree,
     },
     {
-      href: "/dashboard/admin/tests",
-      label: "Tests",
-      icon: Target,
-    },
-    {
       href: "/dashboard/admin/tests/create",
       label: "Create Test",
       icon: PlusCircle,
