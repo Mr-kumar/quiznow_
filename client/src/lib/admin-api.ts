@@ -1,6 +1,7 @@
 import api from "./api";
 
-// Base types for API responses
+// ─── Base types ───────────────────────────────────────────────────────────────
+
 interface ApiResponse<T> {
   data: T;
   message?: string;
@@ -13,7 +14,8 @@ interface PaginatedResponse<T> {
   limit: number;
 }
 
-// User Management API
+// ─── Users ────────────────────────────────────────────────────────────────────
+
 export interface User {
   id: string;
   email: string;
@@ -40,19 +42,16 @@ export const adminUsersApi = {
     api.get<PaginatedResponse<User>>("/admin/users", {
       params: { page, limit, search },
     }),
-
   getById: (id: string) => api.get<ApiResponse<User>>(`/admin/users/${id}`),
-
   create: (userData: CreateUserRequest) =>
     api.post<ApiResponse<User>>("/admin/users", userData),
-
   update: (id: string, userData: UpdateUserRequest) =>
     api.patch<ApiResponse<User>>(`/admin/users/${id}`, userData),
-
   delete: (id: string) => api.delete<ApiResponse<void>>(`/admin/users/${id}`),
 };
 
-// Category Management API
+// ─── Categories ───────────────────────────────────────────────────────────────
+
 export interface Category {
   id: string;
   name: string;
@@ -81,21 +80,17 @@ export const adminCategoriesApi = {
     api.get<PaginatedResponse<Category>>("/categories", {
       params: { page, limit, search },
     }),
-
   getById: (id: string) => api.get<ApiResponse<Category>>(`/categories/${id}`),
-
   create: (categoryData: CreateCategoryRequest) =>
     api.post<ApiResponse<Category>>("/categories", categoryData),
-
   update: (id: string, categoryData: UpdateCategoryRequest) =>
     api.patch<ApiResponse<Category>>(`/categories/${id}`, categoryData),
-
   delete: (id: string) => api.delete<ApiResponse<void>>(`/categories/${id}`),
-
   getTree: () => api.get<ApiResponse<Category[]>>("/categories/tree"),
 };
 
-// Exam Management API
+// ─── Exams ────────────────────────────────────────────────────────────────────
+
 export interface Exam {
   id: string;
   name: string;
@@ -123,19 +118,16 @@ export const adminExamsApi = {
     api.get<PaginatedResponse<Exam>>("/exams", {
       params: { page, limit, search, categoryId },
     }),
-
   getById: (id: string) => api.get<ApiResponse<Exam>>(`/exams/${id}`),
-
   create: (examData: CreateExamRequest) =>
     api.post<ApiResponse<Exam>>("/exams", examData),
-
   update: (id: string, examData: UpdateExamRequest) =>
     api.patch<ApiResponse<Exam>>(`/exams/${id}`, examData),
-
   delete: (id: string) => api.delete<ApiResponse<void>>(`/exams/${id}`),
 };
 
-// Test Series Management API
+// ─── Test Series ──────────────────────────────────────────────────────────────
+
 export interface TestSeries {
   id: string;
   title: string;
@@ -163,20 +155,17 @@ export const adminTestSeriesApi = {
     api.get<PaginatedResponse<TestSeries>>("/test-series", {
       params: { page, limit, search, examId },
     }),
-
   getById: (id: string) =>
     api.get<ApiResponse<TestSeries>>(`/test-series/${id}`),
-
   create: (seriesData: CreateTestSeriesRequest) =>
     api.post<ApiResponse<TestSeries>>("/test-series", seriesData),
-
   update: (id: string, seriesData: UpdateTestSeriesRequest) =>
     api.patch<ApiResponse<TestSeries>>(`/test-series/${id}`, seriesData),
-
   delete: (id: string) => api.delete<ApiResponse<void>>(`/test-series/${id}`),
 };
 
-// Test Management API
+// ─── Tests ────────────────────────────────────────────────────────────────────
+
 export interface Test {
   id: string;
   title: string;
@@ -234,19 +223,16 @@ export const adminTestsApi = {
     api.get<PaginatedResponse<Test>>("/tests", {
       params: { page, limit, search, seriesId },
     }),
-
   getById: (id: string) => api.get<ApiResponse<Test>>(`/tests/${id}`),
-
   create: (testData: CreateTestRequest) =>
     api.post<ApiResponse<Test>>("/tests", testData),
-
   update: (id: string, testData: UpdateTestRequest) =>
     api.patch<ApiResponse<Test>>(`/tests/${id}`, testData),
-
   delete: (id: string) => api.delete<ApiResponse<void>>(`/tests/${id}`),
 };
 
-// Analytics API
+// ─── Analytics ────────────────────────────────────────────────────────────────
+
 export interface DashboardMetrics {
   totalUsers: number;
   activeTests: number;
@@ -288,16 +274,72 @@ export interface AttemptStats {
 export const adminAnalyticsApi = {
   getDashboardMetrics: () =>
     api.get<ApiResponse<DashboardMetrics>>("/admin/analytics/dashboard"),
-
   getUserStats: () => api.get<ApiResponse<UserStats>>("/admin/analytics/users"),
-
   getTestStats: () => api.get<ApiResponse<TestStats>>("/admin/analytics/tests"),
-
   getAttemptStats: () =>
     api.get<ApiResponse<AttemptStats>>("/admin/analytics/attempts"),
 };
 
-// Question Management API
+// ─── Subjects ─────────────────────────────────────────────────────────────────
+// FIX: Subject is a proper entity, not just a string
+
+export interface Subject {
+  id: string;
+  name: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ─── Topics ───────────────────────────────────────────────────────────────────
+
+export interface Topic {
+  id: string;
+  name: string;
+  subjectId?: string;
+  parentId?: string;
+  // FIX: subject is a full object, NOT a plain string
+  subject?: Subject;
+  parent?: {
+    id: string;
+    name: string;
+  };
+  _count?: {
+    questions: number;
+    children: number;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateTopicRequest {
+  name: string;
+  subjectId: string;
+}
+
+export interface UpdateTopicRequest {
+  name?: string;
+  subjectId?: string;
+}
+
+export const adminTopicsApi = {
+  getAll: (page = 1, limit = 200, search?: string) =>
+    api.get<PaginatedResponse<Topic>>("/topics", {
+      params: { page, limit, search },
+    }),
+  getById: (id: string) => api.get<ApiResponse<Topic>>(`/topics/${id}`),
+  create: (topicData: CreateTopicRequest) =>
+    api.post<ApiResponse<Topic>>("/topics", topicData),
+  update: (id: string, topicData: UpdateTopicRequest) =>
+    api.patch<ApiResponse<Topic>>(`/topics/${id}`, topicData),
+  delete: (id: string) => api.delete<ApiResponse<void>>(`/topics/${id}`),
+
+  // FIX: backend returns Subject[] objects, not string[]
+  getUniqueSubjects: () => api.get<ApiResponse<Subject[]>>("/topics/subjects"),
+};
+
+// ─── Questions ────────────────────────────────────────────────────────────────
+
 export interface Question {
   id: string;
   hash: string;
@@ -311,7 +353,10 @@ export interface Question {
     lang: "EN" | "HI";
     content: string;
     explanation?: string;
+    imageUrl?: string;
   }>;
+  // FIX: options live on q.options[] with their own translations,
+  // NOT as an array on the translation object
   options: Array<{
     id: string;
     questionId: string;
@@ -326,24 +371,22 @@ export interface Question {
       text: string;
     }>;
   }>;
+  // FIX: topic.subject is a full Subject object, NOT a plain string
   topic?: {
     id: string;
     name: string;
-    subject?: {
-      // 🛡️ FIX: Subject is an object, not a string
-      id: string;
-      name: string;
-    };
+    subject?: Subject;
   };
   _count?: {
     sectionLinks: number;
   };
+  /** @deprecated use _count.sectionLinks */
   usageCount?: number;
 }
 
 export interface CreateQuestionRequest {
   content: string;
-  type: string;
+  type?: string;
   options: string[];
   correctAnswer: number;
   explanation?: string;
@@ -362,66 +405,69 @@ export interface UpdateQuestionRequest {
   isActive?: boolean;
 }
 
+// ─── Cursor pagination types ──────────────────────────────────────────────────
+
+export interface CursorPaginationParams {
+  cursor?: string;
+  limit?: number;
+  direction?: "forward" | "backward";
+  search?: string;
+  topicId?: string;
+  subject?: string;
+  lang?: string;
+}
+
+export interface CursorPaginationResponse<T> {
+  data: T[];
+  pagination: {
+    nextCursor: string | null;
+    prevCursor: string | null;
+    hasMore: boolean;
+    hasPrevious: boolean;
+    /** Not used in cursor mode — always 0 */
+    currentPage: number;
+    /** Not used in cursor mode — always 1 */
+    totalPages: number;
+    /** Not used in cursor mode — always 0 */
+    total: number;
+    limit: number;
+  };
+}
+
 export const adminQuestionsApi = {
-  // Bulk operations (God Mode)
-  bulkUpload: (file: File, sectionId: string, topicId?: string) => {
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("sectionId", sectionId);
-    if (topicId) {
-      formData.append("topicId", topicId);
-    }
-
-    return api.post<{ success: boolean; count: number }>(
-      "/questions/upload",
-      formData,
-      {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
+  // Cursor-based pagination (primary — O(1) performance)
+  getCursorPaginated: (params: CursorPaginationParams = {}) =>
+    api.get<CursorPaginationResponse<Question>>("/questions/cursor-paginated", {
+      params: {
+        cursor: params.cursor,
+        limit: params.limit ?? 50,
+        direction: params.direction ?? "forward",
+        search: params.search,
+        topicId: params.topicId,
+        subject: params.subject,
+        lang: params.lang ?? "en",
       },
-    );
-  },
+    }),
 
-  bulkValidate: (file: File, selectedTopicId?: string) => {
-    const formData = new FormData();
-    formData.append("file", file);
-    if (selectedTopicId) {
-      formData.append("selectedTopicId", selectedTopicId);
-    }
+  // Legacy offset pagination (for backward compat — avoid on large datasets)
+  getAll: (page = 1, limit = 10, search?: string) =>
+    api.get<PaginatedResponse<Question>>("/questions", {
+      params: { page, limit, search },
+    }),
 
-    return api.post<{
-      totalRows: number;
-      validCount: number;
-      errors: Array<{ row: number; errors: string[]; raw?: any }>;
-      preview: any[];
-      allValidRows: any[];
-    }>("/questions/bulk/validate", formData, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    });
-  },
+  // CRUD
+  getById: (id: string) => api.get<ApiResponse<Question>>(`/questions/${id}`),
+  create: (questionData: CreateQuestionRequest) =>
+    api.post<ApiResponse<Question>>("/questions", questionData),
+  update: (id: string, questionData: UpdateQuestionRequest) =>
+    api.patch<ApiResponse<Question>>(`/questions/${id}`, questionData),
+  delete: (id: string) => api.delete<ApiResponse<void>>(`/questions/${id}`),
 
-  bulkImport: (file: File, selectedTopicId?: string, onlyValid = true) => {
-    const formData = new FormData();
-    formData.append("file", file);
-    if (selectedTopicId) {
-      formData.append("selectedTopicId", selectedTopicId);
-    }
-    formData.append("onlyValid", onlyValid ? "true" : "false");
+  // Soft delete — hides question, preserves student history
+  softDelete: (id: string) =>
+    api.patch<ApiResponse<Question>>(`/questions/${id}/soft-delete`, {}),
 
-    return api.post<{
-      imported: number;
-      total: number;
-      errors: number;
-    }>("/questions/bulk/import", formData, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    });
-  },
-
+  // Bulk operations
   bulkTag: (questionIds: string[], topicId: string) =>
     api.patch<{ success: boolean; updatedCount: number }>(
       "/questions/bulk-tag",
@@ -431,38 +477,48 @@ export const adminQuestionsApi = {
       },
     ),
 
-  // 🚀 NEW: Cursor-based pagination (Enterprise Scale)
-  getCursorPaginated: (params: CursorPaginationParams = {}) =>
-    api.get<CursorPaginationResponse<Question>>("/questions/cursor-paginated", {
-      params: {
-        cursor: params.cursor,
-        limit: params.limit || 50,
-        direction: params.direction || "forward",
-        search: params.search,
-        topicId: params.topicId,
-        subject: params.subject,
-        lang: params.lang || "en",
-      },
-    }),
+  bulkUpload: (file: File, sectionId: string, topicId?: string) => {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("sectionId", sectionId);
+    if (topicId) form.append("topicId", topicId);
+    return api.post<{ success: boolean; count: number }>(
+      "/questions/upload",
+      form,
+      { headers: { "Content-Type": "multipart/form-data" } },
+    );
+  },
 
-  // Original pagination (for backward compatibility)
-  getAll: (page = 1, limit = 10, search?: string) =>
-    api.get<PaginatedResponse<Question>>("/questions", {
-      params: { page, limit, search },
-    }),
+  bulkValidate: (file: File, selectedTopicId?: string) => {
+    const form = new FormData();
+    form.append("file", file);
+    if (selectedTopicId) form.append("selectedTopicId", selectedTopicId);
+    return api.post<{
+      totalRows: number;
+      validCount: number;
+      errors: Array<{ row: number; errors: string[]; raw?: any }>;
+      preview: any[];
+      allValidRows: any[];
+    }>("/questions/bulk/validate", form, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+  },
 
-  // CRUD operations
-  getById: (id: string) => api.get<ApiResponse<Question>>(`/questions/${id}`),
-  create: (questionData: CreateQuestionRequest) =>
-    api.post<ApiResponse<Question>>("/questions", questionData),
-  update: (id: string, questionData: UpdateQuestionRequest) =>
-    api.patch<ApiResponse<Question>>(`/questions/${id}`, questionData),
-  delete: (id: string) => api.delete<ApiResponse<void>>(`/questions/${id}`),
-  softDelete: (id: string) =>
-    api.patch<ApiResponse<Question>>(`/questions/${id}/soft-delete`, {}),
+  bulkImport: (file: File, selectedTopicId?: string, onlyValid = true) => {
+    const form = new FormData();
+    form.append("file", file);
+    if (selectedTopicId) form.append("selectedTopicId", selectedTopicId);
+    form.append("onlyValid", onlyValid ? "true" : "false");
+    return api.post<{ imported: number; total: number; errors: number }>(
+      "/questions/bulk/import",
+      form,
+      { headers: { "Content-Type": "multipart/form-data" } },
+    );
+  },
 };
 
-// Plans Management API
+// ─── Plans ────────────────────────────────────────────────────────────────────
+
 export interface Plan {
   id: string;
   name: string;
@@ -486,22 +542,19 @@ export interface UpdatePlanRequest {
 
 export const adminPlansApi = {
   getAll: (page = 1, limit = 10, search?: string) =>
-    api.get<PaginatedResponse<Plan>>("/admin/plans", {
+    api.get<PaginatedResponse<Plan>>("/plans", {
       params: { page, limit, search },
     }),
-
-  getById: (id: string) => api.get<ApiResponse<Plan>>(`/admin/plans/${id}`),
-
+  getById: (id: string) => api.get<ApiResponse<Plan>>(`/plans/${id}`),
   create: (planData: CreatePlanRequest) =>
-    api.post<ApiResponse<Plan>>("/admin/plans", planData),
-
+    api.post<ApiResponse<Plan>>("/plans", planData),
   update: (id: string, planData: UpdatePlanRequest) =>
-    api.patch<ApiResponse<Plan>>(`/admin/plans/${id}`, planData),
-
-  delete: (id: string) => api.delete<ApiResponse<void>>(`/admin/plans/${id}`),
+    api.patch<ApiResponse<Plan>>(`/plans/${id}`, planData),
+  delete: (id: string) => api.delete<ApiResponse<void>>(`/plans/${id}`),
 };
 
-// Subscriptions Management API
+// ─── Subscriptions ────────────────────────────────────────────────────────────
+
 export interface Subscription {
   id: string;
   userId: string;
@@ -526,30 +579,23 @@ export interface UpdateSubscriptionRequest {
 
 export const adminSubscriptionsApi = {
   getAll: (page = 1, limit = 10, search?: string, userId?: string) =>
-    api.get<PaginatedResponse<Subscription>>("/admin/subscriptions", {
+    api.get<PaginatedResponse<Subscription>>("/subscriptions", {
       params: { page, limit, search, userId },
     }),
-
   getById: (id: string) =>
-    api.get<ApiResponse<Subscription>>(`/admin/subscriptions/${id}`),
-
+    api.get<ApiResponse<Subscription>>(`/subscriptions/${id}`),
   create: (subscriptionData: CreateSubscriptionRequest) =>
-    api.post<ApiResponse<Subscription>>(
-      "/admin/subscriptions",
-      subscriptionData,
-    ),
-
+    api.post<ApiResponse<Subscription>>("/subscriptions", subscriptionData),
   update: (id: string, subscriptionData: UpdateSubscriptionRequest) =>
     api.patch<ApiResponse<Subscription>>(
-      `/admin/subscriptions/${id}`,
+      `/subscriptions/${id}`,
       subscriptionData,
     ),
-
-  delete: (id: string) =>
-    api.delete<ApiResponse<void>>(`/admin/subscriptions/${id}`),
+  delete: (id: string) => api.delete<ApiResponse<void>>(`/subscriptions/${id}`),
 };
 
-// Settings Management API
+// ─── Settings ─────────────────────────────────────────────────────────────────
+
 export interface AdminSetting {
   id: string;
   key: string;
@@ -560,21 +606,18 @@ export interface AdminSetting {
 
 export const adminSettingsApi = {
   getAll: () => api.get<Record<string, any>>("/admin/settings"),
-
   get: (key: string) =>
     api.get<ApiResponse<AdminSetting>>(`/admin/settings/${key}`),
-
   update: (key: string, value: any) =>
     api.post<ApiResponse<AdminSetting>>("/admin/settings", { key, value }),
-
   updateBatch: (settings: Array<{ key: string; value: any }>) =>
     api.post<ApiResponse<AdminSetting[]>>("/admin/settings/batch", settings),
-
   delete: (key: string) =>
     api.delete<ApiResponse<void>>(`/admin/settings/${key}`),
 };
 
-// Audit Logs API
+// ─── Audit Logs ───────────────────────────────────────────────────────────────
+
 export interface AuditLog {
   id: string;
   actorId?: string;
@@ -591,81 +634,9 @@ export const adminAuditLogsApi = {
     api.get<PaginatedResponse<AuditLog>>("/admin/audit-logs", {
       params: { page, limit, search, action },
     }),
-
   getByActor: (actorId: string, page = 1, limit = 10) =>
     api.get<PaginatedResponse<AuditLog>>(`/admin/audit-logs/actor/${actorId}`, {
       params: { page, limit },
     }),
-
   cleanup: (daysOld = 90) => api.post("/admin/audit-logs/cleanup", { daysOld }),
-};
-
-// Topics Management API
-export interface Topic {
-  id: string;
-  name: string;
-  subjectId?: string;
-  subject?: {
-    id: string;
-    name: string;
-    isActive: boolean;
-    createdAt: string;
-    updatedAt: string;
-  };
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface CreateTopicRequest {
-  name: string;
-  subjectId: string;
-}
-
-export interface UpdateTopicRequest {
-  name?: string;
-  subjectId?: string;
-}
-
-// 🚀 Cursor-Based Pagination Types
-export interface CursorPaginationResponse<T> {
-  data: T[];
-  pagination: {
-    nextCursor: string | null;
-    prevCursor: string | null;
-    hasMore: boolean;
-    hasPrevious: boolean;
-    currentPage: number;
-    totalPages: number;
-    total: number;
-    limit: number;
-  };
-}
-
-export interface CursorPaginationParams {
-  cursor?: string;
-  limit?: number;
-  direction?: "forward" | "backward";
-  search?: string;
-  topicId?: string;
-  subject?: string;
-  lang?: string;
-}
-
-export const adminTopicsApi = {
-  getAll: (page = 1, limit = 10, search?: string) =>
-    api.get<PaginatedResponse<Topic>>("/topics", {
-      params: { page, limit, search },
-    }),
-
-  getById: (id: string) => api.get<ApiResponse<Topic>>(`/topics/${id}`),
-
-  create: (topicData: CreateTopicRequest) =>
-    api.post<ApiResponse<Topic>>("/topics", topicData),
-
-  update: (id: string, topicData: UpdateTopicRequest) =>
-    api.patch<ApiResponse<Topic>>(`/topics/${id}`, topicData),
-
-  delete: (id: string) => api.delete<ApiResponse<void>>(`/topics/${id}`),
-
-  getUniqueSubjects: () => api.get<ApiResponse<string[]>>("/topics/subjects"),
 };

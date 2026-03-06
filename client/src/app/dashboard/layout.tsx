@@ -106,11 +106,7 @@ export default function DashboardLayout({
       label: "Audit Logs",
       icon: Shield,
     },
-    {
-      href: "/dashboard/admin/categories",
-      label: "Categories",
-      icon: FolderTree,
-    },
+    
     {
       href: "/dashboard/admin/tests/create",
       label: "Create Test",
