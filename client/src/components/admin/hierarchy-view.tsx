@@ -4,12 +4,18 @@ import { useState } from "react";
 import {
   ChevronRight,
   ChevronDown,
-  Folder,
-  FolderOpen,
-  FileText,
+  Layers,
+  GraduationCap,
+  Library,
+  ClipboardList,
   Plus,
-  Edit,
+  Pencil,
   Trash2,
+  MoreHorizontal,
+  Zap,
+  Star,
+  Clock,
+  Trophy,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,10 +24,12 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
 
-interface HierarchyItem {
+export interface HierarchyItem {
   id: string;
   name: string;
   type: "category" | "exam" | "series" | "test";
@@ -38,15 +46,73 @@ interface HierarchyItem {
 
 interface HierarchyViewProps {
   data: HierarchyItem[];
+  selectedId?: string;
   onItemSelect?: (item: HierarchyItem) => void;
   onItemEdit?: (item: HierarchyItem) => void;
   onItemDelete?: (item: HierarchyItem) => void;
   onItemCreate?: (type: string, parentId?: string) => void;
 }
 
+// ── Per-type config ───────────────────────────────────────────────────────────
+
+const TYPE_CONFIG = {
+  category: {
+    icon: Layers,
+    label: "Category",
+    color: "text-blue-600 dark:text-blue-400",
+    bg: "bg-blue-50 dark:bg-blue-950/40",
+    border: "border-blue-200 dark:border-blue-800",
+    dot: "bg-blue-500",
+    badge: "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300",
+    childType: "exam",
+    childLabel: "Add Exam",
+  },
+  exam: {
+    icon: GraduationCap,
+    label: "Exam",
+    color: "text-emerald-600 dark:text-emerald-400",
+    bg: "bg-emerald-50 dark:bg-emerald-950/40",
+    border: "border-emerald-200 dark:border-emerald-800",
+    dot: "bg-emerald-500",
+    badge:
+      "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300",
+    childType: "series",
+    childLabel: "Add Series",
+  },
+  series: {
+    icon: Library,
+    label: "Series",
+    color: "text-violet-600 dark:text-violet-400",
+    bg: "bg-violet-50 dark:bg-violet-950/40",
+    border: "border-violet-200 dark:border-violet-800",
+    dot: "bg-violet-500",
+    badge:
+      "bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300",
+    childType: "test",
+    childLabel: "Add Test",
+  },
+  test: {
+    icon: ClipboardList,
+    label: "Test",
+    color: "text-amber-600 dark:text-amber-400",
+    bg: "bg-amber-50 dark:bg-amber-950/40",
+    border: "border-amber-200 dark:border-amber-800",
+    dot: "bg-amber-500",
+    badge:
+      "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300",
+    childType: null,
+    childLabel: null,
+  },
+} as const;
+
+// ── Tree node ─────────────────────────────────────────────────────────────────
+
 function TreeNode({
   item,
   level = 0,
+  isLast = false,
+  parentLines = [],
+  selectedId,
   onSelect,
   onEdit,
   onDelete,
@@ -54,196 +120,182 @@ function TreeNode({
 }: {
   item: HierarchyItem;
   level?: number;
+  isLast?: boolean;
+  parentLines?: boolean[];
+  selectedId?: string;
   onSelect?: (item: HierarchyItem) => void;
   onEdit?: (item: HierarchyItem) => void;
   onDelete?: (item: HierarchyItem) => void;
   onCreate?: (type: string, parentId?: string) => void;
 }) {
-  const [isExpanded, setIsExpanded] = useState(level < 2); // Auto-expand first 2 levels
-
-  const getIcon = () => {
-    switch (item.type) {
-      case "category":
-        return isExpanded ? (
-          <FolderOpen className="h-4 w-4" />
-        ) : (
-          <Folder className="h-4 w-4" />
-        );
-      case "exam":
-        return <FileText className="h-4 w-4" />;
-      case "series":
-        return <FileText className="h-4 w-4" />;
-      case "test":
-        return <FileText className="h-4 w-4" />;
-      default:
-        return <FileText className="h-4 w-4" />;
-    }
-  };
-
-  const getBadgeColor = () => {
-    switch (item.type) {
-      case "category":
-        return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400";
-      case "exam":
-        return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400";
-      case "series":
-        return "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400";
-      case "test":
-        return "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400";
-      default:
-        return "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400";
-    }
-  };
-
-  const getStatusBadge = () => {
-    if (!item.metadata) return null;
-
-    const badges = [];
-    if (item.metadata.isActive !== false) {
-      badges.push(
-        <Badge
-          key="active"
-          className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-        >
-          Active
-        </Badge>,
-      );
-    }
-    if (item.metadata.isLive) {
-      badges.push(
-        <Badge
-          key="live"
-          className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
-        >
-          Live
-        </Badge>,
-      );
-    }
-    if (item.metadata.isPremium) {
-      badges.push(
-        <Badge
-          key="premium"
-          className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400"
-        >
-          Premium
-        </Badge>,
-      );
-    }
-    return badges;
-  };
-
-  const hasChildren = item.children && item.children.length > 0;
+  const [isExpanded, setIsExpanded] = useState(level < 2);
+  const cfg = TYPE_CONFIG[item.type];
+  const Icon = cfg.icon;
+  const hasChildren = (item.children?.length ?? 0) > 0;
+  const isSelected = selectedId === item.id;
+  const childCount = item.children?.length ?? 0;
 
   return (
-    <div className="select-none">
+    <div className="relative">
+      {/* Connecting lines from parent */}
+      {level > 0 && (
+        <div className="absolute left-0 top-0 bottom-0 pointer-events-none">
+          {parentLines.map((showLine, idx) =>
+            showLine ? (
+              <div
+                key={idx}
+                className="absolute top-0 bottom-0 w-px bg-zinc-200 dark:bg-zinc-700"
+                style={{ left: `${idx * 24 + 11}px` }}
+              />
+            ) : null,
+          )}
+          {/* Horizontal connector to this node */}
+          <div
+            className="absolute top-[18px] w-3 h-px bg-zinc-200 dark:bg-zinc-700"
+            style={{ left: `${(level - 1) * 24 + 11}px` }}
+          />
+          {/* Vertical line to this node, stopping at midpoint if last */}
+          <div
+            className="absolute top-0 w-px bg-zinc-200 dark:bg-zinc-700"
+            style={{
+              left: `${(level - 1) * 24 + 11}px`,
+              height: isLast ? "18px" : "100%",
+            }}
+          />
+        </div>
+      )}
+
+      {/* Node row */}
       <div
-        className={`flex items-center gap-2 py-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer transition-colors`}
-        style={{
-          paddingLeft: `${level * 20 + 8}px`,
-          paddingRight: "8px",
-        }}
+        className={cn(
+          "group relative flex items-center gap-2 py-1 pr-2 rounded-lg cursor-pointer transition-all duration-150",
+          "hover:bg-zinc-100 dark:hover:bg-zinc-800/60",
+          isSelected &&
+            "bg-zinc-100 dark:bg-zinc-800 ring-1 ring-inset ring-zinc-300 dark:ring-zinc-600",
+        )}
+        style={{ paddingLeft: `${level * 24 + 8}px` }}
         onClick={() => {
-          if (hasChildren) {
-            setIsExpanded(!isExpanded);
-          }
           onSelect?.(item);
+          if (hasChildren) setIsExpanded((p) => !p);
         }}
       >
-        {hasChildren && (
-          <div className="flex items-center">
-            {isExpanded ? (
-              <ChevronDown className="h-3 w-3 text-zinc-500" />
+        {/* Expand chevron */}
+        <button
+          className="shrink-0 h-4 w-4 flex items-center justify-center text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (hasChildren) setIsExpanded((p) => !p);
+          }}
+        >
+          {hasChildren ? (
+            isExpanded ? (
+              <ChevronDown className="h-3 w-3" />
             ) : (
-              <ChevronRight className="h-3 w-3 text-zinc-500" />
-            )}
-          </div>
-        )}
-        {!hasChildren && <div className="w-4" />}
+              <ChevronRight className="h-3 w-3" />
+            )
+          ) : (
+            <span className="h-1 w-1 rounded-full bg-zinc-300 dark:bg-zinc-600 block" />
+          )}
+        </button>
 
-        <div className="flex items-center gap-2">
-          {getIcon()}
-          <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            {item.name}
-          </span>
-          <Badge className={getBadgeColor()} variant="outline">
-            {item.type}
-          </Badge>
-          {getStatusBadge()}
+        {/* Type icon */}
+        <div
+          className={cn(
+            "shrink-0 h-6 w-6 rounded-md flex items-center justify-center",
+            cfg.bg,
+          )}
+        >
+          <Icon className={cn("h-3.5 w-3.5", cfg.color)} />
         </div>
 
-        <div className="ml-auto flex items-center gap-1">
-          {item.metadata?.durationMins && (
-            <span className="text-xs text-zinc-500 dark:text-zinc-400">
-              {item.metadata.durationMins}min
-            </span>
+        {/* Name */}
+        <span
+          className={cn(
+            "flex-1 text-sm truncate",
+            isSelected
+              ? "font-semibold text-zinc-900 dark:text-zinc-100"
+              : "font-medium text-zinc-700 dark:text-zinc-300",
           )}
-          {item.metadata?.totalMarks && (
-            <span className="text-xs text-zinc-500 dark:text-zinc-400">
-              {item.metadata.totalMarks}pts
-            </span>
-          )}
+        >
+          {item.name}
+        </span>
 
+        {/* Count badge */}
+        {childCount > 0 && (
+          <span className="shrink-0 text-[10px] font-medium text-zinc-400 dark:text-zinc-500 tabular-nums">
+            {childCount}
+          </span>
+        )}
+
+        {/* Status pills */}
+        {item.metadata?.isLive && (
+          <span className="shrink-0 flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            LIVE
+          </span>
+        )}
+        {item.metadata?.isPremium && (
+          <Star className="shrink-0 h-3 w-3 text-amber-500 fill-amber-400" />
+        )}
+
+        {/* Actions dropdown — only visible on hover */}
+        <div
+          className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+          onClick={(e) => e.stopPropagation()}
+        >
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                <Plus className="h-3 w-3" />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
+              >
+                <MoreHorizontal className="h-3.5 w-3.5" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {item.type === "category" && (
-                <>
-                  <DropdownMenuItem onClick={() => onCreate?.("exam", item.id)}>
-                    <Plus className="h-3 w-3 mr-2" /> Add Exam
-                  </DropdownMenuItem>
-                </>
-              )}
-              {item.type === "exam" && (
+            <DropdownMenuContent align="end" className="w-44">
+              {cfg.childType && (
                 <>
                   <DropdownMenuItem
-                    onClick={() => onCreate?.("series", item.id)}
+                    onClick={() => onCreate?.(cfg.childType!, item.id)}
+                    className="text-xs"
                   >
-                    <Plus className="h-3 w-3 mr-2" /> Add Test Series
+                    <Plus className="h-3.5 w-3.5 mr-2 text-zinc-400" />
+                    {cfg.childLabel}
                   </DropdownMenuItem>
+                  <DropdownMenuSeparator />
                 </>
               )}
-              {item.type === "series" && (
-                <>
-                  <DropdownMenuItem onClick={() => onCreate?.("test", item.id)}>
-                    <Plus className="h-3 w-3 mr-2" /> Add Test
-                  </DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                <Edit className="h-3 w-3" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => onEdit?.(item)}>
-                <Edit className="h-3 w-3 mr-2" /> Edit
+              <DropdownMenuItem
+                onClick={() => onEdit?.(item)}
+                className="text-xs"
+              >
+                <Pencil className="h-3.5 w-3.5 mr-2 text-zinc-400" />
+                Edit
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => onDelete?.(item)}
-                className="text-red-600"
+                className="text-xs text-red-600 dark:text-red-400 focus:text-red-600"
               >
-                <Trash2 className="h-3 w-3 mr-2" /> Delete
+                <Trash2 className="h-3.5 w-3.5 mr-2" />
+                Delete
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
       </div>
 
+      {/* Children */}
       {hasChildren && isExpanded && (
-        <div className="ml-2">
-          {item.children?.map((child) => (
+        <div>
+          {item.children!.map((child, idx) => (
             <TreeNode
               key={child.id}
               item={child}
               level={level + 1}
+              isLast={idx === item.children!.length - 1}
+              parentLines={[...parentLines, !isLast && level >= 0]}
+              selectedId={selectedId}
               onSelect={onSelect}
               onEdit={onEdit}
               onDelete={onDelete}
@@ -256,41 +308,69 @@ function TreeNode({
   );
 }
 
+// ── Main export ───────────────────────────────────────────────────────────────
+
 export function HierarchyView({
   data,
+  selectedId,
   onItemSelect,
   onItemEdit,
   onItemDelete,
   onItemCreate,
 }: HierarchyViewProps) {
   return (
-    <Card className="border-0 shadow-xl">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Folder className="h-5 w-5" />
-          Test Hierarchy
-        </CardTitle>
+    <Card className="border border-zinc-200 dark:border-zinc-800 shadow-sm">
+      <CardHeader className="py-4 px-5 border-b border-zinc-100 dark:border-zinc-800">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+            <Layers className="h-4 w-4 text-zinc-400" />
+            Test Structure
+          </CardTitle>
+          {/* Level legend */}
+          <div className="hidden sm:flex items-center gap-3 text-[10px] font-medium text-zinc-400">
+            {(["category", "exam", "series", "test"] as const).map((t) => (
+              <span key={t} className="flex items-center gap-1">
+                <span
+                  className={cn("h-1.5 w-1.5 rounded-full", TYPE_CONFIG[t].dot)}
+                />
+                {TYPE_CONFIG[t].label}
+              </span>
+            ))}
+          </div>
+        </div>
       </CardHeader>
       <CardContent className="p-0">
-        <div className="max-h-96 overflow-y-auto">
+        <div className="max-h-[calc(100vh-300px)] overflow-y-auto px-3 py-3">
           {data.length === 0 ? (
-            <div className="p-8 text-center text-zinc-500 dark:text-zinc-400">
-              <Folder className="h-12 w-12 mx-auto mb-4 text-zinc-300 dark:text-zinc-600" />
-              <p className="text-sm">No categories found</p>
+            <div className="py-16 text-center">
+              <div className="h-12 w-12 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center mx-auto mb-4">
+                <Layers className="h-5 w-5 text-zinc-400" />
+              </div>
+              <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-1">
+                No categories yet
+              </p>
+              <p className="text-xs text-zinc-400 mb-5">
+                Start by creating a category like "Railways" or "Banking"
+              </p>
               <Button
+                size="sm"
                 onClick={() => onItemCreate?.("category")}
-                className="mt-4"
+                className="h-8 text-xs"
               >
-                <Plus className="h-4 w-4 mr-2" />
+                <Plus className="h-3.5 w-3.5 mr-1.5" />
                 Create First Category
               </Button>
             </div>
           ) : (
-            <div className="py-2">
-              {data.map((item) => (
+            <div className="space-y-0.5">
+              {data.map((item, idx) => (
                 <TreeNode
                   key={item.id}
                   item={item}
+                  level={0}
+                  isLast={idx === data.length - 1}
+                  parentLines={[]}
+                  selectedId={selectedId}
                   onSelect={onItemSelect}
                   onEdit={onItemEdit}
                   onDelete={onItemDelete}

@@ -90,11 +90,7 @@ export default function DashboardLayout({
       label: "Subjects & Topics",
       icon: Library,
     },
-    {
-      href: "/dashboard/admin/topics",
-      label: "Topics Management",
-      icon: FolderTree,
-    },
+
     {
       href: "/dashboard/admin/plans",
       label: "Plans",

@@ -1,3 +1,9 @@
+/**
+ * Subjects & Topics API
+ * Single source of truth — replaces the old admin-subjects-api.ts
+ * The Subject type and adminSubjectsApi live here.
+ * Topics are in admin-api.ts (adminTopicsApi) and import Subject from here.
+ */
 import api from "./api";
 
 export interface Subject {
@@ -16,28 +22,17 @@ export interface CreateSubjectDto {
 }
 
 export interface UpdateSubjectDto {
-  name: string;
+  name?: string;
   isActive?: boolean;
 }
 
 export const adminSubjectsApi = {
-  // Get all subjects
   getAll: () => api.get<Subject[]>("/subjects"),
-
-  // Get subject by ID
   getById: (id: string) => api.get<Subject>(`/subjects/${id}`),
-
-  // Create new subject
   create: (data: CreateSubjectDto) => api.post<Subject>("/subjects", data),
-
-  // Update subject
   update: (id: string, data: UpdateSubjectDto) =>
     api.patch<Subject>(`/subjects/${id}`, data),
-
-  // Delete subject
+  softDelete: (id: string) =>
+    api.patch<Subject>(`/subjects/${id}/soft-delete`, {}),
   delete: (id: string) => api.delete(`/subjects/${id}`),
-
-  // Get subject with topics
-  getWithTopics: (id: string) =>
-    api.get<Subject>(`/subjects/${id}?include=topics`),
 };
