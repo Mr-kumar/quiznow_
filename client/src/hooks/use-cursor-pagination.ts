@@ -65,7 +65,7 @@ export function useCursorPagination(options: UseCursorPaginationOptions = {}) {
           cursor: resetCursor !== undefined ? resetCursor : cursor,
           limit: pagination.limit,
           direction,
-          search: filters.search || undefined,
+          search: debouncedSearch, // 🛡️ Use debounced search instead of raw search
           topicId: filters.topicId || undefined,
           subject: filters.subject || undefined,
           lang: filters.lang || undefined,
@@ -141,7 +141,7 @@ export function useCursorPagination(options: UseCursorPaginationOptions = {}) {
     filters.subject,
     filters.lang,
     pagination.limit,
-    // Remove fetch from dependencies to prevent infinite loops
+    debouncedSearch, // 🛡️ Include debouncedSearch to prevent stale fetch
   ]);
 
   // Load more

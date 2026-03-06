@@ -62,7 +62,7 @@ export class QuestionsService {
       // Create the base Question
       const question = await tx.question.create({
         data: {
-          hash: this.generateHash(dto.content), // Generate hash for uniqueness
+          hash: QuestionsService.computeQuestionHash(dto.content), // 🎯 CANONICAL HASH: Include EN content for consistency
           topicId: dto.topicId, // 🚨 GHOST QUESTION GUARD: Always assign topic
           isActive: true,
         },
@@ -396,12 +396,12 @@ export class QuestionsService {
         };
         const correctIndex = correctMap[finalCorrectAnswer] ?? 0;
 
-        // SMART DEDUPLICATION: Hash the exact content
-        const hashContent = questionText + JSON.stringify(options);
-        const uniqueHash = crypto
-          .createHash('md5')
-          .update(hashContent)
-          .digest('hex');
+        // 🎯 CANONICAL HASH: Include both EN and HI content for proper deduplication
+        const hiQuestion = row['questionhi']?.trim() || '';
+        const uniqueHash = QuestionsService.computeQuestionHash(
+          questionText,
+          hiQuestion,
+        );
 
         processedRows.push({
           questionText,
@@ -569,11 +569,6 @@ export class QuestionsService {
     });
   }
 
-  // Helper method to generate SHA-256 hash
-  private generateHash(content: string): string {
-    return crypto.createHash('sha256').update(content).digest('hex');
-  }
-
   async injectQuestionsIntoSection(questionIds: string[], sectionId?: string) {
     if (!sectionId) {
       throw new BadRequestException(
@@ -681,6 +676,7 @@ export class QuestionsService {
       },
       include: {
         translations: {
+          where: { lang: (params.lang?.toUpperCase() ?? 'EN') as any }, // 🛡️ LANGUAGE FILTER: Filter by requested language
           take: 1,
         },
         topic: true,
@@ -723,22 +719,20 @@ export class QuestionsService {
   // ===== NEW: COMPREHENSIVE BULK VALIDATION & IMPORT =====
 
   // Helper: normalize text for hashing
-  private normalize(str?: string) {
-    return (str || '').replace(/\s+/g, ' ').trim().toLowerCase();
-  }
-
-  private makeHash(en?: string, hi?: string) {
-    const norm = `${this.normalize(en)}|${this.normalize(hi)}`;
-    return crypto.createHash('sha256').update(norm).digest('hex');
+  // 🎯 SINGLE CANONICAL HASH FUNCTION for the entire codebase
+  static computeQuestionHash(enText: string, hiText?: string): string {
+    const normalise = (s: string) => (s || '').replace(/\s+/g, ' ').trim(); // Don't lowercase — preserves acronyms
+    const combined = `${normalise(enText)}\x00${normalise(hiText ?? '')}`;
+    return crypto.createHash('sha256').update(combined, 'utf8').digest('hex');
   }
 
   // Parse xlsx buffer and produce rows with rowNumber
   private normalizeRowKeys(raw: Record<string, any>) {
     const normalized: Record<string, any> = {};
     for (const key in raw) {
-      // 🛡️ God-Mode Fix: Remove spaces, underscores, parentheses and make lowercase
-      // e.g., "Option A" -> "optiona", "Question_HI" -> "questionhi", "Question (EN)" -> "questionen"
-      const cleanKey = key.toLowerCase().replace(/[\s_()]/g, '');
+      // 🛡️ God-Mode Fix: Remove all non-alphanumeric characters and make lowercase
+      // e.g., "Option A" -> "optiona", "Question_HI" -> "questionhi", "Question (EN)" -> "questionen", "Question-EN" -> "questionen"
+      const cleanKey = key.toLowerCase().replace(/[^a-z0-9]/g, '');
       normalized[cleanKey] = raw[key];
     }
     return normalized;
@@ -912,7 +906,7 @@ export class QuestionsService {
           correctIndex = ['A', 'B', 'C', 'D'].indexOf(correct) + 1;
         else correctIndex = parseInt(correct, 10);
 
-        const hash = this.makeHash(qEn, qHi);
+        const hash = QuestionsService.computeQuestionHash(qEn, qHi);
 
         results.push({
           rowNumber: r.rowNumber,
@@ -993,9 +987,12 @@ export class QuestionsService {
   ) {
     const validation = await this.validateBulkFile(buffer, selectedTopicId);
 
-    if (!onlyValid && validation.errors.length) {
+    // 🛡️ FIXED LOGIC: Throw in strict mode when there are errors
+    // onlyValid=true means "only import valid rows" (strict mode)
+    // onlyValid=false means "import all rows, even with errors" (lenient mode)
+    if (onlyValid && validation.errors.length) {
       throw new BadRequestException({
-        message: 'Validation failed',
+        message: 'Validation failed in strict mode',
         errors: validation.errors,
       });
     }
@@ -1008,7 +1005,20 @@ export class QuestionsService {
 
     // Insert in transactions using batched operations
     await this.prisma.$transaction(async (tx) => {
+      // 🛡️ RACE CONDITION FIX: Check for duplicates again inside transaction
+      const hashes = toInsert.map((q) => q.hash);
+      const existingInTx = await tx.question.findMany({
+        where: { hash: { in: hashes } },
+        select: { hash: true },
+      });
+      const existingHashes = new Set(existingInTx.map((q) => q.hash));
+
       for (const q of toInsert) {
+        // Skip if another transaction created this question
+        if (existingHashes.has(q.hash)) {
+          console.log(`⚠️ Skipping duplicate hash ${q.hash} (race condition)`);
+          continue;
+        }
         // Create Question
         const createdQ = await tx.question.create({
           data: {
@@ -1029,10 +1039,10 @@ export class QuestionsService {
             {
               questionId: createdQ.id,
               lang: 'HI' as Language,
-              content: q.question_hi || null,
-              explanation: q.explanation_hi || null,
+              content: q.question_hi?.trim() || null,
+              explanation: q.explanation_hi?.trim() || null,
             },
-          ].filter((t) => t.content), // Only create if content exists
+          ].filter((t) => t.content?.trim()), // Only create if content exists and is not just whitespace
         });
 
         // Create options
@@ -1057,11 +1067,11 @@ export class QuestionsService {
               lang: 'EN' as Language,
               text: q.options_en[i],
             });
-          if (q.options_hi[i])
+          if (q.options_hi[i]?.trim())
             optionTrans.push({
               optionId: op.id,
               lang: 'HI' as Language,
-              text: q.options_hi[i],
+              text: q.options_hi[i].trim(),
             });
         }
         if (optionTrans.length)

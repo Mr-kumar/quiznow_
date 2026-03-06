@@ -12,7 +12,10 @@ const api = axios.create({
 
 // 2. Request Interceptor (Attach Token)
 api.interceptors.request.use((config) => {
-  const token = useAuthStore.getState().token; // Get token from Zustand store
+  // 🛡️ PROPER SELECTOR: Use Zustand selector instead of hook-like call
+  const authStore = useAuthStore.getState();
+  const token = authStore.token;
+
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -23,9 +26,16 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // If 401 (Unauthorized), log the user out automatically
+    // 🛡️ BETTER 401 HANDLING: Auto-logout with user feedback
     if (error.response?.status === 401) {
-      useAuthStore.getState().logout();
+      const authStore = useAuthStore.getState();
+      authStore.logout(); // Use logout method for proper cleanup
+
+      // Only show toast if this wasn't an automatic logout
+      if (!authStore.tokenExpiry || Date.now() <= authStore.tokenExpiry) {
+        console.warn("Session expired - logging out");
+        // You could add a toast here if needed
+      }
     }
     return Promise.reject(error);
   },

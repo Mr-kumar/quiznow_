@@ -80,7 +80,10 @@ export default function BulkQuestionUpload({
         file,
         selectedTopicId || undefined,
       );
-      setValidation(response.data);
+      setValidation({
+        ...response.data,
+        file: file, // 🛡️ Store file fingerprint
+      });
       setShowValidation(true);
       toast({
         title: "Validation Complete",
@@ -96,6 +99,17 @@ export default function BulkQuestionUpload({
   // Handle import after validation
   const handleImport = async (onlyValid = true) => {
     if (!file) return;
+
+    // 🛡️ FINGERPRINT CHECK: Warn if file changed after validation
+    if (validation && file !== validation.file) {
+      toast({
+        title: "File Changed",
+        description: "Please re-validate the file before importing",
+        variant: "destructive",
+      });
+      setShowValidation(false);
+      return;
+    }
 
     setIsUploading(true);
 
@@ -195,6 +209,7 @@ export default function BulkQuestionUpload({
               setValidation(null);
               setShowValidation(false);
             }}
+            disabled={showValidation} // Disable file input when validation is shown
             className="cursor-pointer bg-white dark:bg-zinc-950"
           />
         </div>
@@ -283,21 +298,24 @@ export default function BulkQuestionUpload({
                 <p>Errors: {validation.errors.length}</p>
                 {validation.validCount > 0 && (
                   <div className="mt-2 space-y-2">
-                    <Button
-                      onClick={() => handleImport(true)}
-                      className="w-full"
-                      size="sm"
-                    >
-                      Import Valid Rows ({validation.validCount})
-                    </Button>
-                    {validation.errors.length === 0 && (
+                    {/* 🛡️ FIXED: Show "Import All Rows" when there are errors (lenient mode) */}
+                    {validation.errors.length > 0 && (
                       <Button
-                        onClick={() => handleImport(false)}
-                        variant="outline"
+                        onClick={() => handleImport(false)} // onlyValid=false = import all rows despite errors
                         className="w-full"
                         size="sm"
                       >
                         Import All Rows ({validation.totalRows})
+                      </Button>
+                    )}
+                    {/* 🛡️ FIXED: Show "Import Valid Rows" when there are no errors (strict mode) */}
+                    {validation.errors.length === 0 && (
+                      <Button
+                        onClick={() => handleImport(true)} // onlyValid=true = import only valid rows
+                        className="w-full"
+                        size="sm"
+                      >
+                        Import Valid Rows ({validation.validCount})
                       </Button>
                     )}
                   </div>

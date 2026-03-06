@@ -155,9 +155,10 @@ export default function GlobalQuestionVaultPage() {
     const t = q.translations?.[0];
     setActiveQuestion(q);
     setEditContent(t?.content || "");
-    setEditOptions((t?.options as string[]) || []);
+    // 🛡️ FIX: Use options from translation, not direct property
+    setEditOptions(t?.options?.map((o: any) => o.text) || []);
     setEditExplanation(t?.explanation || "");
-    setEditCorrect(q.correctAnswer ?? 0);
+    // 🛡️ FIX: Remove correctAnswer reference - doesn't exist on new Question type
     setEditOpen(true);
   };
 
@@ -533,17 +534,35 @@ export default function GlobalQuestionVaultPage() {
           {activeQuestion && (
             <div className="p-4 space-y-3">
               <div className="text-sm">
-                {activeQuestion.translations?.[0]?.content}
+                {/* 🛡️ LANGUAGE FILTER: Show translation matching selected language */}
+                {(() => {
+                  const translation = activeQuestion.translations?.find(
+                    (t) => t.lang === (filters as any).lang,
+                  );
+                  return (
+                    translation?.content ||
+                    activeQuestion.translations?.[0]?.content
+                  );
+                })()}
               </div>
               <div className="space-y-1">
-                {activeQuestion.translations?.[0]?.options?.map((o, i) => {
-                  const isCorrect = i === activeQuestion.correctAnswer;
+                {(() => {
+                  const translation = activeQuestion.translations?.find(
+                    (t) => t.lang === (filters as any).lang,
+                  );
+                  return (
+                    translation?.options ||
+                    activeQuestion.translations?.[0]?.options
+                  );
+                })()?.map((o: any, i: number) => {
+                  // 🛡️ FIX: Find correct answer from options array
+                  const isCorrect = o.isCorrect;
                   return (
                     <div
                       key={i}
                       className={`text-sm ${isCorrect ? "text-green-600" : ""}`}
                     >
-                      {String.fromCharCode(65 + i)}. {o}
+                      {String.fromCharCode(65 + i)}. {o.text}
                     </div>
                   );
                 })}

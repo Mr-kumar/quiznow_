@@ -28,7 +28,8 @@ export class BigIntInterceptor implements NestInterceptor {
 
     if (typeof data === 'object' && !(data instanceof Date)) {
       const result: any = {};
-      for (const key in data) {
+      // 🛡️ FIXED: Use Object.keys to avoid prototype properties
+      for (const key of Object.keys(data)) {
         result[key] = this.safeConvert(data[key], seen);
       }
       return result;

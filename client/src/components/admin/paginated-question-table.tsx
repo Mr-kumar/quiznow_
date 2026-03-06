@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -98,11 +98,14 @@ export function PaginatedQuestionTable({
     }
   };
 
+  const isFetchingRef = useRef(false);
+
   const fetchQuestions = useCallback(
     async (page = 1, reset = false) => {
-      if (isLoading) return;
-
+      if (isFetchingRef.current) return;
+      isFetchingRef.current = true;
       setIsLoading(true);
+
       try {
         const params = new URLSearchParams({
           page: page.toString(),
@@ -137,9 +140,10 @@ export function PaginatedQuestionTable({
         });
       } finally {
         setIsLoading(false);
+        isFetchingRef.current = false;
       }
     },
-    [debouncedSearch, selectedSubject, selectedTopic, isLoading],
+    [debouncedSearch, selectedSubject, selectedTopic],
   );
 
   useEffect(() => {
@@ -188,16 +192,19 @@ export function PaginatedQuestionTable({
   };
 
   const getQuestionPreview = (question: Question) => {
-    const englishTranslation = question.translations.find(
-      (t) => t.lang === "en",
+    // 🛡️ LANGUAGE FILTER: Use component's local state instead of non-existent filters
+    // This component doesn't have language filter yet, default to 'EN'
+    const activeLang = "EN"; // TODO: Add language filter to this component
+    const translation = question.translations.find(
+      (t) => t.lang === activeLang,
     );
-    return englishTranslation || question.translations[0];
+    return translation || question.translations[0]; // fallback to first if lang not available
   };
 
-  const displayedQuestions = questions.slice(0, currentPage * ITEMS_PER_PAGE);
+  // 🛡️ FIX: Use questions instead of non-existent displayedQuestions
   const isAllSelected =
-    displayedQuestions.length > 0 &&
-    displayedQuestions.every((q) => selectedQuestions.includes(q.id));
+    questions.length > 0 &&
+    questions.every((q) => selectedQuestions.includes(q.id));
 
   return (
     <Card>
@@ -267,7 +274,7 @@ export function PaginatedQuestionTable({
           <div className="flex items-center gap-2">
             <Checkbox checked={isAllSelected} onCheckedChange={onSelectAll} />
             <span className="text-sm text-muted-foreground">
-              Select all ({displayedQuestions.length} questions)
+              Select all ({questions.length} questions)
             </span>
           </div>
           <div className="flex items-center gap-2">

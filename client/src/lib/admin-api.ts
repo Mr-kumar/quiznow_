@@ -300,23 +300,31 @@ export const adminAnalyticsApi = {
 // Question Management API
 export interface Question {
   id: string;
-  content: string;
-  type: string;
-  options: string[];
-  correctAnswer: number;
-  explanation?: string;
-  difficulty?: string;
-  isActive: boolean;
+  hash: string;
   topicId?: string;
+  isActive: boolean;
   createdAt: string;
   updatedAt: string;
-  translations?: Array<{
+  translations: Array<{
     id: string;
-    lang: string;
+    questionId: string;
+    lang: "EN" | "HI";
     content: string;
-    options?: string[];
     explanation?: string;
-    imageUrl?: string;
+  }>;
+  options: Array<{
+    id: string;
+    questionId: string;
+    order: number;
+    isCorrect: boolean;
+    createdAt: string;
+    updatedAt: string;
+    translations: Array<{
+      id: string;
+      optionId: string;
+      lang: "EN" | "HI";
+      text: string;
+    }>;
   }>;
   topic?: Topic;
   _count?: {

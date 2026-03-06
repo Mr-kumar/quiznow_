@@ -12,6 +12,7 @@ import {
   Query,
   NotFoundException,
   BadRequestException,
+  SetMetadata,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express/multer';
 import { UploadedFile } from '@nestjs/common';
@@ -25,10 +26,13 @@ import {
   ApiBody,
   ApiBearerAuth,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../../iam/auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../../iam/auth/guards/jwt-auth-public.guard';
 import { RolesGuard } from '../../iam/auth/guards/roles.guard';
 import { Roles } from '../../iam/auth/decorators/roles.decorator';
 import { Role } from '@prisma/client';
+
+// 🛡️ PUBLIC DECORATOR: Override auth guards for public endpoints
+const Public = () => SetMetadata('isPublic', true);
 
 @ApiTags('Assessment (Questions)')
 @ApiBearerAuth()
@@ -73,6 +77,7 @@ export class QuestionsController {
 
   // Public endpoint for testing
   @Get('public')
+  @Public()
   @ApiOperation({ summary: 'Public list of Questions (for testing)' })
   publicFindAll() {
     return this.questionsService.findAll();
