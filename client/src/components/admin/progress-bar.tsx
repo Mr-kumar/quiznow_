@@ -39,9 +39,7 @@ export function ProgressBar({
       <div className="w-full bg-zinc-200 dark:bg-zinc-700 rounded-full h-2 overflow-hidden">
         <div
           className={`bg-linear-to-r ${colorClasses[color]} h-2 rounded-full transition-all duration-500`}
-          style={{
-            width: `${Math.max(0, Math.min(100, percentage))}%`,
-          }}
+          style={{ width: `${Math.max(0, Math.min(100, percentage))}%` }}
         />
       </div>
     </div>

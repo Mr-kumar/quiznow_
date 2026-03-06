@@ -36,6 +36,7 @@ import {
   Eye,
   EyeOff,
   GripVertical,
+  Languages,
   Layers,
   Loader2,
   Pencil,
@@ -49,6 +50,13 @@ import BulkQuestionUpload from "@/components/admin/bulk-upload";
 import { QuestionBankSelector } from "@/components/admin/question-bank-selector";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+
+type Lang = "EN" | "HI";
+
+const LANG_LABELS: Record<Lang, string> = {
+  EN: "English",
+  HI: "हिन्दी",
+};
 
 interface LinkedQuestion {
   order: number;
@@ -93,11 +101,51 @@ interface TestData {
 
 function pickText(
   translations: Array<{ lang: string; content: string }>,
+  lang: Lang = "EN",
 ): string {
   return (
+    translations?.find((t) => t.lang?.toUpperCase() === lang)?.content ??
     translations?.find((t) => t.lang?.toUpperCase() === "EN")?.content ??
+    translations?.find((t) => t.lang?.toUpperCase() === "HI")?.content ??
     translations?.[0]?.content ??
     ""
+  );
+}
+
+/** Returns true if the question has a non-empty translation for `lang`. */
+function hasLang(
+  translations: Array<{ lang: string; content: string }>,
+  lang: Lang,
+): boolean {
+  return !!translations
+    .find((t) => t.lang?.toUpperCase() === lang)
+    ?.content?.trim();
+}
+
+function LangToggle({
+  value,
+  onChange,
+}: {
+  value: Lang;
+  onChange: (lang: Lang) => void;
+}) {
+  return (
+    <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+      {(["EN", "HI"] as Lang[]).map((l) => (
+        <button
+          key={l}
+          onClick={() => onChange(l)}
+          className={cn(
+            "h-7 px-3 rounded-md text-xs font-semibold transition-all",
+            value === l
+              ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm"
+              : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300",
+          )}
+        >
+          {l === "EN" ? "EN" : "हि"}
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -141,6 +189,9 @@ export default function TestAssemblyPage() {
   const [testData, setTestData] = useState<TestData | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeSection, setActiveSection] = useState<string | null>(null);
+
+  // Language toggle for questions
+  const [lang, setLang] = useState<Lang>("EN");
 
   // Publish
   const [togglingPublish, setTogglingPublish] = useState(false);
@@ -512,6 +563,17 @@ export default function TestAssemblyPage() {
           />
         </div>
 
+        {/* ── Language toggle ── */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Languages className="h-4 w-4 text-slate-400" />
+            <span className="text-sm text-slate-600 dark:text-slate-400">
+              Question Language
+            </span>
+          </div>
+          <LangToggle value={lang} onChange={setLang} />
+        </div>
+
         {/* ── Main layout: sidebar sections + content ── */}
         <div className="flex gap-5 items-start">
           {/* Sections sidebar */}
@@ -740,7 +802,10 @@ export default function TestAssemblyPage() {
                     <div className="divide-y divide-slate-100 dark:divide-slate-800">
                       {currentSection.questions.map((lq, idx) => {
                         const qId = getQuestionId(lq);
-                        const text = pickText(lq.question?.translations ?? []);
+                        const text = pickText(
+                          lq.question?.translations ?? [],
+                          lang,
+                        );
                         const subjectName = lq.question?.topic?.subject?.name;
                         const topicName = lq.question?.topic?.name;
                         const correctOpt = lq.question?.options?.find(
@@ -752,8 +817,24 @@ export default function TestAssemblyPage() {
                                 lang: t.lang,
                                 content: t.text,
                               })),
+                              lang,
                             )
                           : null;
+
+                        // Check translation availability
+                        const hasEN = hasLang(
+                          lq.question?.translations ?? [],
+                          "EN",
+                        );
+                        const hasHI = hasLang(
+                          lq.question?.translations ?? [],
+                          "HI",
+                        );
+                        const isBilingual = hasEN && hasHI;
+                        const isFallback = !hasLang(
+                          lq.question?.translations ?? [],
+                          lang,
+                        );
 
                         return (
                           <div
@@ -770,6 +851,16 @@ export default function TestAssemblyPage() {
 
                             {/* Content */}
                             <div className="flex-1 min-w-0">
+                              {/* Fallback language warning */}
+                              {isFallback && (
+                                <p className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 mb-1 flex items-center gap-1">
+                                  <Languages className="h-3 w-3" />
+                                  No {LANG_LABELS[lang]} translation — showing{" "}
+                                  {lang === "EN"
+                                    ? LANG_LABELS["HI"]
+                                    : LANG_LABELS["EN"]}
+                                </p>
+                              )}
                               <p className="text-sm text-slate-800 dark:text-slate-200 leading-snug line-clamp-2">
                                 {text || (
                                   <span className="italic text-red-400 text-xs">
@@ -790,6 +881,28 @@ export default function TestAssemblyPage() {
                                     {topicName}
                                   </span>
                                 )}
+
+                                {/* Language availability */}
+                                {isBilingual ? (
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-teal-50 dark:bg-teal-950/30 text-teal-700 dark:text-teal-400 border border-teal-200 dark:border-teal-800">
+                                    <Languages className="h-2.5 w-2.5" />
+                                    EN + हि
+                                  </span>
+                                ) : (
+                                  <>
+                                    {hasEN && !hasHI && (
+                                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-sky-50 dark:bg-sky-950/30 text-sky-600 dark:text-sky-400 border border-sky-200 dark:border-sky-800">
+                                        EN only
+                                      </span>
+                                    )}
+                                    {hasHI && !hasEN && (
+                                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-orange-50 dark:bg-orange-950/30 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-800">
+                                        हि only
+                                      </span>
+                                    )}
+                                  </>
+                                )}
+
                                 {correctText && (
                                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800 max-w-[200px] truncate">
                                     ✓ {correctText}

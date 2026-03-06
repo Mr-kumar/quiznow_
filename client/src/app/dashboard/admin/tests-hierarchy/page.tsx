@@ -963,7 +963,7 @@ export default function TestsHierarchyPage() {
                         category: ["Category"],
                         exam: ["Category", "Exam"],
                         series: ["Category", "Exam", "Series"],
-                      }[createType] as string[]
+                      }[createType || "category"] as string[]
                     ).map((step, i, arr) => (
                       <span key={step} className="flex items-center gap-1">
                         <span

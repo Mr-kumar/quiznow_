@@ -186,25 +186,42 @@ export default function AuditLogsPage() {
 
   // Debounce search
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Track if the current fetch was triggered by a search change (needs page reset)
+  const isSearchChange = useRef(false);
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
+  // Single fetch function that reads all params directly — no stale closures.
+  // We pass everything as explicit arguments so it never captures stale state.
   const fetchLogs = useCallback(
-    async (opts: { silent?: boolean } = {}) => {
+    async (
+      currentPage: number,
+      currentSearch: string,
+      currentAction: string,
+      opts: { silent?: boolean } = {},
+    ) => {
       if (!opts.silent) setLoading(true);
       else setRefreshing(true);
 
       try {
         const res = await adminAuditLogsApi.getAll(
-          page,
+          currentPage,
           PAGE_SIZE,
-          search.trim() || undefined,
-          actionFilter === "all" ? undefined : actionFilter,
+          currentSearch.trim() || undefined,
+          currentAction === "all" ? undefined : currentAction,
         );
-        // Handle both { data, total } and { data: { data, meta } } shapes
+        // Backend returns { data: T[], meta: { total, page, limit, totalPages } }
+        // OR legacy flat shape { data: T[], total, page, limit }
+        // Support both so this works regardless of which backend version is live.
         const payload = res.data as any;
-        const rows: AuditLog[] = payload.data?.data ?? payload.data ?? [];
+        const rows: AuditLog[] =
+          payload.data?.data ?? // nested: { data: { data: [] } }
+          (Array.isArray(payload.data) ? payload.data : []) ?? // flat: { data: [] }
+          [];
         const count: number =
-          payload.data?.meta?.total ?? payload.total ?? rows.length;
+          payload.data?.meta?.total ?? // nested meta
+          payload.meta?.total ?? // top-level meta
+          payload.total ?? // flat legacy
+          rows.length;
 
         setLogs(rows);
         setTotal(count);
@@ -219,27 +236,31 @@ export default function AuditLogsPage() {
         setRefreshing(false);
       }
     },
-    [page, search, actionFilter, toast],
+    [toast],
   );
 
-  // Re-fetch when page or action filter changes immediately
-  useEffect(() => {
-    fetchLogs();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, actionFilter]);
-
-  // Re-fetch with debounce when search changes, reset to page 1
+  // Single effect — runs when page, actionFilter, or search changes.
+  // Search changes reset to page 1 via ref flag to avoid double-fetch.
   useEffect(() => {
     if (searchTimer.current) clearTimeout(searchTimer.current);
-    searchTimer.current = setTimeout(() => {
-      setPage(1);
-      fetchLogs();
-    }, 350);
+
+    if (isSearchChange.current) {
+      // Search changed: debounce + reset to page 1
+      isSearchChange.current = false;
+      searchTimer.current = setTimeout(() => {
+        setPage(1);
+        fetchLogs(1, search, actionFilter);
+      }, 350);
+    } else {
+      // Page or actionFilter changed: fetch immediately
+      fetchLogs(page, search, actionFilter);
+    }
+
     return () => {
       if (searchTimer.current) clearTimeout(searchTimer.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search]);
+  }, [page, actionFilter, search]);
 
   // ── Cleanup ────────────────────────────────────────────────────────────────
   const handleCleanup = async () => {
@@ -252,7 +273,7 @@ export default function AuditLogsPage() {
       });
       setCleanupOpen(false);
       setPage(1);
-      fetchLogs({ silent: true });
+      fetchLogs(1, search, actionFilter, { silent: true });
     } catch (err: any) {
       toast({
         title: "Cleanup failed",
@@ -293,7 +314,9 @@ export default function AuditLogsPage() {
             variant="ghost"
             size="sm"
             className="h-8 gap-1.5 text-xs text-slate-500"
-            onClick={() => fetchLogs({ silent: true })}
+            onClick={() =>
+              fetchLogs(page, search, actionFilter, { silent: true })
+            }
             disabled={refreshing}
           >
             <RefreshCw
@@ -345,7 +368,10 @@ export default function AuditLogsPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
             <Input
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                isSearchChange.current = true;
+                setSearch(e.target.value);
+              }}
               placeholder="Search action, target type, actor ID…"
               className="pl-8 h-8 text-sm bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-700"
             />

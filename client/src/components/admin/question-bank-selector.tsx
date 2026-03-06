@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import api from "@/lib/api";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -26,7 +25,7 @@ import {
   ChevronDown,
   ChevronUp,
   Database,
-  Filter,
+  Languages,
   Layers,
   Loader2,
   Plus,
@@ -38,8 +37,10 @@ import { cn } from "@/lib/utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+type Lang = "EN" | "HI";
+
 interface OptionTranslation {
-  lang: "EN" | "HI";
+  lang: Lang;
   text: string;
 }
 
@@ -51,7 +52,7 @@ interface QuestionOption {
 }
 
 interface QuestionTranslation {
-  lang: "EN" | "HI";
+  lang: Lang;
   content: string;
   explanation?: string;
 }
@@ -93,42 +94,96 @@ interface BankSelectorProps {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function pickText(translations: QuestionTranslation[]): string {
+/**
+ * Pick the translation for `lang`. Falls back to the other lang so we never
+ * show a blank question just because one translation is missing.
+ */
+function pickText(translations: QuestionTranslation[], lang: Lang): string {
   return (
-    translations.find((t) => t.lang === "EN")?.content ??
+    translations.find((t) => t.lang === lang)?.content ??
+    translations.find((t) => t.lang !== lang)?.content ??
     translations[0]?.content ??
     ""
   );
 }
 
-function pickOptionText(translations: OptionTranslation[]): string {
+function pickOptionText(translations: OptionTranslation[], lang: Lang): string {
   return (
-    translations.find((t) => t.lang === "EN")?.text ??
+    translations.find((t) => t.lang === lang)?.text ??
+    translations.find((t) => t.lang !== lang)?.text ??
     translations[0]?.text ??
     ""
   );
 }
 
+/** Returns true if the question has a non-empty translation for `lang`. */
+function hasLang(question: VaultQuestion, lang: Lang): boolean {
+  return !!question.translations.find((t) => t.lang === lang)?.content?.trim();
+}
+
 const OPTION_LETTERS = ["A", "B", "C", "D", "E"];
+
+const LANG_LABELS: Record<Lang, string> = {
+  EN: "English",
+  HI: "हिन्दी",
+};
+
+// ─── Language Toggle ──────────────────────────────────────────────────────────
+
+function LangToggle({
+  value,
+  onChange,
+}: {
+  value: Lang;
+  onChange: (lang: Lang) => void;
+}) {
+  return (
+    <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+      {(["EN", "HI"] as Lang[]).map((l) => (
+        <button
+          key={l}
+          onClick={() => onChange(l)}
+          className={cn(
+            "h-7 px-3 rounded-md text-xs font-semibold transition-all",
+            value === l
+              ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm"
+              : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300",
+          )}
+        >
+          {l === "EN" ? "EN" : "हि"}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 // ─── Question Row ─────────────────────────────────────────────────────────────
 
 function QuestionRow({
   question,
+  lang,
   selected,
   alreadyLinked,
   onToggle,
 }: {
   question: VaultQuestion;
+  lang: Lang;
   selected: boolean;
   alreadyLinked: boolean;
   onToggle: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const text = pickText(question.translations);
+
+  const text = pickText(question.translations, lang);
   const subjectName = question.topic?.subject?.name;
   const topicName = question.topic?.name;
   const usageCount = question._count?.sectionLinks ?? 0;
+
+  const hasEN = hasLang(question, "EN");
+  const hasHI = hasLang(question, "HI");
+  const isBilingual = hasEN && hasHI;
+  // True when the chosen display lang has no content (we showed a fallback)
+  const isFallback = !hasLang(question, lang);
 
   return (
     <div
@@ -141,9 +196,8 @@ function QuestionRow({
             : "hover:bg-slate-50 dark:hover:bg-slate-800/40",
       )}
     >
-      {/* Main row */}
       <div className="flex items-start gap-3 px-4 py-3">
-        {/* Checkbox / already-linked indicator */}
+        {/* Checkbox */}
         <button
           onClick={alreadyLinked ? undefined : onToggle}
           disabled={alreadyLinked}
@@ -161,8 +215,17 @@ function QuestionRow({
           )}
         </button>
 
-        {/* Question content */}
+        {/* Content */}
         <div className="flex-1 min-w-0">
+          {/* Fallback language warning */}
+          {isFallback && (
+            <p className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 mb-1 flex items-center gap-1">
+              <Languages className="h-3 w-3" />
+              No {LANG_LABELS[lang]} translation — showing{" "}
+              {lang === "EN" ? LANG_LABELS["HI"] : LANG_LABELS["EN"]}
+            </p>
+          )}
+
           <p
             className={cn(
               "text-sm leading-snug",
@@ -180,7 +243,7 @@ function QuestionRow({
                 )}
           </p>
 
-          {/* Tags row */}
+          {/* Tags */}
           <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
             {subjectName && (
               <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-violet-100 dark:bg-violet-950/40 text-violet-700 dark:text-violet-400 border border-violet-200 dark:border-violet-800">
@@ -193,6 +256,28 @@ function QuestionRow({
                 {topicName}
               </span>
             )}
+
+            {/* Language availability */}
+            {isBilingual ? (
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-teal-50 dark:bg-teal-950/30 text-teal-700 dark:text-teal-400 border border-teal-200 dark:border-teal-800">
+                <Languages className="h-2.5 w-2.5" />
+                EN + हि
+              </span>
+            ) : (
+              <>
+                {hasEN && !hasHI && (
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-sky-50 dark:bg-sky-950/30 text-sky-600 dark:text-sky-400 border border-sky-200 dark:border-sky-800">
+                    EN only
+                  </span>
+                )}
+                {hasHI && !hasEN && (
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-orange-50 dark:bg-orange-950/30 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-800">
+                    हि only
+                  </span>
+                )}
+              </>
+            )}
+
             {usageCount > 0 && (
               <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] text-slate-400 border border-slate-200 dark:border-slate-700">
                 Used in {usageCount} section{usageCount !== 1 ? "s" : ""}
@@ -229,8 +314,9 @@ function QuestionRow({
                   >
                     {OPTION_LETTERS[i]}
                   </span>
+                  {/* Options rendered in selected language */}
                   <span className="leading-snug">
-                    {pickOptionText(opt.translations)}
+                    {pickOptionText(opt.translations, lang)}
                   </span>
                 </div>
               ))}
@@ -270,13 +356,13 @@ export function QuestionBankSelector({
   const [hasMore, setHasMore] = useState(false);
   const [confirming, setConfirming] = useState(false);
 
-  // Filters
+  // ── Filters ────────────────────────────────────────────────────────────────
+  const [lang, setLang] = useState<Lang>("EN");
   const [search, setSearch] = useState("");
   const [subjectFilter, setSubjectFilter] = useState("all");
   const [topicFilter, setTopicFilter] = useState("all");
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [topics, setTopics] = useState<Topic[]>([]);
-  const [loadingFilters, setLoadingFilters] = useState(false);
 
   // Selection
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -284,28 +370,28 @@ export function QuestionBankSelector({
   const sentinelRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // nextCursor lives in a ref so fetchQuestions doesn't need it in its deps,
+  // which keeps the IntersectionObserver stable between page loads.
+  const nextCursorRef = useRef<string | null>(null);
 
-  // ── Load filters ────────────────────────────────────────────────────────────
+  // ── Load filter data once when dialog opens ─────────────────────────────────
   useEffect(() => {
     if (!open) return;
-    setLoadingFilters(true);
     Promise.all([
       api.get("/topics/subjects").catch(() => ({ data: [] })),
       api
         .get("/topics", { params: { limit: 200 } })
         .catch(() => ({ data: { data: [] } })),
-    ])
-      .then(([subRes, topRes]) => {
-        const rawSubs = subRes.data?.data ?? subRes.data ?? [];
-        const rawTops =
-          topRes.data?.data ?? topRes.data?.topics ?? topRes.data ?? [];
-        setSubjects(Array.isArray(rawSubs) ? rawSubs : []);
-        setTopics(Array.isArray(rawTops) ? rawTops : []);
-      })
-      .finally(() => setLoadingFilters(false));
+    ]).then(([subRes, topRes]) => {
+      const rawSubs = subRes.data?.data ?? subRes.data ?? [];
+      const rawTops =
+        topRes.data?.data ?? topRes.data?.topics ?? topRes.data ?? [];
+      setSubjects(Array.isArray(rawSubs) ? rawSubs : []);
+      setTopics(Array.isArray(rawTops) ? rawTops : []);
+    });
   }, [open]);
 
-  // ── Derived topic list (filtered by chosen subject) ─────────────────────────
+  // ── Derived topic list filtered by chosen subject ───────────────────────────
   const visibleTopics =
     subjectFilter === "all"
       ? topics
@@ -316,19 +402,19 @@ export function QuestionBankSelector({
 
   // ── Fetch questions ─────────────────────────────────────────────────────────
   const fetchQuestions = useCallback(
-    async (opts: { reset?: boolean; cursorOverride?: string } = {}) => {
-      const { reset = false, cursorOverride } = opts;
-      if (reset) {
-        setLoading(true);
-      } else {
-        setLoadingMore(true);
-      }
+    async (opts: { reset?: boolean } = {}) => {
+      const { reset = false } = opts;
+      if (reset) setLoading(true);
+      else setLoadingMore(true);
 
       try {
-        const cursor = reset ? undefined : (cursorOverride ?? nextCursor);
+        const cursor = reset ? undefined : (nextCursorRef.current ?? undefined);
         const params: Record<string, any> = {
           limit: 30,
-          lang: "EN",
+          // Send chosen language so the backend ranks/searches in the right script.
+          // The backend must still return ALL translations so the client can
+          // switch display language without re-fetching.
+          lang: lang.toLowerCase(), // "en" or "hi"
           ...(search.trim() && { search: search.trim() }),
           ...(subjectFilter !== "all" && {
             subject:
@@ -345,25 +431,26 @@ export function QuestionBankSelector({
         const pagination = payload.pagination ?? {};
 
         setQuestions((prev) => (reset ? rows : [...prev, ...rows]));
+        nextCursorRef.current = pagination.nextCursor ?? null;
         setNextCursor(pagination.nextCursor ?? null);
         setHasMore(pagination.hasMore ?? false);
       } catch {
-        // silently fail — user can retry
+        // silently fail — user can retry by scrolling / clearing filters
       } finally {
         setLoading(false);
         setLoadingMore(false);
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [search, subjectFilter, topicFilter, nextCursor, subjects],
+    [lang, search, subjectFilter, topicFilter, subjects],
   );
 
-  // ── Reset + re-fetch when filters change ──────────────────────────────────
+  // ── Re-fetch when any filter changes (search debounced) ────────────────────
   useEffect(() => {
     if (!open) return;
     if (searchTimer.current) clearTimeout(searchTimer.current);
     const delay = search ? 350 : 0;
     searchTimer.current = setTimeout(() => {
+      nextCursorRef.current = null;
       setNextCursor(null);
       fetchQuestions({ reset: true });
     }, delay);
@@ -371,9 +458,9 @@ export function QuestionBankSelector({
       if (searchTimer.current) clearTimeout(searchTimer.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, search, subjectFilter, topicFilter]);
+  }, [open, lang, search, subjectFilter, topicFilter]);
 
-  // ── IntersectionObserver for infinite scroll ───────────────────────────────
+  // ── Infinite scroll ────────────────────────────────────────────────────────
   const handleIntersect = useCallback(
     (entries: IntersectionObserverEntry[]) => {
       if (entries[0]?.isIntersecting && hasMore && !loadingMore && !loading) {
@@ -396,7 +483,7 @@ export function QuestionBankSelector({
     if (open) setSelected(new Set());
   }, [open]);
 
-  // ── Toggle individual question ─────────────────────────────────────────────
+  // ── Toggle ─────────────────────────────────────────────────────────────────
   const toggle = (id: string) => {
     if (alreadyLinkedIds.has(id)) return;
     setSelected((prev) => {
@@ -406,14 +493,13 @@ export function QuestionBankSelector({
     });
   };
 
-  // ── Select all visible (not already linked) ────────────────────────────────
   const selectAllVisible = () => {
-    const newable = questions
+    const ids = questions
       .filter((q) => !alreadyLinkedIds.has(q.id))
       .map((q) => q.id);
     setSelected((prev) => {
       const next = new Set(prev);
-      newable.forEach((id) => next.add(id));
+      ids.forEach((id) => next.add(id));
       return next;
     });
   };
@@ -433,14 +519,19 @@ export function QuestionBankSelector({
     }
   };
 
-  // ── Subject change resets topic ────────────────────────────────────────────
   const handleSubjectChange = (val: string) => {
     setSubjectFilter(val);
     setTopicFilter("all");
   };
 
+  // ── Stats ──────────────────────────────────────────────────────────────────
   const selectableCount = questions.filter(
     (q) => !alreadyLinkedIds.has(q.id),
+  ).length;
+
+  // Questions that will show a fallback (no translation in chosen lang)
+  const missingLangCount = questions.filter(
+    (q) => !hasLang(q, lang) && !alreadyLinkedIds.has(q.id),
   ).length;
 
   const hasActiveFilters =
@@ -451,7 +542,7 @@ export function QuestionBankSelector({
       <DialogContent className="max-w-4xl w-full h-[90vh] flex flex-col p-0 gap-0 overflow-hidden rounded-2xl">
         {/* ── Header ── */}
         <DialogHeader className="shrink-0 px-6 pt-5 pb-4 border-b border-slate-100 dark:border-slate-800">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
               <div className="h-9 w-9 rounded-xl bg-linear-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-sm">
                 <Database className="h-4 w-4 text-white" />
@@ -471,34 +562,46 @@ export function QuestionBankSelector({
               </div>
             </div>
 
-            {/* Selection summary */}
-            {selected.size > 0 && (
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-indigo-700 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-950/50 px-2.5 py-1 rounded-full">
-                  {selected.size} selected
+            <div className="flex items-center gap-3 ml-auto">
+              {/* Selection counter */}
+              {selected.size > 0 && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold text-indigo-700 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-950/50 px-2.5 py-1 rounded-full">
+                    {selected.size} selected
+                  </span>
+                  <button
+                    onClick={clearSelection}
+                    className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                    aria-label="Clear selection"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
+
+              {/* ─── Language toggle ─── */}
+              <div className="flex flex-col items-end gap-0.5">
+                <LangToggle value={lang} onChange={setLang} />
+                <span className="text-[9px] text-slate-400 pr-0.5">
+                  Display language
                 </span>
-                <button
-                  onClick={clearSelection}
-                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
-                  aria-label="Clear selection"
-                >
-                  <X className="h-4 w-4" />
-                </button>
               </div>
-            )}
+            </div>
           </div>
         </DialogHeader>
 
         {/* ── Filters bar ── */}
         <div className="shrink-0 px-5 py-3 bg-slate-50 dark:bg-slate-900/60 border-b border-slate-100 dark:border-slate-800">
           <div className="flex flex-col sm:flex-row gap-2">
-            {/* Search */}
+            {/* Search — placeholder switches with language */}
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
               <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search question text…"
+                placeholder={
+                  lang === "HI" ? "प्रश्न खोजें…" : "Search question text…"
+                }
                 className="pl-8 h-8 text-sm bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700"
               />
               {search && (
@@ -570,9 +673,9 @@ export function QuestionBankSelector({
           </div>
         </div>
 
-        {/* ── Select all / stats bar ── */}
+        {/* ── Stats / select-all bar ── */}
         <div className="shrink-0 flex items-center justify-between px-5 py-2 bg-white dark:bg-slate-950 border-b border-slate-100 dark:border-slate-800">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <button
               onClick={selectableCount > 0 ? selectAllVisible : undefined}
               disabled={selectableCount === 0}
@@ -592,11 +695,25 @@ export function QuestionBankSelector({
                 {alreadyLinkedIds.size} already in section
               </span>
             )}
+
+            {/* Warn when some questions have no translation for the active lang */}
+            {!loading && missingLangCount > 0 && (
+              <span className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
+                <Languages className="h-3 w-3" />
+                {missingLangCount} without {LANG_LABELS[lang]} translation
+              </span>
+            )}
           </div>
 
-          <span className="text-[11px] text-slate-400">
-            {loading ? "Loading…" : `${questions.length} loaded`}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 flex items-center gap-1">
+              <Languages className="h-3 w-3" />
+              {LANG_LABELS[lang]}
+            </span>
+            <span className="text-[11px] text-slate-400">
+              {loading ? "Loading…" : `${questions.length} loaded`}
+            </span>
+          </div>
         </div>
 
         {/* ── Question list ── */}
@@ -619,13 +736,23 @@ export function QuestionBankSelector({
             </div>
           ) : questions.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full py-20 text-slate-400">
-              <BookOpen className="h-12 w-12 mb-3 text-slate-200 dark:text-slate-700" />
+              <div className="h-14 w-14 rounded-2xl bg-linear-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700 flex items-center justify-center mb-4">
+                <BookOpen className="h-7 w-7 text-slate-400 dark:text-slate-500" />
+              </div>
               <p className="text-sm font-medium">No questions found</p>
-              <p className="text-xs mt-1">
+              <p className="text-xs mt-1 text-slate-400">
                 {hasActiveFilters
-                  ? "Try clearing the filters"
+                  ? "Try clearing the filters or switching language"
                   : "Upload questions first via Excel"}
               </p>
+              {lang === "HI" && !hasActiveFilters && (
+                <button
+                  onClick={() => setLang("EN")}
+                  className="mt-3 text-xs text-indigo-500 hover:text-indigo-700 underline"
+                >
+                  Switch to English
+                </button>
+              )}
             </div>
           ) : (
             <>
@@ -633,6 +760,7 @@ export function QuestionBankSelector({
                 <QuestionRow
                   key={q.id}
                   question={q}
+                  lang={lang}
                   selected={selected.has(q.id)}
                   alreadyLinked={alreadyLinkedIds.has(q.id)}
                   onToggle={() => toggle(q.id)}
@@ -657,7 +785,7 @@ export function QuestionBankSelector({
           )}
         </div>
 
-        {/* ── Footer / Confirm ── */}
+        {/* ── Footer ── */}
         <div className="shrink-0 flex items-center justify-between gap-3 px-5 py-4 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-950">
           <div className="text-sm text-slate-500 dark:text-slate-400">
             {selected.size === 0 ? (

@@ -144,23 +144,17 @@ function TreeNode({
             showLine ? (
               <div
                 key={idx}
-                className="absolute top-0 bottom-0 w-px bg-zinc-200 dark:bg-zinc-700"
-                style={{ left: `${idx * 24 + 11}px` }}
+                className={`absolute top-0 bottom-0 w-px bg-zinc-200 dark:bg-zinc-700 left-[${idx * 24 + 11}px]`}
               />
             ) : null,
           )}
           {/* Horizontal connector to this node */}
           <div
-            className="absolute top-[18px] w-3 h-px bg-zinc-200 dark:bg-zinc-700"
-            style={{ left: `${(level - 1) * 24 + 11}px` }}
+            className={`absolute top-[18px] w-3 h-px bg-zinc-200 dark:bg-zinc-700 left-[${(level - 1) * 24 + 11}px]`}
           />
           {/* Vertical line to this node, stopping at midpoint if last */}
           <div
-            className="absolute top-0 w-px bg-zinc-200 dark:bg-zinc-700"
-            style={{
-              left: `${(level - 1) * 24 + 11}px`,
-              height: isLast ? "18px" : "100%",
-            }}
+            className={`absolute top-0 w-px bg-zinc-200 dark:bg-zinc-700 left-[${(level - 1) * 24 + 11}px] ${isLast ? "h-[18px]" : "h-full"}`}
           />
         </div>
       )}
