@@ -31,7 +31,7 @@ const ACTIONS = [
 
 export default function AuditLogsPage() {
   const { toast } = useToast();
-  const [actionFilter, setActionFilter] = useState("");
+  const [actionFilter, setActionFilter] = useState("all");
 
   const {
     data: auditLogs,
@@ -48,7 +48,7 @@ export default function AuditLogsPage() {
       options.page,
       options.limit,
       options.search,
-      actionFilter,
+      actionFilter === "all" ? undefined : actionFilter,
     );
     return response.data;
   });
@@ -184,7 +184,7 @@ export default function AuditLogsPage() {
             <SelectValue placeholder="Filter by action" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Actions</SelectItem>
+            <SelectItem value="all">All Actions</SelectItem>
             {ACTIONS.map((action) => (
               <SelectItem key={action} value={action}>
                 {action}

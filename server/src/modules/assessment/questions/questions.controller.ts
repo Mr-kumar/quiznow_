@@ -83,6 +83,110 @@ export class QuestionsController {
     return this.questionsService.findAll();
   }
 
+  @Get('cursor-paginated')
+  @Roles(Role.ADMIN)
+  @ApiOperation({
+    summary: 'Get questions with cursor-based pagination (Enterprise Scale)',
+  })
+  async getCursorPaginated(
+    @Query('cursor') cursor?: string,
+    @Query('limit') limit: number = 50,
+    @Query('direction') direction: 'forward' | 'backward' = 'forward',
+    @Query('search') search?: string,
+    @Query('topicId') topicId?: string,
+    @Query('subject') subject?: string,
+    @Query('lang') lang: string = 'EN',
+  ) {
+    console.log('🔍 cursor-paginated endpoint called with params:', {
+      cursor,
+      limit,
+      direction,
+      search,
+      topicId,
+      subject,
+      lang,
+    });
+    const where: any = {};
+
+    if (search) {
+      where.OR = [
+        {
+          translations: {
+            some: {
+              content: { contains: search, mode: 'insensitive' },
+            },
+          },
+        },
+        {
+          topic: {
+            name: { contains: search, mode: 'insensitive' },
+          },
+        },
+        {
+          topic: {
+            subject: {
+              name: { contains: search, mode: 'insensitive' },
+            },
+          },
+        },
+      ];
+    }
+
+    if (topicId) {
+      where.topicId = topicId;
+    }
+
+    if (subject) {
+      where.topic = {
+        subject: {
+          name: { contains: subject, mode: 'insensitive' },
+        },
+      };
+    }
+
+    const orderBy: any = {
+      createdAt: direction === 'forward' ? 'asc' : 'desc',
+    };
+
+    let cursorObj: any = undefined;
+    if (cursor) {
+      try {
+        cursorObj = JSON.parse(Buffer.from(cursor, 'base64').toString('utf-8'));
+      } catch (error) {
+        // Invalid cursor, start fresh
+        cursorObj = undefined;
+      }
+    }
+
+    const questions = await this.questionsService.findWithCursor({
+      cursor: cursorObj,
+      take: limit,
+      skip: cursor ? 1 : 0,
+      where,
+      orderBy,
+      lang: lang.toUpperCase(),
+    });
+
+    // 🛡️ FIX: Return proper paginated structure expected by frontend
+    const result = {
+      data: questions,
+      pagination: {
+        nextCursor:
+          questions.length > 0 ? questions[questions.length - 1]?.id : null,
+        prevCursor: cursor ? questions[0]?.id : null,
+        hasMore: questions.length === limit,
+        hasPrevious: !!cursor,
+        total: 0, // Not needed for cursor pagination
+        currentPage: 1, // Not needed for cursor pagination
+        totalPages: 1, // Not needed for cursor pagination
+        limit,
+      },
+    };
+
+    console.log('🔍 Returning result:', result);
+    return result;
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get Question Details' })
   findOne(@Param('id') id: string) {
@@ -179,96 +283,6 @@ export class QuestionsController {
       topicId,
     );
     return { success: true, updatedCount: result.count };
-  }
-
-  @Get('cursor-paginated')
-  @Roles(Role.ADMIN)
-  @ApiOperation({
-    summary: 'Get questions with cursor-based pagination (Enterprise Scale)',
-  })
-  async getCursorPaginated(
-    @Query('cursor') cursor?: string,
-    @Query('limit') limit: number = 50,
-    @Query('direction') direction: 'forward' | 'backward' = 'forward',
-    @Query('search') search?: string,
-    @Query('topicId') topicId?: string,
-    @Query('subject') subject?: string,
-    @Query('lang') lang: string = 'EN', // 🛡️ ADD: Capture language filter
-  ) {
-    // Validate limit
-    if (limit > 100) {
-      throw new BadRequestException('Maximum limit is 100 questions per page');
-    }
-
-    // Build where conditions
-    const where: any = {};
-    if (search) {
-      where.translations = {
-        some: {
-          lang: 'en',
-          content: {
-            contains: search,
-            mode: 'insensitive',
-          },
-        },
-      };
-    }
-    if (topicId) {
-      where.topicId = topicId;
-    }
-    if (subject) {
-      where.topic = {
-        subject: {
-          name: {
-            contains: subject,
-            mode: 'insensitive',
-          },
-        },
-      };
-    }
-
-    // Determine order based on direction
-    const orderBy = direction === 'backward' ? { id: 'desc' } : { id: 'asc' };
-
-    // Build cursor
-    const cursorObj = cursor ? { id: cursor } : undefined;
-
-    // Get questions
-    const questions = await this.questionsService.findWithCursor({
-      cursor: cursorObj,
-      take: limit,
-      skip: cursor ? 1 : 0,
-      where,
-      orderBy,
-      lang: lang.toUpperCase(), // 🛡️ PASS: Send language to service
-    });
-
-    // Get metadata (OPTIMIZED - No slow count queries)
-    const metadata = await this.questionsService.getCursorMetadata(
-      questions,
-      limit,
-      direction,
-    );
-
-    // Determine next/previous cursors
-    const nextCursor =
-      questions.length > 0 ? questions[questions.length - 1].id : null;
-    const prevCursor = cursor ? questions[0]?.id : null;
-
-    return {
-      data: questions,
-      pagination: {
-        nextCursor,
-        prevCursor,
-        hasMore: metadata.hasMore,
-        hasPrevious: !!prevCursor, // Simple check - if there's a previous cursor, we have previous data
-        // 🚨 FIX 4: Remove count-based metadata for performance
-        // total: 0, // Not needed for cursor pagination
-        // totalPages: 0, // Not needed for cursor pagination
-        // currentPage: 0, // Not needed for cursor pagination
-        limit,
-      },
-    };
   }
 
   @Post('bulk/validate')

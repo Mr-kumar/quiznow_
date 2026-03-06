@@ -27,21 +27,9 @@ export function useCursorPagination(options: UseCursorPaginationOptions = {}) {
   const [data, setData] = useState<Question[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [pagination, setPagination] = useState<
-    CursorPaginationResponse<Question>["pagination"]
-  >({
-    nextCursor: null,
-    prevCursor: null,
-    hasMore: true,
-    hasPrevious: false,
-    currentPage: 1,
-    totalPages: 1,
-    total: 0,
-    limit: initialLimit,
-  });
-
-  // 🛡️ CRITICAL FIX: Use ref for cursor to prevent infinite loop
-  const cursorRef = useRef<string | undefined>(undefined);
+  const [hasMore, setHasMore] = useState(true);
+  const [total, setTotal] = useState(0);
+  const [limit] = useState(initialLimit);
 
   const [filters, setFilters] = useState({
     search: initialSearch,
@@ -50,157 +38,146 @@ export function useCursorPagination(options: UseCursorPaginationOptions = {}) {
     lang: initialLang,
   });
 
-  // 🛡️ DEBOUNCE: Prevent search spam on every keystroke
   const debouncedSearch = useDebounce(filters.search, 400);
 
-  const [cursor, setCursor] = useState<string | undefined>(undefined);
+  // ── ROOT FIX: cursor as a ref, NOT state ─────────────────────────────────
+  // Using useState for cursor caused fetch() to be recreated on every API
+  // response (because cursor changed), which recreated loadMore(), which
+  // triggered the IntersectionObserver, which called loadMore() again → crash.
+  const cursorRef = useRef<string | undefined>(undefined);
+
+  // Guard against concurrent fetches
+  const isFetchingRef = useRef(false);
 
   const fetch = useCallback(
     async (
       direction: "forward" | "backward" = "forward",
       resetCursor?: string,
     ) => {
+      // Prevent concurrent requests
+      if (isFetchingRef.current) return;
+      isFetchingRef.current = true;
       setLoading(true);
       setError(null);
 
       try {
         const params: CursorPaginationParams = {
-          // 🛡️ CRITICAL FIX: Use cursorRef instead of cursor state
-          cursor: resetCursor !== undefined ? resetCursor : cursorRef.current,
-          limit: pagination.limit,
+          // If resetCursor is explicitly passed (even as ""), use it.
+          // Otherwise use the ref value for load-more.
+          cursor:
+            resetCursor !== undefined
+              ? resetCursor || undefined
+              : cursorRef.current,
+          limit,
           direction,
-          search: debouncedSearch, // 🛡️ Use debounced search instead of raw search
+          search: debouncedSearch,
           topicId: filters.topicId || undefined,
           subject: filters.subject || undefined,
           lang: filters.lang || undefined,
         };
 
-        const response = await adminQuestionsApi.getCursorPaginated({
-          ...params,
-          search: debouncedSearch, // 🛡️ Use debounced search instead of raw search
-        });
+        const response = await adminQuestionsApi.getCursorPaginated(params);
 
-        // Handle authentication failures and empty responses
+        console.log("Raw API response:", response);
+        console.log("Response status:", response.status);
+        console.log("Response data:", response.data);
+
         if (response.status === 401 || response.status === 403) {
           setError("Authentication required. Please log in again.");
           setData([]);
           return;
         }
 
-        // Handle empty or invalid responses
-        if (!response.data || Object.keys(response.data).length === 0) {
-          setError("Server returned empty response. Please try again.");
+        if (!response.data || !Array.isArray(response.data.data)) {
+          console.error("Backend response structure:", response);
+          console.error("response.data:", response.data);
+          console.error("response.data.data:", response.data?.data);
+          setError("Unexpected response from server. Please try again.");
           setData([]);
           return;
         }
 
-        // SAFE ACCESS: Handle potential response structure issues
-        if (response.data && Array.isArray(response.data.data)) {
-          if (direction === "forward") {
-            if (resetCursor !== undefined) {
-              // Fresh load (new search or filter)
-              setData(response.data.data);
-            } else {
-              // Load more (append)
-              setData((prev) => [...prev, ...response.data.data]);
-            }
-            // 🛡️ CRITICAL FIX: Update ref instead of state
-            cursorRef.current =
-              response.data.pagination?.nextCursor || undefined;
+        if (direction === "forward") {
+          if (resetCursor !== undefined) {
+            // Fresh load (filter/search changed or explicit reset)
+            setData(response.data.data);
           } else {
-            // Load previous (prepend)
-            setData((prev) => [...response.data.data, ...prev]);
-            cursorRef.current =
-              response.data.pagination?.prevCursor || undefined;
+            // Load-more: append
+            setData((prev) => [...prev, ...response.data.data]);
           }
-
-          if (response.data.pagination) {
-            setPagination(response.data.pagination);
-          }
+          // Store next cursor in ref — does NOT trigger re-render
+          cursorRef.current = response.data.pagination?.nextCursor || undefined;
         } else {
-          // Handle unexpected response structure
-          console.error("Unexpected API response structure:", response);
-          setError("Invalid response format from server");
-          setData([]);
+          setData((prev) => [...response.data.data, ...prev]);
+          cursorRef.current = response.data.pagination?.prevCursor || undefined;
         }
+
+        setHasMore(response.data.pagination?.hasMore ?? false);
+        setTotal(response.data.pagination?.total ?? 0);
       } catch (err) {
         const message =
-          typeof err === "object" &&
           err !== null &&
+          typeof err === "object" &&
           "response" in err &&
           (err as any).response?.data?.message
             ? (err as any).response.data.message
-            : "Failed to fetch data";
+            : "Failed to fetch questions";
         setError(message);
       } finally {
         setLoading(false);
+        isFetchingRef.current = false;
       }
     },
-    // 🛡️ CRITICAL FIX: Remove cursor from dependencies to prevent infinite loop
-    [debouncedSearch, filters.topicId, filters.subject, pagination.limit], // cursor removed
+    // ── KEY: cursor is NOT in deps — it lives in cursorRef ─────────────────
+    // Only things that actually change the query are here.
+    [debouncedSearch, filters.topicId, filters.subject, filters.lang, limit],
   );
 
-  // Initial load
+  // ── Effect: re-fetch on filter/search changes ─────────────────────────────
+  // filters.search is intentionally NOT here — debouncedSearch covers it.
+  // Having both caused a double-fetch on every keystroke.
   useEffect(() => {
-    fetch("forward", undefined);
+    cursorRef.current = undefined; // reset cursor on filter change
+    fetch("forward", ""); // pass "" so resetCursor !== undefined
   }, [
-    // 🛡️ FIX: Remove filters.search to prevent double fetch
-    // filters.search, // ← causes immediate fetch on every keystroke
+    debouncedSearch,
     filters.topicId,
     filters.subject,
     filters.lang,
-    pagination.limit,
-    debouncedSearch, // 🛡️ Only fetch after debounce
+    limit,
+    // fetch is stable because cursor is no longer in its deps
   ]);
 
-  // Load more
+  // ── Public API ────────────────────────────────────────────────────────────
+
   const loadMore = useCallback(() => {
-    if (pagination.hasMore && !loading) {
+    // hasMore and loading checked here at call time (not stale closure)
+    if (!isFetchingRef.current) {
       fetch("forward");
     }
-  }, [pagination.hasMore, loading, fetch]);
+  }, [fetch]);
 
-  // Load previous
-  const loadPrevious = useCallback(() => {
-    if (pagination.hasPrevious && !loading) {
-      fetch("backward");
-    }
-  }, [pagination.hasPrevious, loading, fetch]);
-
-  // Update filters
   const updateFilters = useCallback((newFilters: Partial<typeof filters>) => {
     setFilters((prev) => ({ ...prev, ...newFilters }));
-    setCursor(undefined); // Reset cursor when filters change
+    // The useEffect above will pick up the change and reset cursor
   }, []);
 
-  // Update limit
-  const updateLimit = useCallback((newLimit: number) => {
-    setPagination((prev) => ({ ...prev, limit: newLimit }));
-    setCursor(undefined); // Reset cursor when limit changes
-  }, []);
-
-  // Reset to first page
   const reset = useCallback(() => {
-    setCursor(undefined);
+    cursorRef.current = undefined;
     setData([]);
-    fetch("forward", undefined);
+    setHasMore(true);
+    fetch("forward", "");
   }, [fetch]);
 
   return {
     data,
     loading,
     error,
-    pagination,
     filters,
+    hasMore,
+    total,
     loadMore,
-    loadPrevious,
     updateFilters,
-    updateLimit,
     reset,
-    hasMore: pagination.hasMore,
-    hasPrevious: pagination.hasPrevious,
-    currentPage: pagination.currentPage,
-    totalPages: pagination.totalPages,
-    total: pagination.total,
   };
 }
