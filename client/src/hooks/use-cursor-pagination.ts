@@ -95,13 +95,25 @@ export function useCursorPagination(options: UseCursorPaginationOptions = {}) {
             // Fresh load (filter/search changed or explicit reset)
             setData(response.data.data);
           } else {
-            // Load-more: append
-            setData((prev) => [...prev, ...response.data.data]);
+            // Load-more: append, but prevent duplicates
+            setData((prev) => {
+              const existingIds = new Set(prev.map((q) => q.id));
+              const newQuestions = response.data.data.filter(
+                (q) => !existingIds.has(q.id),
+              );
+              return [...prev, ...newQuestions];
+            });
           }
           // Store next cursor in ref — does NOT trigger re-render
           cursorRef.current = response.data.pagination?.nextCursor || undefined;
         } else {
-          setData((prev) => [...response.data.data, ...prev]);
+          setData((prev) => {
+            const existingIds = new Set(prev.map((q) => q.id));
+            const newQuestions = response.data.data.filter(
+              (q) => !existingIds.has(q.id),
+            );
+            return [...newQuestions, ...prev];
+          });
           cursorRef.current = response.data.pagination?.prevCursor || undefined;
         }
 

@@ -163,8 +163,16 @@ export class QuestionsController {
       data: questions,
       pagination: {
         nextCursor:
-          questions.length > 0 ? questions[questions.length - 1]?.id : null,
-        prevCursor: cursor ? questions[0]?.id : null,
+          questions.length > 0
+            ? Buffer.from(
+                JSON.stringify({ id: questions[questions.length - 1]?.id }),
+              ).toString('base64')
+            : null,
+        prevCursor: cursor
+          ? Buffer.from(JSON.stringify({ id: questions[0]?.id })).toString(
+              'base64',
+            )
+          : null,
         hasMore: questions.length === limit,
         hasPrevious: !!cursor,
         total: 0, // Not needed for cursor pagination
