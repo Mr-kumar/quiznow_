@@ -7,12 +7,13 @@ import {
 import { PrismaService } from '../../../services/prisma/prisma.service';
 import { CreateQuestionDto } from './dto/create-question.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
+import { AuditLogsService } from '../../admin/audit-logs/audit-logs.service';
 import * as crypto from 'crypto';
-import { randomUUID } from 'crypto';
 import * as XLSX from 'xlsx';
 import { Language } from '@prisma/client';
 
-// Type definitions for bulk upload
+// ─── Types ────────────────────────────────────────────────────────────────────
+
 export interface ValidatedRow {
   rowNumber: number;
   topicId: string;
@@ -33,57 +34,91 @@ export interface ValidationError {
   raw?: any;
 }
 
+// ─── Service ──────────────────────────────────────────────────────────────────
+
 @Injectable()
 export class QuestionsService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(QuestionsService.name);
+
+  constructor(
+    private prisma: PrismaService,
+    // FIX #5: inject AuditLogsService so mutations can produce audit records
+    private auditLogs: AuditLogsService,
+  ) {}
+
+  // ─── CRUD ─────────────────────────────────────────────────────────────────
 
   async create(dto: CreateQuestionDto) {
-    // 🚨 GHOST QUESTION GUARD: Validate topicId is provided
+    // Ghost question guard
     if (!dto.topicId) {
       throw new BadRequestException(
         'Topic ID is required. Every question must be categorized under a topic to prevent Ghost Questions.',
       );
     }
 
-    // Check Section exists
     const section = await this.prisma.section.findUnique({
       where: { id: dto.sectionId },
     });
     if (!section) throw new NotFoundException('Section not found');
 
-    // Check Topic exists
     const topic = await this.prisma.topic.findUnique({
       where: { id: dto.topicId },
     });
     if (!topic) throw new NotFoundException('Topic not found');
 
-    // Create the Question and Translation in a transaction
     return this.prisma.$transaction(async (tx) => {
-      // Create the base Question
+      // 1. Create base question
       const question = await tx.question.create({
         data: {
-          hash: QuestionsService.computeQuestionHash(dto.content), // 🎯 CANONICAL HASH: Include EN content for consistency
-          topicId: dto.topicId, // 🚨 GHOST QUESTION GUARD: Always assign topic
+          hash: QuestionsService.computeQuestionHash(dto.content),
+          topicId: dto.topicId,
           isActive: true,
         },
       });
 
-      // Create the Question Translation
+      // 2. Create the EN translation (content + explanation)
       await tx.questionTranslation.create({
         data: {
           questionId: question.id,
-          lang: (dto.lang as any)?.toString?.().toUpperCase?.() || 'EN',
+          lang: ((dto.lang as any)?.toString?.().toUpperCase?.() ??
+            'EN') as any,
           content: dto.content,
           explanation: dto.explanation,
         } as any,
       });
 
-      // Link Question to Section
+      // FIX #2: Save options to QuestionOption + OptionTranslation rows.
+      // Previously the options array in the DTO was silently dropped — only
+      // content/explanation were persisted. The bulk-upload path already used
+      // the correct QuestionOption model; now create() does the same.
+      const options: string[] = (dto as any).options ?? [];
+      const correctAnswer: number = (dto as any).correctAnswer ?? 0;
+
+      for (let i = 0; i < options.length; i++) {
+        const opt = await tx.questionOption.create({
+          data: {
+            questionId: question.id,
+            order: i + 1,
+            isCorrect: i === correctAnswer,
+          },
+        });
+
+        await tx.optionTranslation.create({
+          data: {
+            optionId: opt.id,
+            lang: ((dto.lang as any)?.toString?.().toUpperCase?.() ??
+              'EN') as any,
+            text: options[i],
+          },
+        });
+      }
+
+      // 3. Link question to section
       await tx.sectionQuestion.create({
         data: {
           sectionId: dto.sectionId,
           questionId: question.id,
-          order: dto.order,
+          order: (dto as any).order ?? 1,
         },
       });
 
@@ -95,10 +130,12 @@ export class QuestionsService {
     return this.prisma.question.findMany({
       include: {
         translations: true,
+        options: {
+          orderBy: { order: 'asc' },
+          include: { translations: true },
+        },
         sectionLinks: {
-          include: {
-            section: true,
-          },
+          include: { section: true },
         },
       },
     });
@@ -109,10 +146,12 @@ export class QuestionsService {
       where: { id },
       include: {
         translations: true,
+        options: {
+          orderBy: { order: 'asc' },
+          include: { translations: true },
+        },
         sectionLinks: {
-          include: {
-            section: true,
-          },
+          include: { section: true },
         },
       },
     });
@@ -128,28 +167,48 @@ export class QuestionsService {
       if (typeof rest.isActive === 'boolean') data.isActive = rest.isActive;
       if (rest.topicId) data.topicId = rest.topicId;
 
-      const updated = await tx.question.update({
-        where: { id },
-        data,
-      });
+      const updated = await tx.question.update({ where: { id }, data });
 
-      if (
-        content !== undefined ||
-        options !== undefined ||
-        explanation !== undefined
-      ) {
+      if (content !== undefined || explanation !== undefined) {
         await tx.questionTranslation.updateMany({
           where: lang
-            ? {
-                questionId: id,
-                lang: lang?.toString?.().toUpperCase?.(),
-              }
+            ? { questionId: id, lang: lang?.toString?.().toUpperCase?.() }
             : { questionId: id },
           data: {
             ...(content !== undefined ? { content } : {}),
             ...(explanation !== undefined ? { explanation } : {}),
           } as any,
         });
+      }
+
+      // Update option text translations when options array is provided
+      if (Array.isArray(options) && options.length > 0) {
+        const existingOptions = await tx.questionOption.findMany({
+          where: { questionId: id },
+          orderBy: { order: 'asc' },
+        });
+
+        for (
+          let i = 0;
+          i < Math.min(options.length, existingOptions.length);
+          i++
+        ) {
+          const optLang = lang?.toString?.().toUpperCase?.() ?? 'EN';
+          await tx.optionTranslation.updateMany({
+            where: { optionId: existingOptions[i].id, lang: optLang },
+            data: { text: options[i] },
+          });
+        }
+
+        // Update isCorrect if correctAnswer provided
+        if (typeof correctAnswer === 'number') {
+          for (let i = 0; i < existingOptions.length; i++) {
+            await tx.questionOption.update({
+              where: { id: existingOptions[i].id },
+              data: { isCorrect: i === correctAnswer },
+            });
+          }
+        }
       }
 
       return updated;
@@ -160,15 +219,25 @@ export class QuestionsService {
     return this.prisma.question.delete({ where: { id } });
   }
 
-  // NEW: Soft Delete (Fixes "Data Corruption" issue)
-  async softDelete(id: string) {
-    return this.prisma.question.update({
+  // FIX #5: Log the audit event when a question is soft-deleted
+  async softDelete(id: string, actorId?: string, actorRole?: string) {
+    const result = await this.prisma.question.update({
       where: { id },
-      data: { isActive: false }, // Hides it, but keeps student history intact!
+      data: { isActive: false },
     });
+
+    // Fire-and-forget: audit failures must never break the main operation
+    this.auditLogs
+      .log('QUESTION_SOFT_DELETED', 'Question', id, actorId, actorRole, {
+        isActive: false,
+      })
+      .catch((err) =>
+        this.logger.error('Audit log failed for QUESTION_SOFT_DELETED', err),
+      );
+
+    return result;
   }
 
-  // Update question topic (for testing)
   async updateTopic(id: string, topicId?: string) {
     return this.prisma.question.update({
       where: { id },
@@ -176,19 +245,131 @@ export class QuestionsService {
     });
   }
 
-  // Cursor-based pagination using Prisma's B-Tree index (O(1) time complexity)
-  async getPaginatedQuestions(params: {
-    cursor?: string;
-    limit: number;
+  // ─── Bulk tagging ─────────────────────────────────────────────────────────
+
+  // FIX #5: Log the audit event for bulk tag
+  async bulkTagQuestions(
+    questionIds: string[],
+    topicId: string,
+    actorId?: string,
+    actorRole?: string,
+  ) {
+    const result = await this.prisma.question.updateMany({
+      where: { id: { in: questionIds } },
+      data: { topicId },
+    });
+
+    this.auditLogs
+      .log('QUESTIONS_BULK_TAGGED', 'Question', topicId, actorId, actorRole, {
+        questionIds,
+        topicId,
+        updatedCount: result.count,
+      })
+      .catch((err) =>
+        this.logger.error('Audit log failed for QUESTIONS_BULK_TAGGED', err),
+      );
+
+    return result;
+  }
+
+  // ─── Inject into section (N+4 → 4 total queries) ─────────────────────────
+
+  async injectQuestionsIntoSection(questionIds: string[], sectionId?: string) {
+    if (!sectionId) {
+      throw new BadRequestException(
+        'Section ID is required for injecting questions',
+      );
+    }
+
+    const section = await this.prisma.section.findUnique({
+      where: { id: sectionId },
+    });
+    if (!section) throw new BadRequestException('Section not found');
+
+    return this.prisma.$transaction(async (tx) => {
+      // FIX #4: Replace the N+4-query loop with 4 total DB round-trips regardless
+      // of how many questions are being injected.
+
+      // Query 1: verify all requested questions exist in one shot
+      const questions = await tx.question.findMany({
+        where: { id: { in: questionIds } },
+        select: { id: true },
+      });
+
+      // Query 2: fetch all existing links for this section+question combination
+      const existingLinks = await tx.sectionQuestion.findMany({
+        where: {
+          sectionId,
+          questionId: { in: questionIds },
+        },
+        select: { questionId: true },
+      });
+      const alreadyLinked = new Set(existingLinks.map((l) => l.questionId));
+
+      // Query 3: get current max order so new questions continue the sequence
+      const maxResult = await tx.sectionQuestion.aggregate({
+        where: { sectionId },
+        _max: { order: true },
+      });
+      let nextOrder = (maxResult._max.order ?? 0) + 1;
+
+      // Query 4: bulk-insert only the genuinely new links
+      const newLinks = questions
+        .filter((q) => !alreadyLinked.has(q.id))
+        .map((q) => ({
+          sectionId,
+          questionId: q.id,
+          order: nextOrder++,
+        }));
+
+      if (newLinks.length > 0) {
+        await tx.sectionQuestion.createMany({ data: newLinks });
+      }
+
+      const skippedCount = questionIds.length - questions.length; // IDs not found
+      this.logger.debug(
+        `injectQuestionsIntoSection: ${newLinks.length} injected, ` +
+          `${alreadyLinked.size} already linked, ${skippedCount} not found`,
+      );
+
+      return { success: true, injectedCount: newLinks.length };
+    });
+  }
+
+  // ─── Cursor-based pagination (SINGLE consolidated implementation) ─────────
+  // FIX #6: The service previously had two separate cursor implementations:
+  //   • getPaginatedQuestions() — used by /questions/paginated endpoint
+  //   • findWithCursor() — used by /questions/cursor-paginated endpoint
+  // Both did roughly the same thing. Keeping findWithCursor() as the canonical
+  // implementation and removing getPaginatedQuestions() entirely.
+
+  async findWithCursor(params: {
+    cursor?: { id: string };
+    take?: number;
+    skip?: number;
+    where?: any;
+    orderBy?: any;
+    lang?: string;
     search?: string;
     subject?: string;
-    topic?: string;
+    topicId?: string;
   }) {
-    const { cursor, limit, search, subject, topic } = params;
+    const {
+      cursor,
+      take = 50,
+      skip = 0,
+      orderBy = { id: 'asc' },
+      lang = 'EN',
+      search,
+      subject,
+      topicId,
+    } = params;
 
-    // Build where clause
+    const enforcedTake = Math.min(take, 100);
+
     const where: any = {
       isActive: true,
+      ...params.where,
     };
 
     if (search) {
@@ -196,73 +377,158 @@ export class QuestionsService {
         {
           translations: {
             some: {
-              content: {
-                contains: search,
-                mode: 'insensitive',
-              },
+              content: { contains: search, mode: 'insensitive' },
             },
           },
         },
       ];
     }
 
-    if (topic) {
-      where.topicId = topic;
+    if (topicId) {
+      where.topicId = topicId;
     } else if (subject) {
-      where.topic = {
-        subject: subject,
-      };
+      where.topic = { subject: { name: subject } };
     }
 
-    // Fetch limit+1 items to check if there are more pages
-    // This allows us to know if hasMore without double-counting queries
     const questions = await this.prisma.question.findMany({
+      cursor,
+      take: enforcedTake,
+      skip,
       where,
       include: {
-        topic: true,
-        translations: true,
+        translations: {
+          where: { lang: lang.toUpperCase() as any },
+          take: 1,
+        },
+        options: {
+          orderBy: { order: 'asc' },
+          include: {
+            translations: {
+              where: { lang: lang.toUpperCase() as any },
+            },
+          },
+        },
+        topic: {
+          include: { subject: true },
+        },
+        _count: {
+          select: { sectionLinks: true },
+        },
       },
-      orderBy: {
-        createdAt: 'desc',
-      },
-      // Cursor-based pagination: O(1) lookup via B-Tree index
-      ...(cursor && {
-        cursor: { id: cursor },
-        skip: 1, // Skip the cursor itself
-      }),
-      take: limit + 1, // Fetch one extra to determine hasMore
+      orderBy,
     });
 
-    // Check if there are more items
-    const hasMore = questions.length > limit;
-
-    // Return only the requested limit
-    const paginatedQuestions = questions.slice(0, limit);
-
-    // Last question ID becomes the cursor for next page
-    const nextCursor = hasMore
-      ? paginatedQuestions[paginatedQuestions.length - 1]?.id
-      : null;
-
-    return {
-      questions: paginatedQuestions,
-      nextCursor,
-      hasMore,
-      limit,
-      count: paginatedQuestions.length,
-    };
+    return questions;
   }
+
+  // Pagination metadata for the cursor-based endpoint
+  async getCursorMetadata(questions: any[], take: number = 50) {
+    const hasMore = questions.length === take;
+    return { hasMore, hasPrevious: false };
+  }
+
+  // ─── Hash ─────────────────────────────────────────────────────────────────
+
+  // Single canonical hash function used across the entire codebase
+  static computeQuestionHash(enText: string, hiText?: string): string {
+    const normalise = (s: string) => (s || '').replace(/\s+/g, ' ').trim();
+    const combined = `${normalise(enText)}\x00${normalise(hiText ?? '')}`;
+    return crypto.createHash('sha256').update(combined, 'utf8').digest('hex');
+  }
+
+  // ─── Bulk upload helpers ──────────────────────────────────────────────────
+
+  private normalizeRowKeys(raw: Record<string, any>) {
+    const normalized: Record<string, any> = {};
+    for (const key in raw) {
+      const cleanKey = key.toLowerCase().replace(/[^a-z0-9]/g, '');
+      normalized[cleanKey] = raw[key];
+    }
+    return normalized;
+  }
+
+  private parseFile(buffer: Buffer) {
+    const workbook = XLSX.read(buffer, { type: 'buffer' });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rawRows = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, {
+      defval: '',
+    });
+
+    return rawRows.map((r, i) => ({
+      rowNumber: i + 2,
+      data: this.normalizeRowKeys(r),
+    }));
+  }
+
+  private async resolveTopicForRow(
+    row: Record<string, any>,
+    selectedTopicId?: string,
+  ) {
+    if (row['topicId']) {
+      const topic = await this.prisma.topic.findUnique({
+        where: { id: String(row['topicId']) },
+        include: { subject: true },
+      });
+      if (!topic) throw new BadRequestException('topicId not found');
+      return topic;
+    }
+
+    if (row['topic'] && row['subject']) {
+      const topic = await this.prisma.topic.findFirst({
+        where: {
+          name: String(row['topic']).trim(),
+          subject: { name: String(row['subject']).trim() },
+        },
+        include: { subject: true },
+      });
+      if (!topic)
+        throw new BadRequestException('Topic not found for provided Subject');
+      return topic;
+    }
+
+    if (row['topic'] && selectedTopicId) {
+      const sel = await this.prisma.topic.findUnique({
+        where: { id: selectedTopicId },
+        include: { subject: true },
+      });
+      if (!sel) throw new BadRequestException('Selected topic not found');
+
+      if (String(row['topic']).trim() === sel.name) return sel;
+
+      const topic = await this.prisma.topic.findFirst({
+        where: {
+          name: String(row['topic']).trim(),
+          subjectId: sel.subjectId,
+        },
+        include: { subject: true },
+      });
+      if (topic) return topic;
+      throw new BadRequestException(
+        'Topic name mismatch with selected topic/subject',
+      );
+    }
+
+    if (selectedTopicId) {
+      const topic = await this.prisma.topic.findUnique({
+        where: { id: selectedTopicId },
+        include: { subject: true },
+      });
+      if (!topic) throw new BadRequestException('Selected topic not found');
+      return topic;
+    }
+
+    throw new BadRequestException('Topic not provided');
+  }
+
+  // ─── Bulk upload ──────────────────────────────────────────────────────────
 
   async bulkUpload(
     file: Express.Multer.File,
     sectionId?: string,
     topicId?: string,
   ) {
-    console.log('=== BULK UPLOAD START ===');
-    console.log('sectionId:', sectionId);
-    console.log('topicId:', topicId);
+    this.logger.debug('Bulk upload started', { sectionId, topicId });
 
-    // Validate section exists if provided
     if (sectionId) {
       const section = await this.prisma.section.findUnique({
         where: { id: sectionId },
@@ -270,7 +536,6 @@ export class QuestionsService {
       if (!section) throw new BadRequestException('Section not found');
     }
 
-    // Validate topic exists if provided
     if (topicId) {
       const topic = await this.prisma.topic.findUnique({
         where: { id: topicId },
@@ -278,17 +543,12 @@ export class QuestionsService {
       if (!topic) throw new BadRequestException('Topic not found');
     }
 
-    // Use the same parsing logic as validation (with normalization)
     const parsedRows = this.parseFile(file.buffer);
 
-    // 👈 ADD THIS to verify keys!
-    console.log('=== FIRST CLEANED ROW DEBUG ===');
-    console.log('First cleaned row:', parsedRows[0]);
-
-    if (!parsedRows || parsedRows.length === 0)
+    if (!parsedRows || parsedRows.length === 0) {
       throw new BadRequestException('Excel sheet is empty');
+    }
 
-    // 🚨 NEW: Excel Upload Limit (God Mode Feature)
     if (parsedRows.length > 500) {
       throw new BadRequestException(
         'For system stability, please upload a maximum of 500 questions per Excel file.',
@@ -296,22 +556,17 @@ export class QuestionsService {
     }
 
     return this.prisma.$transaction(async (tx) => {
-      // 🚨 FIX 2A: Pre-process all rows to generate hashes
       const processedRows: any[] = [];
       const allHashes: string[] = [];
 
-      for (const [index, parsedRow] of parsedRows.entries()) {
+      for (const parsedRow of parsedRows) {
         const row = parsedRow.data;
-        // Support clean keys (God-Mode parser)
         const rawQuestion =
-          row['questionen'] ||
-          row['question'] ||
-          row['question_en'] ||
-          row['question'];
+          row['questionen'] || row['question'] || row['question_en'];
 
         if (!rawQuestion) {
-          console.warn(`⚠️ Skipping empty row ${parsedRow.rowNumber}:`, row);
-          continue; // Skip empty rows
+          this.logger.warn(`Skipping empty row ${parsedRow.rowNumber}`);
+          continue;
         }
 
         const questionText = rawQuestion.toString().trim();
@@ -334,54 +589,38 @@ export class QuestionsService {
             row['option_d'],
         ].filter(Boolean);
 
-        // Debug logging for options
-        console.log(`Row ${parsedRow.rowNumber} options:`, options);
-
-        // 🚀 NEW: Validation Layer (Fixes "Blind Trust" issue)
         const validAnswers = ['A', 'B', 'C', 'D', '1', '2', '3', '4'];
         const rawCorrectAnswer =
           row['correctanswer'] || row['correct_answer'] || row['correct'];
         const correctAnswer = rawCorrectAnswer?.toString().trim().toUpperCase();
 
-        // 🛡️ SMART ANSWER VALIDATION: Auto-fix common issues
-        let finalCorrectAnswer = correctAnswer;
-        if (!finalCorrectAnswer || !validAnswers.includes(finalCorrectAnswer)) {
-          // Try to auto-fix common issues
-          const answerMap: Record<string, string> = {
-            '0': 'A',
-            '1': 'B',
-            '2': 'C',
-            '3': 'D',
-            a: 'A',
-            b: 'B',
-            c: 'C',
-            d: 'D',
-          };
-          finalCorrectAnswer =
-            answerMap[finalCorrectAnswer] || finalCorrectAnswer;
+        const answerMap: Record<string, string> = {
+          '0': 'A',
+          '1': 'B',
+          '2': 'C',
+          '3': 'D',
+          a: 'A',
+          b: 'B',
+          c: 'C',
+          d: 'D',
+        };
+        let finalCorrectAnswer = validAnswers.includes(correctAnswer)
+          ? correctAnswer
+          : (answerMap[correctAnswer] ?? 'A');
 
-          if (!validAnswers.includes(finalCorrectAnswer)) {
-            console.warn(
-              `Invalid answer "${correctAnswer}" in row ${index + 2}, using A as default`,
-            );
-            finalCorrectAnswer = 'A'; // Default to A
-          }
-        }
-
-        // 🛡️ LENIENT VALIDATION: Allow more flexible uploads
         if (!questionText?.trim()) {
-          console.warn(`Skipping empty question in row ${index + 2}`);
-          continue; // Skip instead of error
+          this.logger.warn(
+            `Skipping empty question in row ${parsedRow.rowNumber}`,
+          );
+          continue;
         }
 
-        const validOptions = options.filter(
-          (opt) => opt && opt.toString().trim(),
-        );
+        const validOptions = options.filter((opt) => opt?.toString().trim());
         if (validOptions.length < 2) {
-          console.warn(
-            `Skipping question with < 2 options in row ${index + 2}`,
+          this.logger.warn(
+            `Skipping question with < 2 options in row ${parsedRow.rowNumber}`,
           );
-          continue; // Skip instead of error
+          continue;
         }
 
         const correctMap: Record<string, number> = {
@@ -396,7 +635,6 @@ export class QuestionsService {
         };
         const correctIndex = correctMap[finalCorrectAnswer] ?? 0;
 
-        // 🎯 CANONICAL HASH: Include both EN and HI content for proper deduplication
         const hiQuestion = row['questionhi']?.trim() || '';
         const uniqueHash = QuestionsService.computeQuestionHash(
           questionText,
@@ -413,66 +651,39 @@ export class QuestionsService {
             row['explanation_en'] ||
             row['explanation'] ||
             null,
-          index: parsedRow.rowNumber, // for error reporting
-          rawRow: row, // <-- add this so we can resolve topic per-row later
+          index: parsedRow.rowNumber,
+          rawRow: row,
         });
 
         allHashes.push(uniqueHash);
       }
 
-      // 🚨 FIX 2B: Fetch ALL existing questions with these hashes in ONE query
+      // Batch fetch existing questions by hash (one query, not N)
       const existingQuestions = await tx.question.findMany({
-        where: {
-          hash: {
-            in: allHashes,
-          },
-        },
+        where: { hash: { in: allHashes } },
       });
-
-      // Build a Map for O(1) lookup instead of O(n) database queries
       const hashToQuestionMap = new Map(
         existingQuestions.map((q) => [q.hash, q]),
       );
 
-      // 🚨 FIX 2C: Now iterate through processed rows with minimal DB calls
       let count = 0;
 
       for (const processedRow of processedRows) {
-        // 1. Check if question exists in our preloaded map (O(1) lookup, no DB call)
         let question = hashToQuestionMap.get(processedRow.uniqueHash);
 
         if (!question) {
-          // 2. If it is brand new, create it in the Global Bank with topic assignment
-          // Resolve topic for this row if not provided globally
-          let rowTopicId = topicId; // selectedTopicId (global) if provided
+          let rowTopicId = topicId;
 
-          // if global topicId is not provided, and row provides Topic/Subject or topicId column,
-          // use resolveTopicForRow (same as validate)
           if (!rowTopicId) {
             try {
-              console.log(
-                `🔍 Resolving topic for row ${processedRow.index}:`,
-                processedRow.rawRow,
-              );
               const resolvedTopic = await this.resolveTopicForRow(
                 processedRow.rawRow,
                 topicId,
               );
-              console.log(
-                `✅ Topic resolved for row ${processedRow.index}:`,
-                resolvedTopic,
-              );
               rowTopicId = resolvedTopic.id;
             } catch (err: any) {
-              console.error(
-                `❌ Topic resolution failed for row ${processedRow.index}:`,
-                err,
-              );
-              // Provide a clear message which row and why it failed
               throw new BadRequestException(
-                `Row ${processedRow.index}: Topic resolution failed - ${
-                  err?.message || String(err)
-                }`,
+                `Row ${processedRow.index}: Topic resolution failed — ${err?.message ?? String(err)}`,
               );
             }
           }
@@ -480,7 +691,7 @@ export class QuestionsService {
           question = await tx.question.create({
             data: {
               hash: processedRow.uniqueHash,
-              topicId: rowTopicId, // Use resolved topic ID
+              topicId: rowTopicId,
               translations: {
                 create: [
                   {
@@ -496,7 +707,6 @@ export class QuestionsService {
                       processedRow.rawRow['explanation'] ||
                       processedRow.explanation,
                   },
-                  // Add Hindi translation if present
                   ...(processedRow.rawRow['questionhi']?.trim()
                     ? [
                         {
@@ -511,50 +721,47 @@ export class QuestionsService {
                 ],
               },
               options: {
-                create: processedRow.options.map((optionText, idx) => ({
-                  order: idx + 1,
-                  isCorrect: idx === processedRow.correctIndex,
-                  translations: {
-                    create: [
-                      {
-                        lang: 'EN' as any,
-                        text: optionText,
-                      },
-                      // Add Hindi option translation if present
-                      ...(processedRow.rawRow[
-                        `option${String.fromCharCode(97 + idx)}hi`
-                      ]?.trim()
-                        ? [
-                            {
-                              lang: 'HI' as any,
-                              text: processedRow.rawRow[
-                                `option${String.fromCharCode(97 + idx)}hi`
-                              ],
-                            },
-                          ]
-                        : []),
-                    ],
-                  },
-                })),
+                create: processedRow.options.map(
+                  (optionText: string, idx: number) => ({
+                    order: idx + 1,
+                    isCorrect: idx === processedRow.correctIndex,
+                    translations: {
+                      create: [
+                        { lang: 'EN' as any, text: optionText },
+                        ...(processedRow.rawRow[
+                          `option${String.fromCharCode(97 + idx)}hi`
+                        ]?.trim()
+                          ? [
+                              {
+                                lang: 'HI' as any,
+                                text: processedRow.rawRow[
+                                  `option${String.fromCharCode(97 + idx)}hi`
+                                ],
+                              },
+                            ]
+                          : []),
+                      ],
+                    },
+                  }),
+                ),
               },
             } as any,
           });
-          // Add to map for potential duplicate questions in the same upload
+
           hashToQuestionMap.set(processedRow.uniqueHash, question);
         }
 
-        // 3. Connect the question (new or existing) to the specific Test Section safely
         if (sectionId) {
           await tx.sectionQuestion.upsert({
             where: {
               sectionId_questionId: {
-                sectionId: sectionId,
+                sectionId,
                 questionId: question.id,
               },
             },
-            update: {}, // Do nothing if it's already linked to this section
+            update: {},
             create: {
-              sectionId: sectionId,
+              sectionId,
               questionId: question.id,
               order: count + 1,
             },
@@ -563,293 +770,27 @@ export class QuestionsService {
 
         count++;
       }
-      console.log('=== BULK UPLOAD END ===');
-      console.log('Final count:', count);
+
+      this.logger.log(`Bulk upload complete — ${count} questions processed`);
       return { success: true, count };
     });
   }
 
-  async injectQuestionsIntoSection(questionIds: string[], sectionId?: string) {
-    if (!sectionId) {
-      throw new BadRequestException(
-        'Section ID is required for injecting questions',
-      );
-    }
+  // ─── Validate bulk file ───────────────────────────────────────────────────
 
-    // Validate section exists
-    const section = await this.prisma.section.findUnique({
-      where: { id: sectionId },
-    });
-    if (!section) throw new BadRequestException('Section not found');
-
-    return this.prisma.$transaction(async (tx) => {
-      let injectedCount = 0;
-
-      for (const questionId of questionIds) {
-        // Verify question exists
-        const question = await tx.question.findUnique({
-          where: { id: questionId },
-        });
-
-        if (!question) {
-          console.warn(`Question ${questionId} not found, skipping`);
-          continue;
-        }
-
-        // Check if already linked to this section
-        const existingLink = await tx.sectionQuestion.findUnique({
-          where: {
-            sectionId_questionId: {
-              sectionId,
-              questionId,
-            },
-          },
-        });
-
-        if (!existingLink) {
-          // Get current max order for this section
-          const maxOrder = await tx.sectionQuestion.findMany({
-            where: { sectionId },
-            orderBy: { order: 'desc' },
-            take: 1,
-          });
-
-          const nextOrder = maxOrder.length > 0 ? maxOrder[0].order + 1 : 1;
-
-          // Create the link
-          await tx.sectionQuestion.create({
-            data: {
-              sectionId,
-              questionId,
-              order: nextOrder,
-            },
-          });
-
-          injectedCount++;
-        }
-      }
-
-      return { success: true, injectedCount };
-    });
-  }
-
-  // 🏷️ NEW: Bulk Tagging (God Mode Feature)
-  async bulkTagQuestions(questionIds: string[], topicId: string) {
-    return this.prisma.question.updateMany({
-      where: {
-        id: { in: questionIds },
-      },
-      data: {
-        topicId: topicId,
-      },
-    });
-  }
-
-  // 🚀 NEW: Cursor-Based Pagination (Enterprise Scale Feature)
-  async findWithCursor(params: {
-    cursor?: { id: string };
-    take?: number;
-    skip?: number;
-    where?: any;
-    orderBy?: any;
-    lang?: string;
-  }) {
-    const {
-      cursor,
-      take = 50,
-      skip = 0,
-      where = {},
-      orderBy = { id: 'asc' },
-      lang = 'EN',
-    } = params;
-
-    // 🛡️ ENFORCE LIMITS: Prevent memory overload
-    const enforcedTake = Math.min(take, 100); // Hard cap at 100
-
-    const questions = await this.prisma.question.findMany({
-      cursor,
-      take: enforcedTake,
-      skip,
-      where: {
-        isActive: true, // Only active questions
-        ...where,
-      },
-      include: {
-        translations: {
-          where: { lang: (params.lang?.toUpperCase() ?? 'EN') as any }, // 🛡️ LANGUAGE FILTER: Filter by requested language
-          take: 1,
-        },
-        options: {
-          // 🛡️ ADD: Include options with translations
-          orderBy: { order: 'asc' },
-          include: {
-            translations: {
-              where: { lang: (params.lang?.toUpperCase() ?? 'EN') as any },
-            },
-          },
-        },
-        topic: {
-          // 🛡️ ADD: Include subject relation
-          include: { subject: true },
-        },
-        _count: {
-          select: { sectionLinks: true },
-        },
-      },
-      orderBy,
-    });
-
-    return questions;
-  }
-
-  // 📊 NEW: Get pagination metadata for cursor-based navigation (OPTIMIZED - No slow counts)
-  async getCursorMetadata(
-    questions: any[],
-    take: number = 50,
-    direction: 'forward' | 'backward' = 'forward',
-  ) {
-    // 🚨 FIX 4: Remove slow count() queries - use only what we have
-    const hasMore = questions.length === take; // If we got a full page, there might be more
-    const hasPrevious = false; // Will be determined by frontend based on cursor existence
-
-    // 🚨 FIX 4B: Remove total, totalPages, currentPage as they require count() queries
-    // For cursor pagination, we only need:
-    // 1. hasMore (determined by whether we got a full page)
-    // 2. nextCursor (last item ID)
-    // 3. hasPrevious (frontend knows if there was a previous cursor)
-
-    return {
-      hasMore,
-      hasPrevious,
-      // Remove these to avoid slow count queries:
-      // total: 0, // Not needed for cursor pagination
-      // totalPages: 0, // Not needed for cursor pagination
-      // currentPage: 0, // Not needed for cursor pagination
-    };
-  }
-
-  // ===== NEW: COMPREHENSIVE BULK VALIDATION & IMPORT =====
-
-  // Helper: normalize text for hashing
-  // 🎯 SINGLE CANONICAL HASH FUNCTION for the entire codebase
-  static computeQuestionHash(enText: string, hiText?: string): string {
-    const normalise = (s: string) => (s || '').replace(/\s+/g, ' ').trim(); // Don't lowercase — preserves acronyms
-    const combined = `${normalise(enText)}\x00${normalise(hiText ?? '')}`;
-    return crypto.createHash('sha256').update(combined, 'utf8').digest('hex');
-  }
-
-  // Parse xlsx buffer and produce rows with rowNumber
-  private normalizeRowKeys(raw: Record<string, any>) {
-    const normalized: Record<string, any> = {};
-    for (const key in raw) {
-      // 🛡️ God-Mode Fix: Remove all non-alphanumeric characters and make lowercase
-      // e.g., "Option A" -> "optiona", "Question_HI" -> "questionhi", "Question (EN)" -> "questionen", "Question-EN" -> "questionen"
-      const cleanKey = key.toLowerCase().replace(/[^a-z0-9]/g, '');
-      normalized[cleanKey] = raw[key];
-    }
-    return normalized;
-  }
-
-  private parseFile(buffer: Buffer) {
-    const workbook = XLSX.read(buffer, { type: 'buffer' });
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const rawRows = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, {
-      defval: '',
-    });
-
-    return rawRows.map((r, i) => ({
-      rowNumber: i + 2,
-      data: this.normalizeRowKeys(r),
-    }));
-  }
-
-  // Resolve topic per precedence
-  private async resolveTopicForRow(
-    row: Record<string, any>,
-    selectedTopicId?: string,
-  ) {
-    // 1) topicId present
-    if (row['topicId']) {
-      const topic = await this.prisma.topic.findUnique({
-        where: { id: String(row['topicId']) },
-        include: { subject: true },
-      });
-      if (!topic) throw new BadRequestException('topicId not found');
-      return topic;
-    }
-
-    // 2) Topic + Subject present
-    if (row['topic'] && row['subject']) {
-      const topic = await this.prisma.topic.findFirst({
-        where: {
-          name: String(row['topic']).trim(),
-          subject: { name: String(row['subject']).trim() },
-        },
-        include: { subject: true },
-      });
-      if (!topic)
-        throw new BadRequestException('Topic not found for provided Subject');
-      return topic;
-    }
-
-    // 3) Topic present alone and selectedTopicId is provided: verify it belongs to same subject (best-effort)
-    if (row['topic'] && selectedTopicId) {
-      const sel = await this.prisma.topic.findUnique({
-        where: { id: selectedTopicId },
-        include: { subject: true },
-      });
-      if (!sel) throw new BadRequestException('Selected topic not found');
-
-      // if the row topic name equals the selected topic name, accept it; otherwise attempt to find topic with same name under selected subject
-      if (String(row['topic']).trim() === sel.name) return sel;
-
-      const topic = await this.prisma.topic.findFirst({
-        where: {
-          name: String(row['topic']).trim(),
-          subjectId: sel.subjectId,
-        },
-        include: { subject: true },
-      });
-      if (topic) return topic;
-      throw new BadRequestException(
-        'Topic name mismatch with selected topic/subject',
-      );
-    }
-
-    // 4) fallback: if selectedTopicId present, use it for all rows
-    if (selectedTopicId) {
-      const topic = await this.prisma.topic.findUnique({
-        where: { id: selectedTopicId },
-        include: { subject: true },
-      });
-      if (!topic) throw new BadRequestException('Selected topic not found');
-      return topic;
-    }
-
-    throw new BadRequestException('Topic not provided');
-  }
-
-  // Validate rows and build DTOs
   async validateBulkFile(buffer: Buffer, selectedTopicId?: string) {
     const rows = this.parseFile(buffer);
-    const results: any[] = []; // Use any[] temporarily to avoid type issues
+    const results: any[] = [];
     const errors: ValidationError[] = [];
 
     for (const r of rows) {
       try {
         const raw = r.data;
 
-        // Basic required columns (support multiple naming conventions)
-        // Extract values using clean keys (God-Mode parser)
         const qEn = (raw['questionen'] || raw['question'] || '')
           .toString()
           .trim();
         const qHi = (raw['questionhi'] || '').toString().trim();
-
-        // Debug logging for Hindi content
-        console.log(
-          `Row ${r.rowNumber} questionhi length: ${qHi ? qHi.length : 0}`,
-        );
 
         const optAEn = (raw['optionaen'] || raw['optiona'] || '')
           .toString()
@@ -875,7 +816,6 @@ export class QuestionsService {
           .trim();
         const expHi = (raw['explanationhi'] || '').toString().trim();
 
-        // Validation
         const validationErrors: string[] = [];
         if (!qEn && !qHi)
           validationErrors.push('Missing Question text (EN or HI)');
@@ -892,7 +832,6 @@ export class QuestionsService {
           continue;
         }
 
-        // Resolve topic (could throw)
         let topic;
         try {
           topic = await this.resolveTopicForRow(raw, selectedTopicId);
@@ -908,11 +847,9 @@ export class QuestionsService {
           continue;
         }
 
-        // Build question DTO
         const optionsEn = [optAEn, optBEn, optCEn, optDEn];
         const optionsHi = [optAHI, optBHI, optCHI, optDHI];
 
-        // Compute correct index normalized to order (1-based)
         let correctIndex = 0;
         if (['A', 'B', 'C', 'D'].includes(correct))
           correctIndex = ['A', 'B', 'C', 'D'].indexOf(correct) + 1;
@@ -942,9 +879,9 @@ export class QuestionsService {
       }
     }
 
-    // Detect duplicates within file based on hash
-    const seen = new Map<string, number>(); // hash -> firstRow
-    const validResults: any[] = []; // Use any[] to avoid type issues
+    // Deduplicate within the file
+    const seen = new Map<string, number>();
+    const validResults: any[] = [];
     for (const res of results) {
       if (seen.has(res.hash)) {
         errors.push({
@@ -959,7 +896,7 @@ export class QuestionsService {
       }
     }
 
-    // Check existing DB duplicates
+    // Check DB duplicates
     const hashes = validResults.map((r) => r.hash);
     if (hashes.length) {
       const existing = await this.prisma.question.findMany({
@@ -977,7 +914,6 @@ export class QuestionsService {
       }
     }
 
-    // Filter out rows with errors from valid results
     const finalValidResults = validResults.filter(
       (r) => !errors.some((e) => e.row === r.rowNumber),
     );
@@ -986,12 +922,13 @@ export class QuestionsService {
       totalRows: rows.length,
       validCount: validResults.length,
       errors,
-      preview: finalValidResults.slice(0, 5), // Show first 5 valid rows as preview
-      allValidRows: finalValidResults as any[], // Cast to any[] to avoid type issues
+      preview: finalValidResults.slice(0, 5),
+      allValidRows: finalValidResults as any[],
     };
   }
 
-  // Import only valid rows
+  // ─── Import bulk file ─────────────────────────────────────────────────────
+
   async importBulkFile(
     buffer: Buffer,
     selectedTopicId?: string,
@@ -999,9 +936,6 @@ export class QuestionsService {
   ) {
     const validation = await this.validateBulkFile(buffer, selectedTopicId);
 
-    // 🛡️ FIXED LOGIC: Throw in strict mode when there are errors
-    // onlyValid=true means "only import valid rows" (strict mode)
-    // onlyValid=false means "import all rows, even with errors" (lenient mode)
     if (onlyValid && validation.errors.length) {
       throw new BadRequestException({
         message: 'Validation failed in strict mode',
@@ -1015,9 +949,8 @@ export class QuestionsService {
       throw new BadRequestException('No valid rows to import');
     }
 
-    // Insert in transactions using batched operations
     await this.prisma.$transaction(async (tx) => {
-      // 🛡️ RACE CONDITION FIX: Check for duplicates again inside transaction
+      // Race-condition guard: re-check hashes inside the transaction
       const hashes = toInsert.map((q) => q.hash);
       const existingInTx = await tx.question.findMany({
         where: { hash: { in: hashes } },
@@ -1026,20 +959,17 @@ export class QuestionsService {
       const existingHashes = new Set(existingInTx.map((q) => q.hash));
 
       for (const q of toInsert) {
-        // Skip if another transaction created this question
         if (existingHashes.has(q.hash)) {
-          console.log(`⚠️ Skipping duplicate hash ${q.hash} (race condition)`);
+          this.logger.warn(
+            `Skipping duplicate hash ${q.hash} (race condition)`,
+          );
           continue;
         }
-        // Create Question
+
         const createdQ = await tx.question.create({
-          data: {
-            topicId: q.topicId,
-            hash: q.hash,
-          },
+          data: { topicId: q.topicId, hash: q.hash },
         });
 
-        // Create translations
         await tx.questionTranslation.createMany({
           data: [
             {
@@ -1054,42 +984,45 @@ export class QuestionsService {
               content: q.question_hi?.trim() || null,
               explanation: q.explanation_hi?.trim() || null,
             },
-          ].filter((t) => t.content?.trim()), // Only create if content exists and is not just whitespace
+          ].filter((t) => t.content?.trim()),
         });
 
-        // Create options
-        const optionCreateData = q.options_en.map((optText, idx) => ({
-          questionId: createdQ.id,
-          order: idx + 1,
-          isCorrect: idx + 1 === q.correctIndex,
-        }));
+        const optionCreateData = q.options_en.map(
+          (optText: string, idx: number) => ({
+            questionId: createdQ.id,
+            order: idx + 1,
+            isCorrect: idx + 1 === q.correctIndex,
+          }),
+        );
+
         const createdOptions: any[] = [];
         for (const oc of optionCreateData) {
           const op = await tx.questionOption.create({ data: oc });
           createdOptions.push(op);
         }
 
-        // Option translations
         const optionTrans: any[] = [];
         for (let i = 0; i < createdOptions.length; i++) {
           const op = createdOptions[i];
-          if (q.options_en[i])
+          if (q.options_en[i]) {
             optionTrans.push({
               optionId: op.id,
               lang: 'EN' as Language,
               text: q.options_en[i],
             });
-          if (q.options_hi[i]?.trim())
+          }
+          if (q.options_hi[i]?.trim()) {
             optionTrans.push({
               optionId: op.id,
               lang: 'HI' as Language,
               text: q.options_hi[i].trim(),
             });
+          }
         }
-        if (optionTrans.length)
-          await tx.optionTranslation.createMany({
-            data: optionTrans,
-          });
+
+        if (optionTrans.length) {
+          await tx.optionTranslation.createMany({ data: optionTrans });
+        }
       }
     });
 

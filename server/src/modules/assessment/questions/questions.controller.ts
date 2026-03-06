@@ -54,13 +54,23 @@ export class QuestionsController {
     @Query('subject') subject?: string,
     @Query('topic') topic?: string,
   ) {
-    return this.questionsService.getPaginatedQuestions({
-      cursor,
-      limit,
+    // Use the new findWithCursor method but transform response to match frontend expectations
+    const questions = await this.questionsService.findWithCursor({
+      cursor: cursor ? { id: cursor } : undefined,
+      take: limit,
       search,
       subject,
-      topic,
+      topicId: topic,
     });
+
+    // Transform to the format the frontend expects
+    return {
+      questions,
+      total: questions.length, // For cursor pagination, this is just the current page count
+      totalPages: 1, // Not applicable for cursor pagination
+      hasMore: questions.length === limit,
+      currentPage: 1, // Not applicable for cursor pagination
+    };
   }
 
   @Get()

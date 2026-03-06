@@ -277,7 +277,7 @@ export default function AdminAnalyticsPage() {
             </Card>
 
             {/* Active Tests */}
-            <Card className="group hover:shadow-xl transition-all duration-300 border-0 shadow-lg bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20">
+            <Card className="group hover:shadow-xl transition-all duration-300 border-0 shadow-lg bg-linear-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-semibold text-green-700 dark:text-green-300">
                   Active Tests
@@ -298,7 +298,7 @@ export default function AdminAnalyticsPage() {
             </Card>
 
             {/* Completed Attempts */}
-            <Card className="group hover:shadow-xl transition-all duration-300 border-0 shadow-lg bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20">
+            <Card className="group hover:shadow-xl transition-all duration-300 border-0 shadow-lg bg-linear-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-semibold text-purple-700 dark:text-purple-300">
                   Completed Attempts
@@ -319,7 +319,7 @@ export default function AdminAnalyticsPage() {
             </Card>
 
             {/* Avg Performance */}
-            <Card className="group hover:shadow-xl transition-all duration-300 border-0 shadow-lg bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20">
+            <Card className="group hover:shadow-xl transition-all duration-300 border-0 shadow-lg bg-linear-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-semibold text-orange-700 dark:text-orange-300">
                   Avg Performance

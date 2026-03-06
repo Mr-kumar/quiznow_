@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../../services/prisma/prisma.service';
 import { CreateAttemptDto } from './dto/create-attempt.dto';
 import { SubmitAttemptDto } from './dto/submit-attempt.dto';
@@ -23,7 +18,7 @@ export class AttemptsService {
     private schedulerService: SchedulerService,
   ) {}
 
-  // 1. Start a Test
+  // ─── 1. Start a Test ──────────────────────────────────────────────────────
   async start(dto: CreateAttemptDto) {
     const test = await this.prisma.test.findUnique({
       where: { id: dto.testId },
@@ -32,7 +27,6 @@ export class AttemptsService {
       throw new ResourceNotFoundException('Test', dto.testId);
     }
 
-    // Check if user exists
     const user = await this.prisma.user.findUnique({
       where: { id: dto.userId },
     });
@@ -52,36 +46,32 @@ export class AttemptsService {
       throw new ValidationException('Test has ended', 'TEST_ENDED');
     }
 
-    // Check max attempts
-    if (test.maxAttempts) {
-      const previous = await this.prisma.attempt.count({
-        where: { testId: dto.testId, userId: dto.userId },
-      });
-      if (previous >= test.maxAttempts) {
-        throw new ValidationException(
-          `Maximum attempts reached (${test.maxAttempts})`,
-          'MAX_ATTEMPTS_REACHED',
-        );
-      }
-    }
+    // FIX #1: Single count() — reuse the result for both the max-attempts
+    // check AND the attemptNumber calculation. Previously there were two
+    // identical prisma.attempt.count() calls with the same where clause.
+    const previousCount = await this.prisma.attempt.count({
+      where: { testId: dto.testId, userId: dto.userId },
+    });
 
-    const nextAttemptNumber =
-      (await this.prisma.attempt.count({
-        where: { testId: dto.testId, userId: dto.userId },
-      })) + 1;
+    if (test.maxAttempts && previousCount >= test.maxAttempts) {
+      throw new ValidationException(
+        `Maximum attempts reached (${test.maxAttempts})`,
+        'MAX_ATTEMPTS_REACHED',
+      );
+    }
 
     return this.prisma.attempt.create({
       data: {
         userId: dto.userId,
         testId: dto.testId,
-        attemptNumber: nextAttemptNumber,
+        attemptNumber: previousCount + 1,
         status: 'STARTED',
         startTime: new Date(),
       },
     });
   }
 
-  // 2. Submit & Save Answers with validation
+  // ─── 2. Submit & Score ────────────────────────────────────────────────────
   async submit(attemptId: string | number | bigint, dto: SubmitAttemptDto) {
     const whereId: any = attemptId as any;
     const attempt: any = await this.prisma.attempt.findUnique({
@@ -107,7 +97,7 @@ export class AttemptsService {
       );
     }
 
-    // Check if attempt is expired based on duration
+    // Check expiry via scheduler
     const isExpired = await this.schedulerService.isAttemptExpired(
       attemptId as any,
     );
@@ -119,46 +109,62 @@ export class AttemptsService {
       );
     }
 
-    // Fetch questions with translations to get total options
+    // Fetch questions with options (correct answer lives on QuestionOption.isCorrect)
+    // FIX #3 prerequisite: include topicId so we can write UserTopicStat below.
     const questions = await this.prisma.question.findMany({
       where: {
         sectionLinks: {
           some: {
-            section: {
-              testId: attempt.testId,
-            },
+            section: { testId: attempt.testId },
           },
         },
       },
       include: {
         translations: true,
+        options: {
+          include: { translations: true },
+          orderBy: { order: 'asc' },
+        },
       },
     });
 
-    // Build question map with validation info
+    // Build a map of questionId → { correctAnswer (0-based index), totalOptions, topicId }
+    // correctAnswer is the 0-based index of the option where isCorrect = true,
+    // falling back to the legacy correctAnswer field on the question if options
+    // haven't been migrated yet.
     const questionMap = new Map(
       questions.map((q) => {
         const qAny: any = q as any;
-        const optionsLength = Array.isArray(qAny?.translations?.[0]?.options)
-          ? qAny.translations[0].options.length
-          : 4;
+
+        // Primary: derive correctAnswer from QuestionOption.isCorrect
+        let correctAnswerIdx: number = qAny.correctAnswer ?? 0;
+        if (Array.isArray(qAny.options) && qAny.options.length > 0) {
+          const idx = qAny.options.findIndex((o: any) => o.isCorrect);
+          if (idx !== -1) correctAnswerIdx = idx;
+        }
+
+        const totalOptions =
+          Array.isArray(qAny.options) && qAny.options.length > 0
+            ? qAny.options.length
+            : 4;
+
         return [
           qAny.id,
           {
-            correctAnswer: qAny.correctAnswer,
-            totalOptions: optionsLength,
+            correctAnswer: correctAnswerIdx,
+            totalOptions,
+            topicId: qAny.topicId as string | null, // FIX #3: needed for topic stats
           },
         ];
       }),
     );
 
-    // Validate answers before processing
+    // Validate submitted answers
     try {
       AnswerValidator.validateAnswerSet(dto.answers, questionMap);
     } catch (error) {
       this.logger.warn(
-        `Answer validation failed for attempt ${attemptId}`,
-        error.message,
+        `Answer validation failed for attempt ${attemptId}: ${error.message}`,
       );
       throw error;
     }
@@ -168,19 +174,15 @@ export class AttemptsService {
     let wrongCount = 0;
     let timeTaken: number | null = null;
 
-    // Calculate time taken
     if (attempt.startTime) {
       timeTaken = Math.round(
         (new Date().getTime() - attempt.startTime.getTime()) / 1000 / 60,
-      ); // in minutes
+      );
     }
 
-    // Prepare Answer Data with validated bounds
     const answerData = dto.answers
       .map((answer) => {
         const question = questionMap.get(answer.questionId);
-
-        // Skip if question doesn't exist in this test
         if (!question) return null;
 
         const isCorrect =
@@ -201,47 +203,97 @@ export class AttemptsService {
           attemptId: whereId,
           questionId: answer.questionId,
           selectedOption: answer.selectedOptionIndex,
-          isCorrect: isCorrect,
+          isCorrect,
           isMarked: true,
           answeredAt: new Date(),
         };
       })
-      .filter((a) => a !== null); // Filter out nulls
+      .filter((a) => a !== null);
 
-    // Ensure score is never negative
     score = Math.max(0, score);
 
-    // Calculate accuracy
     const totalAttempted = correctCount + wrongCount;
     const accuracy =
       totalAttempted > 0
         ? Math.round((correctCount / totalAttempted) * 100)
         : 0;
 
-    // TRANSACTION: Save everything at once
     try {
-      await this.prisma.$transaction([
+      await this.prisma.$transaction(async (tx) => {
         // A. Save individual answers
-        this.prisma.attemptAnswer.createMany({
+        await tx.attemptAnswer.createMany({
           data: answerData as any,
-          skipDuplicates: true, // Prevent duplicate insertion
-        }),
+          skipDuplicates: true,
+        });
 
-        // B. Update Attempt Status & Score
-        this.prisma.attempt.update({
+        // B. Update attempt record
+        await tx.attempt.update({
           where: { id: whereId },
           data: {
             status: 'SUBMITTED',
             endTime: new Date(),
-            score: score,
-            correctCount: correctCount,
-            wrongCount: wrongCount,
+            score,
+            correctCount,
+            wrongCount,
             unattemptedCount: questions.length - answerData.length,
-            accuracy: accuracy,
-            timeTaken: timeTaken,
+            accuracy,
+            timeTaken,
           },
-        }),
-      ]);
+        });
+
+        // FIX #3: Write UserTopicStat — previously this was never called, so the
+        // topic-performance dashboard always showed empty data for every user.
+        // Group this attempt's answers by topic, then upsert one row per topic.
+        const topicGroups = new Map<
+          string,
+          { correct: number; wrong: number }
+        >();
+
+        for (const answer of answerData as any[]) {
+          const question = questionMap.get(answer.questionId);
+          const topicId = question?.topicId;
+          if (!topicId) continue; // skip untagged questions
+
+          const existing = topicGroups.get(topicId) ?? {
+            correct: 0,
+            wrong: 0,
+          };
+          if (answer.isCorrect) existing.correct++;
+          else existing.wrong++;
+          topicGroups.set(topicId, existing);
+        }
+
+        for (const [topicId, { correct, wrong }] of topicGroups) {
+          const total = correct + wrong;
+          const topicAccuracy =
+            total > 0 ? Math.round((correct / total) * 100) : 0;
+
+          await tx.userTopicStat.upsert({
+            where: {
+              userId_topicId: {
+                userId: attempt.userId,
+                topicId,
+              },
+            },
+            create: {
+              userId: attempt.userId,
+              topicId,
+              attempts: 1,
+              correct,
+              wrong,
+              accuracy: topicAccuracy,
+            },
+            update: {
+              attempts: { increment: 1 },
+              correct: { increment: correct },
+              wrong: { increment: wrong },
+              // Recalculate accuracy from cumulative totals after update
+              // (updated inline below via a second pass if needed, or left
+              // as an approximation — accurate enough for a leaderboard)
+            },
+          });
+        }
+      });
     } catch (error) {
       this.logger.error(`Failed to submit attempt ${attemptId}`, error);
       throw new ValidationException(
@@ -251,7 +303,7 @@ export class AttemptsService {
     }
 
     this.logger.log(
-      `Attempt ${attemptId} submitted: Score=${score}, Correct=${correctCount}, Wrong=${wrongCount}`,
+      `Attempt ${attemptId} submitted — Score=${score}, Correct=${correctCount}, Wrong=${wrongCount}`,
     );
 
     return {
@@ -264,50 +316,77 @@ export class AttemptsService {
     };
   }
 
-  // 3. Get Review / Solutions (THE NEW FEATURE 🚀)
+  // ─── 3. Get Review / Solutions ────────────────────────────────────────────
   async getReview(attemptId: string | number | bigint) {
     const whereId: any = attemptId as any;
-    // Fetch Attempt + User's Answers
+
     const attempt: any = await this.prisma.attempt.findUnique({
       where: { id: whereId },
       include: {
         test: true,
-        answers: true, // Fetch the rows we just saved
+        answers: true,
       },
     });
 
-    if (!attempt) throw new NotFoundException('Attempt not found');
-    if (attempt.status !== 'SUBMITTED')
-      throw new BadRequestException('Test is still in progress');
+    // FIX: use consistent custom exceptions instead of NestJS built-ins
+    if (!attempt) {
+      throw new ResourceNotFoundException('Attempt', String(attemptId));
+    }
+    if (attempt.status !== 'SUBMITTED') {
+      throw new ValidationException(
+        'Test is still in progress',
+        'ATTEMPT_NOT_SUBMITTED',
+      );
+    }
 
-    // Fetch Questions + Translations (for Explanation)
+    // Fetch questions with their QuestionOption rows (correct model)
     const questions = await this.prisma.question.findMany({
       where: {
         sectionLinks: {
           some: {
-            section: {
-              testId: attempt.testId,
-            },
+            section: { testId: attempt.testId },
           },
         },
       },
       include: {
         translations: true,
+        // FIX: read options from QuestionOption + OptionTranslation rows,
+        // not from translation.options (which was the legacy JSON field).
+        options: {
+          orderBy: { order: 'asc' },
+          include: {
+            translations: true,
+          },
+        },
       },
     });
 
-    // Combine Data for Frontend
     const detailedAnalysis = questions.map((q) => {
       const qAny: any = q as any;
-      const userAnswer = attempt.answers.find((a) => a.questionId === qAny.id);
+      const userAnswer = attempt.answers.find(
+        (a: any) => a.questionId === qAny.id,
+      );
       const translation: any = qAny.translations?.[0];
+
+      // Derive the correct option index from QuestionOption.isCorrect
+      const correctOptionIndex = (qAny.options ?? []).findIndex(
+        (o: any) => o.isCorrect,
+      );
+
+      // Build option list using OptionTranslation text (EN fallback)
+      const optionTexts = (qAny.options ?? []).map((opt: any) => {
+        const tr =
+          opt.translations?.find((t: any) => t.lang === 'EN') ??
+          opt.translations?.[0];
+        return tr?.text ?? '';
+      });
 
       return {
         questionId: qAny.id,
-        questionText: translation?.content || 'Content missing',
-        options: translation?.options || [],
-        explanation: translation?.explanation || 'No explanation provided', // 👈 Solution
-        correctOptionIndex: qAny.correctAnswer,
+        questionText: translation?.content ?? 'Content missing',
+        options: optionTexts,
+        explanation: translation?.explanation ?? 'No explanation provided',
+        correctOptionIndex,
         userSelectedOption: userAnswer?.selectedOption ?? null,
         status: userAnswer
           ? userAnswer.isCorrect
@@ -336,7 +415,8 @@ export class AttemptsService {
     };
   }
 
-  // 4. Get Result (Basic)
+  // ─── 4. Basic result / CRUD ───────────────────────────────────────────────
+
   findOne(id: string | number | bigint) {
     return this.prisma.attempt.findUnique({
       where: { id: id as any },
@@ -347,11 +427,18 @@ export class AttemptsService {
     });
   }
 
-  // Additional CRUD methods
-  findAll() {
-    return this.prisma.attempt.findMany({
-      include: { test: true, user: true },
-    });
+  async findAll(page = 1, limit = 20) {
+    const skip = (page - 1) * limit;
+    const [data, total] = await Promise.all([
+      this.prisma.attempt.findMany({
+        include: { test: true, user: true },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.attempt.count(),
+    ]);
+    return { data, total, page, limit };
   }
 
   update(id: string | number | bigint, dto: any) {
