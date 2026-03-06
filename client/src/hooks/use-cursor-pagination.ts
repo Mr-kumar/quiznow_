@@ -78,10 +78,6 @@ export function useCursorPagination(options: UseCursorPaginationOptions = {}) {
 
         const response = await adminQuestionsApi.getCursorPaginated(params);
 
-        console.log("Raw API response:", response);
-        console.log("Response status:", response.status);
-        console.log("Response data:", response.data);
-
         if (response.status === 401 || response.status === 403) {
           setError("Authentication required. Please log in again.");
           setData([]);
@@ -89,9 +85,6 @@ export function useCursorPagination(options: UseCursorPaginationOptions = {}) {
         }
 
         if (!response.data || !Array.isArray(response.data.data)) {
-          console.error("Backend response structure:", response);
-          console.error("response.data:", response.data);
-          console.error("response.data.data:", response.data?.data);
           setError("Unexpected response from server. Please try again.");
           setData([]);
           return;

@@ -97,15 +97,6 @@ export class QuestionsController {
     @Query('subject') subject?: string,
     @Query('lang') lang: string = 'EN',
   ) {
-    console.log('🔍 cursor-paginated endpoint called with params:', {
-      cursor,
-      limit,
-      direction,
-      search,
-      topicId,
-      subject,
-      lang,
-    });
     const where: any = {};
 
     if (search) {
@@ -183,7 +174,6 @@ export class QuestionsController {
       },
     };
 
-    console.log('🔍 Returning result:', result);
     return result;
   }
 
