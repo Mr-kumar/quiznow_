@@ -102,6 +102,54 @@ async function main() {
 
   console.log('✅ Sample Topics Created');
 
+  // 6. Create Sample Audit Logs for testing
+  const sampleAuditLogs = [
+    {
+      action: 'QUESTION_CREATED',
+      targetType: 'Question',
+      targetId: 'sample-question-1',
+      actorId: 'admin-user-id',
+      actorRole: 'ADMIN',
+      metadata: { question: 'Sample question 1' },
+    },
+    {
+      action: 'TEST_PUBLISHED',
+      targetType: 'Test',
+      targetId: 'sample-test-1',
+      actorId: 'admin-user-id',
+      actorRole: 'ADMIN',
+      metadata: { test: 'Sample test 1' },
+    },
+    {
+      action: 'USER_BANNED',
+      targetType: 'User',
+      targetId: 'sample-user-1',
+      actorId: 'admin-user-id',
+      actorRole: 'ADMIN',
+      metadata: { reason: 'Violation of terms' },
+    },
+    {
+      action: 'SECTION_CREATED',
+      targetType: 'Section',
+      targetId: 'sample-section-1',
+      actorId: 'admin-user-id',
+      actorRole: 'ADMIN',
+      metadata: { section: 'Sample section 1' },
+    },
+  ];
+
+  await prisma.auditLog.createMany({
+    data: sampleAuditLogs.map((log) => ({
+      action: log.action,
+      targetType: log.targetType,
+      targetId: log.targetId,
+      actorId: log.actorId,
+      actorRole: log.actorRole as any,
+      metadata: log.metadata as any,
+    })),
+  });
+
+  console.log('✅ Sample Audit Logs Created');
   console.log('🎯 Database seeding completed!');
   console.log('');
   console.log('📋 Login Credentials:');

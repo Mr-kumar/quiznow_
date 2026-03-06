@@ -228,8 +228,15 @@ export class QuestionsService {
 
     // Fire-and-forget: audit failures must never break the main operation
     this.auditLogs
-      .log('QUESTION_SOFT_DELETED', 'Question', id, actorId, actorRole, {
-        isActive: false,
+      .log({
+        action: 'QUESTION_SOFT_DELETED',
+        targetType: 'Question',
+        targetId: id,
+        actorId,
+        actorRole: actorRole as any,
+        metadata: {
+          isActive: false,
+        },
       })
       .catch((err) =>
         this.logger.error('Audit log failed for QUESTION_SOFT_DELETED', err),
@@ -260,10 +267,17 @@ export class QuestionsService {
     });
 
     this.auditLogs
-      .log('QUESTIONS_BULK_TAGGED', 'Question', topicId, actorId, actorRole, {
-        questionIds,
-        topicId,
-        updatedCount: result.count,
+      .log({
+        action: 'QUESTIONS_BULK_TAGGED',
+        targetType: 'Question',
+        targetId: topicId,
+        actorId,
+        actorRole: actorRole as any,
+        metadata: {
+          questionIds,
+          topicId,
+          updatedCount: result.count,
+        },
       })
       .catch((err) =>
         this.logger.error('Audit log failed for QUESTIONS_BULK_TAGGED', err),

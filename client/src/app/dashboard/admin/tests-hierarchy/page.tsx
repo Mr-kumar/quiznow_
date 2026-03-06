@@ -192,7 +192,7 @@ function DetailsPanel({
           <Icon className={cn("h-4.5 w-4.5", cfg.color)} />
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-sm text-zinc-900 dark:text-zinc-100 break-words leading-snug">
+          <h3 className="font-semibold text-sm text-zinc-900 dark:text-zinc-100 wrap-break-word leading-snug">
             {item.name}
           </h3>
           <Badge
@@ -845,8 +845,11 @@ export default function TestsHierarchyPage() {
                 {[...Array(6)].map((_, i) => (
                   <div
                     key={i}
-                    className="flex items-center gap-2"
-                    style={{ paddingLeft: `${(i % 3) * 24}px` }}
+                    className={cn(
+                      "flex items-center gap-2",
+                      i % 3 === 1 && "pl-6",
+                      i % 3 === 2 && "pl-12",
+                    )}
                   >
                     <Skeleton className="h-6 w-6 rounded-md shrink-0" />
                     <Skeleton
