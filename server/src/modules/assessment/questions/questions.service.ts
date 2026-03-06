@@ -679,7 +679,19 @@ export class QuestionsService {
           where: { lang: (params.lang?.toUpperCase() ?? 'EN') as any }, // 🛡️ LANGUAGE FILTER: Filter by requested language
           take: 1,
         },
-        topic: true,
+        options: {
+          // 🛡️ ADD: Include options with translations
+          orderBy: { order: 'asc' },
+          include: {
+            translations: {
+              where: { lang: (params.lang?.toUpperCase() ?? 'EN') as any },
+            },
+          },
+        },
+        topic: {
+          // 🛡️ ADD: Include subject relation
+          include: { subject: true },
+        },
         _count: {
           select: { sectionLinks: true },
         },

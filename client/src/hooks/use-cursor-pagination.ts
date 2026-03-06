@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import {
   adminQuestionsApi,
   CursorPaginationParams,
@@ -40,6 +40,9 @@ export function useCursorPagination(options: UseCursorPaginationOptions = {}) {
     limit: initialLimit,
   });
 
+  // 🛡️ CRITICAL FIX: Use ref for cursor to prevent infinite loop
+  const cursorRef = useRef<string | undefined>(undefined);
+
   const [filters, setFilters] = useState({
     search: initialSearch,
     topicId: initialTopicId,
@@ -62,7 +65,8 @@ export function useCursorPagination(options: UseCursorPaginationOptions = {}) {
 
       try {
         const params: CursorPaginationParams = {
-          cursor: resetCursor !== undefined ? resetCursor : cursor,
+          // 🛡️ CRITICAL FIX: Use cursorRef instead of cursor state
+          cursor: resetCursor !== undefined ? resetCursor : cursorRef.current,
           limit: pagination.limit,
           direction,
           search: debouncedSearch, // 🛡️ Use debounced search instead of raw search
@@ -100,11 +104,14 @@ export function useCursorPagination(options: UseCursorPaginationOptions = {}) {
               // Load more (append)
               setData((prev) => [...prev, ...response.data.data]);
             }
-            setCursor(response.data.pagination?.nextCursor || undefined);
+            // 🛡️ CRITICAL FIX: Update ref instead of state
+            cursorRef.current =
+              response.data.pagination?.nextCursor || undefined;
           } else {
             // Load previous (prepend)
             setData((prev) => [...response.data.data, ...prev]);
-            setCursor(response.data.pagination?.prevCursor || undefined);
+            cursorRef.current =
+              response.data.pagination?.prevCursor || undefined;
           }
 
           if (response.data.pagination) {
@@ -129,19 +136,21 @@ export function useCursorPagination(options: UseCursorPaginationOptions = {}) {
         setLoading(false);
       }
     },
-    [cursor, filters, pagination.limit],
+    // 🛡️ CRITICAL FIX: Remove cursor from dependencies to prevent infinite loop
+    [debouncedSearch, filters.topicId, filters.subject, pagination.limit], // cursor removed
   );
 
   // Initial load
   useEffect(() => {
     fetch("forward", undefined);
   }, [
-    filters.search,
+    // 🛡️ FIX: Remove filters.search to prevent double fetch
+    // filters.search, // ← causes immediate fetch on every keystroke
     filters.topicId,
     filters.subject,
     filters.lang,
     pagination.limit,
-    debouncedSearch, // 🛡️ Include debouncedSearch to prevent stale fetch
+    debouncedSearch, // 🛡️ Only fetch after debounce
   ]);
 
   // Load more

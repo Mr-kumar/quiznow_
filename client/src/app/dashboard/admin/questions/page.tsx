@@ -88,19 +88,27 @@ export default function GlobalQuestionVaultPage() {
     useCursorPagination({ initialLimit: 50, initialLang: "en" });
 
   const [observerEl, setObserverEl] = useState<HTMLDivElement | null>(null);
+
+  // 🛡️ CRITICAL FIX: Use ref for loadMore to prevent observer recreation
+  const loadMoreRef = useRef(loadMore);
+
+  useEffect(() => {
+    loadMoreRef.current = loadMore;
+  }, [loadMore]);
+
   useEffect(() => {
     if (!observerEl) return;
     const io = new IntersectionObserver(
       (entries) => {
         if (entries[0]?.isIntersecting && hasMore && !loading) {
-          loadMore();
+          loadMoreRef.current(); // 🛡️ Call via ref, doesn't recreate observer
         }
       },
       { rootMargin: "200px" },
     );
     io.observe(observerEl);
     return () => io.disconnect();
-  }, [observerEl, hasMore, loading, loadMore]);
+  }, [observerEl]); // 🛡️ Only recreate observer when element changes
 
   useEffect(() => {
     const loadTopics = async () => {
@@ -384,7 +392,13 @@ export default function GlobalQuestionVaultPage() {
                       </TableRow>
                     ))
                   : data.map((q) => {
-                      const t = q.translations?.[0];
+                      // 🛡️ FIX: Use correct language case and options structure
+                      const activeLang = (
+                        (filters as any).lang ?? "en"
+                      ).toUpperCase();
+                      const t =
+                        q.translations?.find((tr) => tr.lang === activeLang) ??
+                        q.translations?.[0];
                       const hasMedia = !!t?.imageUrl;
                       const usage =
                         (q as any)._count?.sectionLinks ?? q.usageCount ?? 0;
@@ -417,12 +431,19 @@ export default function GlobalQuestionVaultPage() {
                               )}
                             </div>
                             <div className="mt-1 text-xs text-muted-foreground">
-                              {Array.isArray(t?.options) &&
-                                t?.options.slice(0, 2).map((o, i) => (
-                                  <span key={i} className="mr-3">
-                                    {String.fromCharCode(65 + i)}. {o}
-                                  </span>
-                                ))}
+                              {/* 🛡️ FIX: Options are on q.options, not t.options */}
+                              {Array.isArray(q.options) &&
+                                q.options
+                                  .slice(0, 2)
+                                  .map((opt: any, i: number) => {
+                                    const optText =
+                                      opt.translations?.[0]?.text ?? "";
+                                    return (
+                                      <span key={i} className="mr-3">
+                                        {String.fromCharCode(65 + i)}. {optText}
+                                      </span>
+                                    );
+                                  })}
                             </div>
                             <div className="mt-1">
                               <Badge
@@ -435,17 +456,17 @@ export default function GlobalQuestionVaultPage() {
                           <TableCell className="text-center">
                             {q.topic ? (
                               <div className="flex flex-col items-center">
-                                {q.topic.subject && (
+                                {q.topic.subject?.name && (
                                   <Badge variant="outline" className="mb-1">
-                                    {q.topic.subject}
+                                    {q.topic.subject.name}
                                   </Badge>
                                 )}
-                                <Badge variant="outline">{q.topic.name}</Badge>
+                                <Badge variant="secondary">
+                                  {q.topic.name}
+                                </Badge>
                               </div>
                             ) : (
-                              <span className="text-xs text-muted-foreground">
-                                Untagged
-                              </span>
+                              <span className="text-muted-foreground">-</span>
                             )}
                           </TableCell>
                           <TableCell className="text-center">
@@ -536,8 +557,11 @@ export default function GlobalQuestionVaultPage() {
               <div className="text-sm">
                 {/* 🛡️ LANGUAGE FILTER: Show translation matching selected language */}
                 {(() => {
+                  const activeLang = (
+                    (filters as any).lang ?? "en"
+                  ).toUpperCase();
                   const translation = activeQuestion.translations?.find(
-                    (t) => t.lang === (filters as any).lang,
+                    (t) => t.lang === activeLang,
                   );
                   return (
                     translation?.content ||
@@ -546,26 +570,15 @@ export default function GlobalQuestionVaultPage() {
                 })()}
               </div>
               <div className="space-y-1">
-                {(() => {
-                  const translation = activeQuestion.translations?.find(
-                    (t) => t.lang === (filters as any).lang,
-                  );
-                  return (
-                    translation?.options ||
-                    activeQuestion.translations?.[0]?.options
-                  );
-                })()?.map((o: any, i: number) => {
-                  // 🛡️ FIX: Find correct answer from options array
-                  const isCorrect = o.isCorrect;
-                  return (
-                    <div
-                      key={i}
-                      className={`text-sm ${isCorrect ? "text-green-600" : ""}`}
-                    >
-                      {String.fromCharCode(65 + i)}. {o.text}
-                    </div>
-                  );
-                })}
+                {/* 🛡️ FIX: Options are on activeQuestion.options, not translation.options */}
+                {activeQuestion.options?.map((opt: any, i: number) => (
+                  <div
+                    key={i}
+                    className={`text-sm ${opt.isCorrect ? "text-green-600" : ""}`}
+                  >
+                    {String.fromCharCode(65 + i)}. {opt.translations?.[0]?.text}
+                  </div>
+                ))}
               </div>
               {activeQuestion.translations?.[0]?.explanation && (
                 <div className="text-sm">

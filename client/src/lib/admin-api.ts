@@ -326,7 +326,15 @@ export interface Question {
       text: string;
     }>;
   }>;
-  topic?: Topic;
+  topic?: {
+    id: string;
+    name: string;
+    subject?: {
+      // 🛡️ FIX: Subject is an object, not a string
+      id: string;
+      name: string;
+    };
+  };
   _count?: {
     sectionLinks: number;
   };

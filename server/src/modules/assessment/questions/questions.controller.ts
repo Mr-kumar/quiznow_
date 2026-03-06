@@ -193,6 +193,7 @@ export class QuestionsController {
     @Query('search') search?: string,
     @Query('topicId') topicId?: string,
     @Query('subject') subject?: string,
+    @Query('lang') lang: string = 'EN', // 🛡️ ADD: Capture language filter
   ) {
     // Validate limit
     if (limit > 100) {
@@ -239,6 +240,7 @@ export class QuestionsController {
       skip: cursor ? 1 : 0,
       where,
       orderBy,
+      lang: lang.toUpperCase(), // 🛡️ PASS: Send language to service
     });
 
     // Get metadata (OPTIMIZED - No slow count queries)
