@@ -123,9 +123,12 @@ export default function GlobalQuestionVaultPage() {
               .map((s: any) => (typeof s === "string" ? s : s?.name))
               .filter(Boolean)
           : [];
-        setSubjects(names);
+        setSubjects(Array.from(new Set(names)));
       } catch (error) {
-        console.error("Failed to load topics/subjects:", error);
+        console.error("Failed to load topics:", error);
+        // 🛡️ ERROR HANDLING: Don't crash on topics API failure
+        setTopics([]);
+        setSubjects([]);
       }
     };
 

@@ -24,6 +24,8 @@ import {
   Menu,
   X,
   Library,
+  DollarSign,
+  CreditCard,
 } from "lucide-react";
 
 export default function DashboardLayout({
@@ -85,23 +87,53 @@ export default function DashboardLayout({
     },
     {
       href: "/dashboard/admin/subjects",
-      label: "Subject Management",
+      label: "Subjects & Topics",
       icon: Library,
     },
     {
+      href: "/dashboard/admin/topics",
+      label: "Topics Management",
+      icon: FolderTree,
+    },
+    {
+      href: "/dashboard/admin/plans",
+      label: "Plans",
+      icon: DollarSign,
+    },
+    {
+      href: "/dashboard/admin/subscriptions",
+      label: "Subscriptions",
+      icon: CreditCard,
+    },
+    {
+      href: "/dashboard/admin/audit-logs",
+      label: "Audit Logs",
+      icon: Shield,
+    },
+    {
+      href: "/dashboard/admin/categories",
+      label: "Categories",
+      icon: FolderTree,
+    },
+    {
+      href: "/dashboard/admin/tests",
+      label: "Tests",
+      icon: Target,
+    },
+    {
+      href: "/dashboard/admin/tests/create",
+      label: "Create Test",
+      icon: PlusCircle,
+    },
+    {
       href: "/dashboard/admin/users",
-      label: "Users & Analytics",
+      label: "Users",
       icon: Users,
     },
     {
       href: "/dashboard/admin/analytics",
       label: "Analytics",
       icon: BarChart3,
-    },
-    {
-      href: "/dashboard/admin/tests/create",
-      label: "Create Test",
-      icon: PlusCircle,
     },
     {
       href: "/dashboard/admin/settings",
@@ -135,12 +167,12 @@ export default function DashboardLayout({
 
           {/* 🚀 Dynamic Nav Links */}
           <nav className="flex-1 px-4 py-6 space-y-2">
-            {links.map((link) => {
+            {links.map((link, index) => {
               const Icon = link.icon;
               const isActive = pathname === link.href;
               return (
                 <Link
-                  key={link.href}
+                  key={`${link.href}-${index}`}
                   href={link.href}
                   className={`flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 ${
                     isActive
