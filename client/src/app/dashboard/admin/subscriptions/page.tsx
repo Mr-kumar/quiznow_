@@ -1,17 +1,21 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import {
-  adminSubscriptionsApi,
-  adminPlansApi,
-  adminUsersApi,
   type Subscription,
   type CreateSubscriptionRequest,
   type UpdateSubscriptionRequest,
-  type Plan,
-  type User,
-} from "@/lib/admin-api";
-import { useListData, useCrudOperations } from "@/hooks/use-admin-crud";
+} from "@/api/subscriptions";
+import { type User } from "@/api/users";
+import { type Plan } from "@/api/plans";
+import {
+  useSubscriptions,
+  useCreateSubscription,
+  useUpdateSubscription,
+  useCancelSubscription,
+} from "@/features/admin-subscriptions/hooks/use-subscriptions";
+import { usePlans } from "@/features/admin-plans/hooks/use-plans";
+import { useUsers } from "@/features/admin-users/hooks/use-users";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -47,7 +51,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useToast } from "@/components/ui/use-toast";
+// FIX: removed unused useToast — mutation hooks use sonner internally
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -55,12 +59,8 @@ import {
   CreditCard,
   Plus,
   Trash2,
-  Calendar,
   User as UserIcon,
-  CheckCircle,
-  XCircle,
   Search,
-  Filter,
 } from "lucide-react";
 import { DataTable } from "@/components/admin/admin-data-table";
 import { ColumnDef } from "@tanstack/react-table";
@@ -74,80 +74,46 @@ const subscriptionFormSchema = z.object({
 type SubscriptionFormValues = z.infer<typeof subscriptionFormSchema>;
 
 export default function SubscriptionsPage() {
-  const { toast } = useToast();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [subscriptionToDelete, setSubscriptionToDelete] =
     useState<Subscription | null>(null);
-  const [plans, setPlans] = useState<Plan[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
-  const [plansLoading, setPlansLoading] = useState(true);
-  const [usersLoading, setUsersLoading] = useState(true);
 
-  const {
-    data: subscriptions,
-    loading,
-    total,
+  const [page, setPage] = useState(1);
+  const [limit] = useState(10);
+  const [search, setSearch] = useState("");
+
+  const { data: subscriptionsData, isLoading } = useSubscriptions({
     page,
     limit,
     search,
-    setPage,
-    setLimit,
-    setSearch,
-    refetch,
-  } = useListData<Subscription>(async (options) => {
-    const response = await adminSubscriptionsApi.getAll(
-      options.page,
-      options.limit,
-      options.search,
-    );
-    return response.data;
   });
 
-  const {
-    isLoading: isCrudLoading,
-    create,
-    remove,
-  } = useCrudOperations(
-    (data) => adminSubscriptionsApi.create(data),
-    () => Promise.resolve(),
-    (id) => adminSubscriptionsApi.delete(id),
-    () => refetch(),
-  );
+  const subscriptions = subscriptionsData?.data || [];
+  const total = subscriptionsData?.total || 0;
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const response = await adminPlansApi.getAll(1, 1000);
-        setPlans(response.data.data);
-      } catch (error) {
-        toast({
-          title: "Error",
-          description: "Failed to load plans",
-          variant: "destructive",
-        });
-      } finally {
-        setPlansLoading(false);
-      }
-    })();
-  }, []);
+  const createMutation = useCreateSubscription();
+  const updateMutation = useUpdateSubscription();
+  const cancelMutation = useCancelSubscription();
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const response = await adminUsersApi.getAll(1, 1000);
-        setUsers(response.data.data);
-      } catch (error) {
-        toast({
-          title: "Error",
-          description: "Failed to load users",
-          variant: "destructive",
-        });
-      } finally {
-        setUsersLoading(false);
-      }
-    })();
-  }, []);
+  const { data: plansData, isLoading: plansLoading } = usePlans({
+    page: 1,
+    limit: 1000,
+  });
+  const { data: usersData, isLoading: usersLoading } = useUsers({
+    page: 1,
+    limit: 1000,
+  });
+
+  const plans = plansData?.data || [];
+  const users = usersData?.data || [];
+
+  const isCrudLoading =
+    createMutation.isPending ||
+    updateMutation.isPending ||
+    cancelMutation.isPending;
+
+  // FIX: removed empty useEffect — no side effects needed
 
   const createForm = useForm<SubscriptionFormValues>({
     resolver: zodResolver(subscriptionFormSchema),
@@ -155,21 +121,25 @@ export default function SubscriptionsPage() {
   });
 
   const handleCreateSubscription = async (data: SubscriptionFormValues) => {
-    const success = await create(data as CreateSubscriptionRequest);
-    if (success) {
+    try {
+      await createMutation.mutateAsync(data as CreateSubscriptionRequest);
       setIsCreateDialogOpen(false);
       createForm.reset();
+    } catch {
+      // Error handled by mutation hook
     }
   };
 
   const handleDeleteSubscription = useCallback(async () => {
     if (!subscriptionToDelete) return;
-    const success = await remove(subscriptionToDelete.id);
-    if (success) {
+    try {
+      await cancelMutation.mutateAsync(subscriptionToDelete.id);
       setDeleteDialogOpen(false);
       setSubscriptionToDelete(null);
+    } catch {
+      // Error handled by mutation hook
     }
-  }, [subscriptionToDelete, remove]);
+  }, [subscriptionToDelete, cancelMutation]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -222,20 +192,21 @@ export default function SubscriptionsPage() {
       ),
     },
     {
-      accessorKey: "startAt",
+      // FIX: interface field is `startsAt` (with 's'), not `startAt`
+      accessorKey: "startsAt",
       header: "Start Date",
       cell: ({ row }) => (
         <span className="text-sm">
-          {new Date(row.getValue("startAt") as string).toLocaleDateString()}
+          {new Date(row.getValue("startsAt") as string).toLocaleDateString()}
         </span>
       ),
     },
     {
-      accessorKey: "expiresAt",
+      accessorKey: "endsAt",
       header: "Expires",
       cell: ({ row }) => (
         <span className="text-sm font-medium">
-          {new Date(row.getValue("expiresAt") as string).toLocaleDateString()}
+          {new Date(row.getValue("endsAt") as string).toLocaleDateString()}
         </span>
       ),
     },
@@ -307,7 +278,7 @@ export default function SubscriptionsPage() {
                               <SelectValue placeholder="Select user" />
                             </SelectTrigger>
                             <SelectContent>
-                              {users.map((user) => (
+                              {users.map((user: User) => (
                                 <SelectItem key={user.id} value={user.id}>
                                   {user.name} ({user.email})
                                 </SelectItem>
@@ -334,7 +305,7 @@ export default function SubscriptionsPage() {
                               <SelectValue placeholder="Select plan" />
                             </SelectTrigger>
                             <SelectContent>
-                              {plans.map((plan) => (
+                              {plans.map((plan: Plan) => (
                                 <SelectItem key={plan.id} value={plan.id}>
                                   {plan.name} (₹{plan.price})
                                 </SelectItem>
@@ -377,7 +348,7 @@ export default function SubscriptionsPage() {
       {/* Table */}
       <Card>
         <CardContent className="pt-6">
-          {loading ? (
+          {isLoading ? (
             <div className="text-center py-8">Loading subscriptions...</div>
           ) : subscriptions.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
@@ -394,7 +365,7 @@ export default function SubscriptionsPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    disabled={page === 1 || loading}
+                    disabled={page === 1 || isLoading}
                     onClick={() => setPage(page - 1)}
                   >
                     Previous
@@ -402,7 +373,7 @@ export default function SubscriptionsPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    disabled={page >= Math.ceil(total / limit) || loading}
+                    disabled={page >= Math.ceil(total / limit) || isLoading}
                     onClick={() => setPage(page + 1)}
                   >
                     Next

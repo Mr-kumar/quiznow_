@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   adminCategoriesApi,
   adminExamsApi,
@@ -6,7 +6,7 @@ import {
   adminTestsApi,
 } from "@/lib/admin-api";
 
-interface HierarchyItem {
+export interface HierarchyItem {
   id: string;
   name: string;
   type: "category" | "exam" | "series" | "test";
@@ -21,215 +21,107 @@ interface HierarchyItem {
   };
 }
 
+/** Safely extract array from either shape: T[] or { data: T[] } */
+function toArray<T>(res: any): T[] {
+  return Array.isArray(res?.data) ? res.data : (res?.data?.data ?? []);
+}
+
 export function useTestHierarchy() {
   const [hierarchy, setHierarchy] = useState<HierarchyItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const loadHierarchy = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
+  /**
+   * Single implementation shared by initial load AND refresh().
+   * Previously this block was copy-pasted twice (~90 lines duplicated).
+   * Promise.allSettled means one failed endpoint won't kill the whole tree.
+   */
+  const loadHierarchy = useCallback(async () => {
+    setError(null);
 
-        // Fetch all data in parallel
-        const [
-          categoriesResponse,
-          examsResponse,
-          seriesResponse,
-          testsResponse,
-        ] = await Promise.all([
-          adminCategoriesApi.getAll(),
-          adminExamsApi.getAll(),
-          adminTestSeriesApi.getAll(),
-          adminTestsApi.getAll(),
-        ]);
+    const [catResult, examResult, seriesResult, testResult] =
+      await Promise.allSettled([
+        adminCategoriesApi.getAll(),
+        adminExamsApi.getAll(),
+        adminTestSeriesApi.getAll(),
+        adminTestsApi.getAll(),
+      ]);
 
-        const categories = Array.isArray(categoriesResponse.data)
-          ? categoriesResponse.data
-          : categoriesResponse.data?.data || [];
-        const exams = Array.isArray(examsResponse.data)
-          ? examsResponse.data
-          : examsResponse.data?.data || [];
-        const series = Array.isArray(seriesResponse.data)
-          ? seriesResponse.data
-          : seriesResponse.data?.data || [];
-        const tests = Array.isArray(testsResponse.data)
-          ? testsResponse.data
-          : testsResponse.data?.data || [];
+    const categories =
+      catResult.status === "fulfilled" ? toArray<any>(catResult.value) : [];
+    const exams =
+      examResult.status === "fulfilled" ? toArray<any>(examResult.value) : [];
+    const series =
+      seriesResult.status === "fulfilled"
+        ? toArray<any>(seriesResult.value)
+        : [];
+    const tests =
+      testResult.status === "fulfilled" ? toArray<any>(testResult.value) : [];
 
-        // Build hierarchy
-        const hierarchyData: HierarchyItem[] = categories.map((category) => {
-          const categoryExams = exams.filter(
-            (exam) => exam.categoryId === category.id,
-          );
+    if (catResult.status === "rejected") {
+      setError("Failed to load hierarchy — categories unavailable");
+      console.error("Categories fetch error:", catResult.reason);
+    }
 
-          return {
-            id: category.id,
-            name: category.name,
-            type: "category",
-            metadata: {
-              isActive: category.isActive,
-              createdAt: category.createdAt,
-            },
-            children: categoryExams.map((exam) => {
-              const examSeries = series.filter(
-                (testSeries) => testSeries.examId === exam.id,
-              );
+    const hierarchyData: HierarchyItem[] = categories.map((category) => ({
+      id: category.id,
+      name: category.name,
+      type: "category" as const,
+      metadata: {
+        isActive: category.isActive,
+        createdAt: category.createdAt,
+      },
+      children: exams
+        .filter((exam) => exam.categoryId === category.id)
+        .map((exam) => ({
+          id: exam.id,
+          name: exam.name,
+          type: "exam" as const,
+          metadata: { isActive: exam.isActive, createdAt: exam.createdAt },
+          children: series
+            .filter((s) => s.examId === exam.id)
+            .map((s) => ({
+              id: s.id,
+              name: s.title,
+              type: "series" as const,
+              metadata: { isActive: s.isActive, createdAt: s.createdAt },
+              children: tests
+                .filter((t) => t.seriesId === s.id)
+                .map((t) => ({
+                  id: t.id,
+                  name: t.title,
+                  type: "test" as const,
+                  metadata: {
+                    isActive: t.isActive,
+                    isLive: t.isLive,
+                    isPremium: t.isPremium,
+                    durationMins: t.durationMins,
+                    totalMarks: t.totalMarks,
+                    createdAt: t.createdAt,
+                  },
+                })),
+            })),
+        })),
+    }));
 
-              return {
-                id: exam.id,
-                name: exam.name,
-                type: "exam",
-                metadata: {
-                  isActive: exam.isActive,
-                  createdAt: exam.createdAt,
-                },
-                children: examSeries.map((testSeries) => {
-                  const seriesTests = tests.filter(
-                    (test) => test.seriesId === testSeries.id,
-                  );
-
-                  return {
-                    id: testSeries.id,
-                    name: testSeries.title,
-                    type: "series",
-                    metadata: {
-                      isActive: testSeries.isActive,
-                      createdAt: testSeries.createdAt,
-                    },
-                    children: seriesTests.map((test) => ({
-                      id: test.id,
-                      name: test.title,
-                      type: "test",
-                      metadata: {
-                        isActive: test.isActive,
-                        isLive: test.isLive,
-                        isPremium: test.isPremium,
-                        durationMins: test.durationMins,
-                        totalMarks: test.totalMarks,
-                        createdAt: test.createdAt,
-                      },
-                    })),
-                  };
-                }),
-              };
-            }),
-          };
-        });
-
-        setHierarchy(hierarchyData);
-      } catch (err) {
-        setError("Failed to load test hierarchy");
-        console.error("Hierarchy loading error:", err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadHierarchy();
+    setHierarchy(hierarchyData);
   }, []);
 
-  const refresh = async () => {
-    const loadHierarchy = async () => {
-      try {
-        setError(null);
+  // Initial load
+  useEffect(() => {
+    setIsLoading(true);
+    loadHierarchy()
+      .catch((err) => {
+        setError("Failed to load test hierarchy");
+        console.error("Hierarchy loading error:", err);
+      })
+      .finally(() => setIsLoading(false));
+  }, [loadHierarchy]);
 
-        // Fetch all data in parallel
-        const [
-          categoriesResponse,
-          examsResponse,
-          seriesResponse,
-          testsResponse,
-        ] = await Promise.all([
-          adminCategoriesApi.getAll(),
-          adminExamsApi.getAll(),
-          adminTestSeriesApi.getAll(),
-          adminTestsApi.getAll(),
-        ]);
-
-        const categories = Array.isArray(categoriesResponse.data)
-          ? categoriesResponse.data
-          : categoriesResponse.data?.data || [];
-        const exams = Array.isArray(examsResponse.data)
-          ? examsResponse.data
-          : examsResponse.data?.data || [];
-        const series = Array.isArray(seriesResponse.data)
-          ? seriesResponse.data
-          : seriesResponse.data?.data || [];
-        const tests = Array.isArray(testsResponse.data)
-          ? testsResponse.data
-          : testsResponse.data?.data || [];
-
-        // Build hierarchy
-        const hierarchyData: HierarchyItem[] = categories.map((category) => {
-          const categoryExams = exams.filter(
-            (exam) => exam.categoryId === category.id,
-          );
-
-          return {
-            id: category.id,
-            name: category.name,
-            type: "category",
-            metadata: {
-              isActive: category.isActive,
-              createdAt: category.createdAt,
-            },
-            children: categoryExams.map((exam) => {
-              const examSeries = series.filter(
-                (testSeries) => testSeries.examId === exam.id,
-              );
-
-              return {
-                id: exam.id,
-                name: exam.name,
-                type: "exam",
-                metadata: {
-                  isActive: exam.isActive,
-                  createdAt: exam.createdAt,
-                },
-                children: examSeries.map((testSeries) => {
-                  const seriesTests = tests.filter(
-                    (test) => test.seriesId === testSeries.id,
-                  );
-
-                  return {
-                    id: testSeries.id,
-                    name: testSeries.title,
-                    type: "series",
-                    metadata: {
-                      isActive: testSeries.isActive,
-                      createdAt: testSeries.createdAt,
-                    },
-                    children: seriesTests.map((test) => ({
-                      id: test.id,
-                      name: test.title,
-                      type: "test",
-                      metadata: {
-                        isActive: test.isActive,
-                        isLive: test.isLive,
-                        isPremium: test.isPremium,
-                        durationMins: test.durationMins,
-                        totalMarks: test.totalMarks,
-                        createdAt: test.createdAt,
-                      },
-                    })),
-                  };
-                }),
-              };
-            }),
-          };
-        });
-
-        setHierarchy(hierarchyData);
-      } catch (err) {
-        setError("Failed to refresh test hierarchy");
-        console.error("Hierarchy refresh error:", err);
-      }
-    };
-
-    await loadHierarchy();
+  return {
+    hierarchy,
+    isLoading,
+    error,
+    refresh: loadHierarchy, // same function — no duplication
   };
-
-  return { hierarchy, isLoading, error, refresh };
 }

@@ -27,8 +27,19 @@ import {
   Zap,
 } from "lucide-react";
 import Link from "next/link";
-import { useAdminDashboard } from "@/hooks/use-admin-dashboard";
+import { useDashboard } from "@/features/admin-analytics/hooks/use-dashboard";
 import { cn } from "@/lib/utils";
+import "@/styles/progress.css";
+import {
+  GrowthIndicator,
+  FormatNumber,
+} from "@/components/shared/growth-indicator";
+
+// Helper function to get progress class
+function getProgressClass(pct: number): string {
+  const rounded = Math.round(pct / 5) * 5; // Round to nearest 5
+  return `progress-${Math.min(100, Math.max(0, rounded))}`;
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -198,16 +209,8 @@ function MiniStat({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function AdminOverviewPage() {
-  const {
-    metrics,
-    userStats,
-    testStats,
-    attemptStats,
-    isLoading,
-    isRefreshing,
-    error,
-    refresh,
-  } = useAdminDashboard();
+  const { metrics, userStats, testStats, attemptStats, isLoading, refresh } =
+    useDashboard();
 
   const completionRate =
     attemptStats && attemptStats.total > 0
@@ -219,7 +222,7 @@ export default function AdminOverviewPage() {
       {/* ── Page header ── */}
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-2.5">
-          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-sm">
+          <div className="h-8 w-8 rounded-lg bg-linear-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-sm">
             <BarChart3 className="h-4 w-4 text-white" />
           </div>
           <div>
@@ -242,32 +245,17 @@ export default function AdminOverviewPage() {
             size="sm"
             className="h-8 gap-1.5 text-xs"
             onClick={refresh}
-            disabled={isRefreshing || isLoading}
+            disabled={isLoading}
           >
-            {isRefreshing ? (
+            {isLoading ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
             ) : (
               <RefreshCw className="h-3.5 w-3.5" />
             )}
-            {isRefreshing ? "Refreshing…" : "Refresh"}
+            {isLoading ? "Refreshing…" : "Refresh"}
           </Button>
         </div>
       </div>
-
-      {/* ── Error state ── */}
-      {error && !isLoading && (
-        <div className="rounded-xl border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/20 px-4 py-3 flex items-center justify-between gap-3">
-          <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 text-xs shrink-0"
-            onClick={refresh}
-          >
-            Retry
-          </Button>
-        </div>
-      )}
 
       {/* ── Key metrics ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -522,8 +510,10 @@ export default function AdminOverviewPage() {
           </div>
           <div className="h-2 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
             <div
-              className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all duration-700"
-              style={{ width: `${completionRate}%` }}
+              className={cn(
+                "h-full rounded-full bg-linear-to-r from-indigo-500 to-violet-500 transition-all duration-700",
+                getProgressClass(completionRate),
+              )}
             />
           </div>
           <div className="flex items-center justify-between mt-1.5">

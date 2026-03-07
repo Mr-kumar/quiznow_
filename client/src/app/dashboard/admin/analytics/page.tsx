@@ -19,8 +19,15 @@ import {
   Trophy,
   Users,
 } from "lucide-react";
-import { useAdminDashboard } from "@/hooks/use-admin-dashboard";
+import { useDashboard } from "@/features/admin-analytics/hooks/use-dashboard";
 import { cn } from "@/lib/utils";
+import "@/styles/progress.css";
+
+// Helper function to get progress class
+function getProgressClass(pct: number): string {
+  const rounded = Math.round(pct / 5) * 5; // Round to nearest 5
+  return `progress-${Math.min(100, Math.max(0, rounded))}`;
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -302,8 +309,8 @@ function KpiBar({
           className={cn(
             "h-full rounded-full transition-all duration-700",
             gradient,
+            getProgressClass(pct),
           )}
-          style={{ width: `${pct}%` }}
         />
       </div>
     </div>
@@ -320,9 +327,8 @@ export default function AdminAnalyticsPage() {
     attemptStats,
     errors,
     isLoading,
-    isRefreshing,
     refresh,
-  } = useAdminDashboard();
+  } = useDashboard();
 
   const completionRate =
     attemptStats && attemptStats.total > 0
@@ -339,7 +345,7 @@ export default function AdminAnalyticsPage() {
       {/* ── Header ── */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-2.5">
-          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-sm">
+          <div className="h-8 w-8 rounded-lg bg-linear-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-sm">
             <BarChart3 className="h-4 w-4 text-white" />
           </div>
           <div>
@@ -356,14 +362,14 @@ export default function AdminAnalyticsPage() {
           size="sm"
           className="h-8 gap-1.5 text-xs shrink-0"
           onClick={refresh}
-          disabled={isRefreshing || isLoading}
+          disabled={isLoading}
         >
-          {isRefreshing ? (
+          {isLoading ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
           ) : (
             <RefreshCw className="h-3.5 w-3.5" />
           )}
-          {isRefreshing ? "Refreshing…" : "Refresh"}
+          {isLoading ? "Refreshing…" : "Refresh"}
         </Button>
       </div>
 

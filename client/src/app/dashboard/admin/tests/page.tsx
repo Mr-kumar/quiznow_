@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +16,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useToast } from "@/components/ui/use-toast";
 import {
   ChevronRight,
   ChevronDown,
@@ -33,9 +32,16 @@ import {
   Plus,
   Star,
 } from "lucide-react";
-import api from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { useTestHierarchy } from "@/hooks/use-test-hierarchy";
+import type { HierarchyItem } from "@/hooks/use-test-hierarchy";
+import {
+  useUpdateTest,
+  useDeleteTest,
+} from "@/features/admin-tests/hooks/use-test-mutations";
+import type { UpdateTestRequest } from "@/api/tests";
 
+// ─── Local Test shape (mapped from HierarchyItem for TestRow) ─────────────────
 interface Test {
   id: string;
   title: string;
@@ -44,31 +50,44 @@ interface Test {
   isActive: boolean;
   durationMins: number;
   totalMarks: number;
-  passMarks: number;
-}
-interface Series {
-  id: string;
-  title: string;
-  tests: Test[];
-}
-interface Exam {
-  id: string;
-  name: string;
-  series: Series[];
-}
-interface Category {
-  id: string;
-  name: string;
-  exams: Exam[];
 }
 
-function countTests(c: Category) {
-  return c.exams.reduce(
-    (n, e) => n + e.series.reduce((m, s) => m + s.tests.length, 0),
-    0,
-  );
+/** Map a HierarchyItem of type "test" to the local Test shape. */
+function toTest(item: HierarchyItem): Test {
+  return {
+    id: item.id,
+    title: item.name,
+    isLive: item.metadata?.isLive ?? false,
+    isPremium: item.metadata?.isPremium,
+    isActive: item.metadata?.isActive ?? true,
+    durationMins: item.metadata?.durationMins ?? 0,
+    totalMarks: item.metadata?.totalMarks ?? 0,
+  };
 }
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Count live tests recursively under a category HierarchyItem. */
+function countTests(cat: HierarchyItem): number {
+  if (cat.type !== "category" || !cat.children) return 0;
+  return cat.children.reduce((n, exam) => {
+    if (exam.type !== "exam") return n;
+    return (
+      n +
+      (exam.children?.reduce((m, series) => {
+        if (series.type !== "series") return m;
+        return (
+          m +
+          (series.children?.filter(
+            (t) => t.type === "test" && t.metadata?.isLive,
+          ).length ?? 0)
+        );
+      }, 0) ?? 0)
+    );
+  }, 0);
+}
+
+// ─── Test Row ─────────────────────────────────────────────────────────────────
 function TestRow({
   test,
   onToggleLive,
@@ -112,7 +131,6 @@ function TestRow({
             <Award className="h-3 w-3" />
             {test.totalMarks} pts
           </span>
-          <span>Pass: {test.passMarks}</span>
         </div>
       </div>
       <div className="flex items-center gap-2 shrink-0">
@@ -146,6 +164,7 @@ function TestRow({
   );
 }
 
+// ─── Tree Header ──────────────────────────────────────────────────────────────
 function TreeHeader({
   label,
   count,
@@ -215,135 +234,98 @@ function TreeHeader({
   );
 }
 
+// ─── Page ─────────────────────────────────────────────────────────────────────
 export default function ManageTestsPage() {
-  const { toast } = useToast();
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
   const [openCategories, setOpenCategories] = useState<Set<string>>(new Set());
   const [openExams, setOpenExams] = useState<Set<string>>(new Set());
   const [openSeries, setOpenSeries] = useState<Set<string>>(new Set());
-  const [archiveTarget, setArchiveTarget] = useState<Test | null>(null);
+  // FIX: archiveTarget is HierarchyItem, not local Test — so we can use item.id
+  const [archiveTarget, setArchiveTarget] = useState<HierarchyItem | null>(
+    null,
+  );
   const [archiving, setArchiving] = useState(false);
 
-  const fetchHierarchy = async (silent = false) => {
-    if (!silent) setLoading(true);
-    else setRefreshing(true);
-    try {
-      const [catRes, examRes, seriesRes, testsRes] = await Promise.all([
-        api.get("/categories"),
-        api.get("/exams"),
-        api.get("/test-series"),
-        api.get("/tests"),
-      ]);
-      const cats: any[] = catRes.data.data ?? catRes.data;
-      const exams: any[] = examRes.data.data ?? examRes.data;
-      const series: any[] = seriesRes.data.data ?? seriesRes.data;
-      const tests: any[] = (testsRes.data.data ?? testsRes.data).filter(
-        (t: any) => t.isActive !== false,
-      );
-      const built: Category[] = cats.map((cat) => ({
-        ...cat,
-        exams: exams
-          .filter((e) => e.categoryId === cat.id)
-          .map((exam) => ({
-            ...exam,
-            series: series
-              .filter((s) => s.examId === exam.id)
-              .map((s) => ({
-                ...s,
-                tests: tests.filter(
-                  (t) =>
-                    t.seriesId === s.id ||
-                    t.testSeriesId === s.id ||
-                    t.series?.id === s.id,
-                ),
-              })),
-          })),
-      }));
-      setCategories(built);
-    } catch {
-      toast({ title: "Failed to load tests", variant: "destructive" });
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
+  const {
+    hierarchy: categories,
+    isLoading: loading,
+    error,
+    refresh: fetchHierarchy, // FIX: no-arg function — do NOT pass true
+  } = useTestHierarchy();
 
-  useEffect(() => {
-    fetchHierarchy();
-  }, []);
+  const updateMutation = useUpdateTest();
+  const deleteMutation = useDeleteTest();
 
   const handleToggleLive = async (id: string, current: boolean) => {
     try {
-      await api.patch(`/tests/${id}/publish`, { isLive: !current });
-      toast({ title: !current ? "Test is now Live 🟢" : "Moved to Draft" });
-      fetchHierarchy(true);
-    } catch (err: any) {
-      toast({
-        title: "Failed to update",
-        description: err?.response?.data?.message,
-        variant: "destructive",
+      await updateMutation.mutateAsync({
+        id,
+        data: { isLive: !current } as UpdateTestRequest,
       });
+    } catch {
+      // Error handled by mutation hook (sonner toast)
     }
   };
 
+  // FIX: parameterless — uses archiveTarget from state instead of receiving Test arg
   const handleArchive = async () => {
     if (!archiveTarget) return;
     setArchiving(true);
     try {
-      await api.patch(`/tests/${archiveTarget.id}`, { isActive: false });
-      toast({ title: `"${archiveTarget.title}" archived` });
+      await deleteMutation.mutateAsync(archiveTarget.id);
       setArchiveTarget(null);
-      fetchHierarchy(true);
-    } catch (err: any) {
-      toast({
-        title: "Archive failed",
-        description: err?.response?.data?.message,
-        variant: "destructive",
-      });
+    } catch {
+      // Error handled by mutation hook
     } finally {
       setArchiving(false);
     }
   };
 
+  // ─── Filter tree by search ─────────────────────────────────────────────────
+  // FIX: HierarchyItem uses `.children`, not `.exams` / `.series` / `.tests`
   const filtered = useMemo(() => {
     if (!search.trim()) return categories;
     const q = search.toLowerCase();
+
     return categories
       .map((cat) => ({
         ...cat,
-        exams: cat.exams
+        children: (cat.children ?? [])
           .map((exam) => ({
             ...exam,
-            series: exam.series
-              .map((s) => ({
-                ...s,
-                tests: s.tests.filter((t) => t.title.toLowerCase().includes(q)),
+            children: (exam.children ?? [])
+              .map((series) => ({
+                ...series,
+                children: (series.children ?? []).filter(
+                  (t) => t.type === "test" && t.name.toLowerCase().includes(q),
+                ),
               }))
-              .filter((s) => s.tests.length > 0),
+              .filter((s) => s.children.length > 0),
           }))
-          .filter((e) => e.series.length > 0),
+          .filter((e) => e.children.length > 0),
       }))
-      .filter((c) => c.exams.length > 0);
+      .filter((c) => c.children.length > 0);
   }, [categories, search]);
 
-  useEffect(() => {
+  // Auto-expand tree nodes that contain search matches
+  // FIX: use HierarchyItem.children filtering, not .exams / .series
+  useMemo(() => {
     if (!search.trim()) return;
     const cats = new Set<string>();
     const exms = new Set<string>();
     const sers = new Set<string>();
-    filtered.forEach((c) => {
-      cats.add(c.id);
-      c.exams.forEach((e) => {
-        exms.add(e.id);
-        e.series.forEach((s) => sers.add(s.id));
+    filtered.forEach((cat) => {
+      cats.add(cat.id);
+      (cat.children ?? []).forEach((exam) => {
+        exms.add(exam.id);
+        (exam.children ?? []).forEach((s) => sers.add(s.id));
       });
     });
     setOpenCategories(cats);
     setOpenExams(exms);
     setOpenSeries(sers);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, filtered]);
 
   const toggle = (
@@ -356,24 +338,34 @@ export default function ManageTestsPage() {
     setter(next);
   };
 
-  const totalTests = categories.reduce((n, c) => n + countTests(c), 0);
+  const totalTests = categories.reduce(
+    (acc, category) => acc + countTests(category),
+    0,
+  );
   const liveTests = categories.reduce(
-    (n, c) =>
-      n +
-      c.exams.reduce(
-        (m, e) =>
-          m +
-          e.series.reduce(
-            (k, s) => k + s.tests.filter((t) => t.isLive).length,
-            0,
-          ),
-        0,
-      ),
+    (acc, cat) =>
+      acc +
+      (cat.children?.reduce((n, exam) => {
+        if (exam.type !== "exam") return n;
+        return (
+          n +
+          (exam.children?.reduce((m, series) => {
+            if (series.type !== "series") return m;
+            return (
+              m +
+              (series.children?.filter(
+                (t) => t.type === "test" && t.metadata?.isLive,
+              ).length ?? 0)
+            );
+          }, 0) ?? 0)
+        );
+      }, 0) ?? 0),
     0,
   );
 
   return (
     <div className="space-y-5">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <div className="flex items-center gap-1.5 text-xs text-zinc-400 mb-1">
@@ -397,7 +389,11 @@ export default function ManageTestsPage() {
             variant="outline"
             size="sm"
             className="h-8 gap-1.5 text-xs"
-            onClick={() => fetchHierarchy(true)}
+            // FIX: fetchHierarchy takes no arguments
+            onClick={() => {
+              setRefreshing(true);
+              fetchHierarchy().finally(() => setRefreshing(false));
+            }}
             disabled={refreshing}
           >
             <RefreshCw
@@ -418,6 +414,7 @@ export default function ManageTestsPage() {
         </div>
       </div>
 
+      {/* Search */}
       <div className="relative max-w-sm">
         <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-zinc-400 pointer-events-none" />
         <Input
@@ -437,6 +434,7 @@ export default function ManageTestsPage() {
         )}
       </div>
 
+      {/* Tree */}
       {loading ? (
         <div className="space-y-2">
           {[...Array(5)].map((_, i) => (
@@ -448,6 +446,10 @@ export default function ManageTestsPage() {
               />
             </div>
           ))}
+        </div>
+      ) : error ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
+          {error}
         </div>
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 border border-dashed border-zinc-200 dark:border-zinc-700 rounded-xl">
@@ -466,96 +468,128 @@ export default function ManageTestsPage() {
         </div>
       ) : (
         <div className="space-y-0.5">
-          {filtered.map((category) => (
-            <div key={category.id}>
-              <TreeHeader
-                label={category.name}
-                count={countTests(category)}
-                isOpen={openCategories.has(category.id)}
-                onToggle={() =>
-                  toggle(openCategories, setOpenCategories, category.id)
-                }
-                icon={Layers}
-                iconColor="text-blue-600 dark:text-blue-400"
-                iconBg="bg-blue-50 dark:bg-blue-950/40"
-                level={0}
-              />
-              {openCategories.has(category.id) && (
-                <div className="ml-4 pl-4 border-l border-zinc-200 dark:border-zinc-700 space-y-0.5 mt-0.5 mb-1">
-                  {category.exams.length === 0 ? (
-                    <p className="py-2 text-xs text-zinc-400 pl-2">No exams</p>
-                  ) : (
-                    category.exams.map((exam) => (
-                      <div key={exam.id}>
-                        <TreeHeader
-                          label={exam.name}
-                          count={exam.series.reduce(
-                            (n, s) => n + s.tests.length,
-                            0,
-                          )}
-                          isOpen={openExams.has(exam.id)}
-                          onToggle={() =>
-                            toggle(openExams, setOpenExams, exam.id)
-                          }
-                          icon={GraduationCap}
-                          iconColor="text-emerald-600 dark:text-emerald-400"
-                          iconBg="bg-emerald-50 dark:bg-emerald-950/40"
-                          level={1}
-                        />
-                        {openExams.has(exam.id) && (
-                          <div className="ml-4 pl-4 border-l border-zinc-200 dark:border-zinc-700 space-y-0.5 mt-0.5 mb-1">
-                            {exam.series.length === 0 ? (
-                              <p className="py-2 text-xs text-zinc-400 pl-2">
-                                No test series
-                              </p>
-                            ) : (
-                              exam.series.map((s) => (
-                                <div key={s.id}>
-                                  <TreeHeader
-                                    label={s.title}
-                                    count={s.tests.length}
-                                    isOpen={openSeries.has(s.id)}
-                                    onToggle={() =>
-                                      toggle(openSeries, setOpenSeries, s.id)
-                                    }
-                                    icon={Library}
-                                    iconColor="text-violet-600 dark:text-violet-400"
-                                    iconBg="bg-violet-50 dark:bg-violet-950/40"
-                                    level={2}
-                                  />
-                                  {openSeries.has(s.id) && (
-                                    <div className="ml-4 pl-4 border-l border-zinc-200 dark:border-zinc-700 space-y-1.5 mt-1.5 mb-2">
-                                      {s.tests.length === 0 ? (
-                                        <p className="py-2 text-xs text-zinc-400 pl-2">
-                                          No tests yet
-                                        </p>
-                                      ) : (
-                                        s.tests.map((test) => (
-                                          <TestRow
-                                            key={test.id}
-                                            test={test}
-                                            onToggleLive={handleToggleLive}
-                                            onArchive={setArchiveTarget}
-                                          />
-                                        ))
-                                      )}
-                                    </div>
-                                  )}
-                                </div>
-                              ))
+          {filtered.map((category) => {
+            // FIX: use children filtered by type, not .exams
+            const exams = (category.children ?? []).filter(
+              (c) => c.type === "exam",
+            );
+            return (
+              <div key={category.id}>
+                <TreeHeader
+                  label={category.name}
+                  count={countTests(category)}
+                  isOpen={openCategories.has(category.id)}
+                  onToggle={() =>
+                    toggle(openCategories, setOpenCategories, category.id)
+                  }
+                  icon={Layers}
+                  iconColor="text-blue-600 dark:text-blue-400"
+                  iconBg="bg-blue-50 dark:bg-blue-950/40"
+                  level={0}
+                />
+                {openCategories.has(category.id) && (
+                  <div className="ml-4 pl-4 border-l border-zinc-200 dark:border-zinc-700 space-y-0.5 mt-0.5 mb-1">
+                    {exams.length === 0 ? (
+                      <p className="py-2 text-xs text-zinc-400 pl-2">
+                        No exams
+                      </p>
+                    ) : (
+                      exams.map((exam) => {
+                        const seriesList = (exam.children ?? []).filter(
+                          (c) => c.type === "series",
+                        );
+                        const examTestCount = seriesList.reduce(
+                          (n, s) =>
+                            n +
+                            (s.children?.filter((t) => t.type === "test")
+                              .length ?? 0),
+                          0,
+                        );
+                        return (
+                          <div key={exam.id}>
+                            <TreeHeader
+                              label={exam.name}
+                              count={examTestCount}
+                              isOpen={openExams.has(exam.id)}
+                              onToggle={() =>
+                                toggle(openExams, setOpenExams, exam.id)
+                              }
+                              icon={GraduationCap}
+                              iconColor="text-emerald-600 dark:text-emerald-400"
+                              iconBg="bg-emerald-50 dark:bg-emerald-950/40"
+                              level={1}
+                            />
+                            {openExams.has(exam.id) && (
+                              <div className="ml-4 pl-4 border-l border-zinc-200 dark:border-zinc-700 space-y-0.5 mt-0.5 mb-1">
+                                {seriesList.length === 0 ? (
+                                  <p className="py-2 text-xs text-zinc-400 pl-2">
+                                    No test series
+                                  </p>
+                                ) : (
+                                  seriesList.map((series) => {
+                                    const tests = (
+                                      series.children ?? []
+                                    ).filter((c) => c.type === "test");
+                                    return (
+                                      <div key={series.id}>
+                                        <TreeHeader
+                                          label={series.name}
+                                          count={tests.length}
+                                          isOpen={openSeries.has(series.id)}
+                                          onToggle={() =>
+                                            toggle(
+                                              openSeries,
+                                              setOpenSeries,
+                                              series.id,
+                                            )
+                                          }
+                                          icon={Library}
+                                          iconColor="text-violet-600 dark:text-violet-400"
+                                          iconBg="bg-violet-50 dark:bg-violet-950/40"
+                                          level={2}
+                                        />
+                                        {openSeries.has(series.id) && (
+                                          <div className="ml-4 pl-4 border-l border-zinc-200 dark:border-zinc-700 space-y-1.5 mt-1.5 mb-2">
+                                            {tests.length === 0 ? (
+                                              <p className="py-2 text-xs text-zinc-400 pl-2">
+                                                No tests yet
+                                              </p>
+                                            ) : (
+                                              tests.map((testItem) => (
+                                                <TestRow
+                                                  key={testItem.id}
+                                                  test={toTest(testItem)}
+                                                  onToggleLive={
+                                                    handleToggleLive
+                                                  }
+                                                  // FIX: pass HierarchyItem to archiveTarget setter
+                                                  onArchive={() =>
+                                                    setArchiveTarget(testItem)
+                                                  }
+                                                />
+                                              ))
+                                            )}
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })
+                                )}
+                              </div>
                             )}
                           </div>
-                        )}
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
-          ))}
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
+      {/* Archive Dialog */}
       <AlertDialog
         open={!!archiveTarget}
         onOpenChange={(v) => !v && setArchiveTarget(null)}
@@ -564,12 +598,14 @@ export default function ManageTestsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Archive this test?</AlertDialogTitle>
             <AlertDialogDescription>
-              <strong>"{archiveTarget?.title}"</strong> will be hidden from
+              {/* FIX: HierarchyItem uses .name not .title */}
+              <strong>"{archiveTarget?.name}"</strong> will be hidden from
               students. All attempt data is preserved.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
+            {/* FIX: handleArchive is now parameterless — it reads archiveTarget from state */}
             <AlertDialogAction
               className="bg-red-600 hover:bg-red-700"
               onClick={handleArchive}

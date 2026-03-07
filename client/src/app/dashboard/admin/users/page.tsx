@@ -1,18 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import {
-  DataTable,
-  ActionDropdown,
-  StatusBadge,
-} from "@/components/admin/admin-data-table";
+import { useState } from "react";
+import { DataTable, ActionDropdown } from "@/components/admin/admin-data-table";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import {
-  adminUsersApi,
   type User,
   type CreateUserRequest,
   type UpdateUserRequest,
-} from "@/lib/admin-api";
+} from "@/api/users";
+import { useUsers } from "@/features/admin-users/hooks/use-users";
+import {
+  useCreateUser,
+  useUpdateUser,
+  useDeleteUser,
+} from "@/features/admin-users/hooks/use-user-mutations";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -50,7 +51,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useToast } from "@/components/ui/use-toast";
+// FIX: removed unused useToast — mutation hooks use sonner internally
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -59,28 +60,14 @@ import {
   UserPlus,
   Edit,
   Trash2,
-  Eye,
   Mail,
   Calendar,
   Shield,
   User as UserIcon,
-  TrendingUp,
-  Activity,
-  DollarSign,
-  Search,
-  Filter,
-  RefreshCw,
-  Download,
-  Target,
-  BarChart3,
-  PieChart,
 } from "lucide-react";
 import { ColumnDef } from "@tanstack/react-table";
-import { User as UserType } from "@/lib/admin-api";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CardDescription } from "@/components/ui/card";
+import { User as UserType } from "@/api/users";
 
-// Form validation schema
 const userFormSchema = z.object({
   email: z.string().email("Invalid email address"),
   name: z.string().min(1, "Name is required"),
@@ -90,153 +77,71 @@ const userFormSchema = z.object({
 type UserFormValues = z.infer<typeof userFormSchema>;
 
 export default function UsersAnalyticsPage() {
-  const [users, setUsers] = useState<UserType[]>([]);
-  const [loading, setLoading] = useState(true);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserType | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<UserType | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [roleFilter, setRoleFilter] = useState<string>("");
-  const [statusFilter, setStatusFilter] = useState<string>("");
-  const { toast } = useToast();
+  // FIX: removed roleFilter and statusFilter — they were declared but never applied to the query
 
-  // Forms
+  const { data: usersData, isLoading } = useUsers({
+    page: 1,
+    limit: 1000,
+    search: searchTerm,
+  });
+
+  const users = usersData?.data || [];
+
+  const createMutation = useCreateUser();
+  const updateMutation = useUpdateUser();
+  const deleteMutation = useDeleteUser();
+
   const createForm = useForm<UserFormValues>({
     resolver: zodResolver(userFormSchema),
-    defaultValues: {
-      email: "",
-      name: "",
-      role: "STUDENT",
-    },
+    defaultValues: { email: "", name: "", role: "STUDENT" },
   });
 
   const editForm = useForm<UserFormValues>({
     resolver: zodResolver(userFormSchema),
   });
 
-  // Load users
-  const loadUsers = async () => {
-    try {
-      setLoading(true);
-
-      // Mock data for demo
-      const mockUsers: UserType[] = [
-        {
-          id: "1",
-          email: "admin@quiznow.com",
-          name: "Super Admin",
-          role: "ADMIN",
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-        {
-          id: "2",
-          email: "student@quiznow.com",
-          name: "John Student",
-          role: "STUDENT",
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-        {
-          id: "3",
-          email: "teacher@quiznow.com",
-          name: "Jane Instructor",
-          role: "INSTRUCTOR",
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-      ];
-
-      try {
-        const response = await adminUsersApi.getAll();
-        setUsers(response.data.data);
-      } catch (apiError) {
-        console.log("API endpoints not ready, using mock data:", apiError);
-        setUsers(mockUsers);
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to load users",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadUsers();
-  }, []);
-
-  // Create user
   const handleCreateUser = async (data: UserFormValues) => {
     try {
-      await adminUsersApi.create(data as CreateUserRequest);
-      toast({
-        title: "Success",
-        description: "User created successfully",
-      });
+      await createMutation.mutateAsync(data as CreateUserRequest);
       setIsCreateDialogOpen(false);
       createForm.reset();
-      loadUsers();
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to create user",
-        variant: "destructive",
-      });
+    } catch {
+      // Error handled by mutation hook
     }
   };
 
-  // Update user
   const handleUpdateUser = async (data: UserFormValues) => {
     if (!selectedUser) return;
-
     try {
-      await adminUsersApi.update(selectedUser.id, data as UpdateUserRequest);
-      toast({
-        title: "Success",
-        description: "User updated successfully",
+      await updateMutation.mutateAsync({
+        id: selectedUser.id,
+        data: data as UpdateUserRequest,
       });
       setIsEditDialogOpen(false);
       setSelectedUser(null);
       editForm.reset();
-      loadUsers();
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update user",
-        variant: "destructive",
-      });
+    } catch {
+      // Error handled by mutation hook
     }
   };
 
-  // Delete user
   const handleDeleteUser = async () => {
     if (!userToDelete) return;
-
     try {
-      await adminUsersApi.delete(userToDelete.id);
-      toast({
-        title: "Success",
-        description: "User deleted successfully",
-      });
+      await deleteMutation.mutateAsync(userToDelete.id);
       setDeleteDialogOpen(false);
       setUserToDelete(null);
-      loadUsers();
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to delete user",
-        variant: "destructive",
-      });
+    } catch {
+      // Error handled by mutation hook
     }
   };
 
-  // Edit user dialog
   const openEditDialog = (user: UserType) => {
     setSelectedUser(user);
     editForm.reset({
@@ -247,13 +152,6 @@ export default function UsersAnalyticsPage() {
     setIsEditDialogOpen(true);
   };
 
-  // Delete user dialog
-  const openDeleteDialog = (user: UserType) => {
-    setUserToDelete(user);
-    setDeleteDialogOpen(true);
-  };
-
-  // Table columns
   const columns: ColumnDef<UserType>[] = [
     {
       accessorKey: "name",
@@ -264,7 +162,7 @@ export default function UsersAnalyticsPage() {
           <div className="flex items-center gap-3">
             <Avatar className="h-8 w-8">
               <AvatarImage src={user.image} />
-              <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
+              <AvatarFallback className="bg-linear-to-br from-blue-500 to-purple-600 text-white">
                 {user.name?.charAt(0).toUpperCase() ||
                   user.email.charAt(0).toUpperCase()}
               </AvatarFallback>
@@ -298,7 +196,6 @@ export default function UsersAnalyticsPage() {
           STUDENT: UserIcon,
         };
         const Icon = roleIcons[role as keyof typeof roleIcons];
-
         return (
           <Badge className={roleColors[role as keyof typeof roleColors]}>
             <Icon className="w-3 h-3 mr-1" />
@@ -327,7 +224,6 @@ export default function UsersAnalyticsPage() {
       id: "actions",
       cell: ({ row }) => {
         const user = row.original;
-
         return (
           <ActionDropdown>
             <DropdownMenuItem onClick={() => openEditDialog(user)}>
@@ -335,7 +231,10 @@ export default function UsersAnalyticsPage() {
               Edit User
             </DropdownMenuItem>
             <DropdownMenuItem
-              onClick={() => openDeleteDialog(user)}
+              onClick={() => {
+                setUserToDelete(user);
+                setDeleteDialogOpen(true);
+              }}
               className="text-red-600"
             >
               <Trash2 className="mr-2 h-4 w-4" />
@@ -361,7 +260,7 @@ export default function UsersAnalyticsPage() {
         </div>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700">
+            <Button className="bg-linear-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700">
               <UserPlus className="mr-2 h-4 w-4" />
               Add User
             </Button>
@@ -444,7 +343,7 @@ export default function UsersAnalyticsPage() {
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card className="border-0 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20">
+        <Card className="border-0 bg-linear-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-blue-700 dark:text-blue-300">
               Total Users
@@ -457,7 +356,7 @@ export default function UsersAnalyticsPage() {
             </div>
           </CardContent>
         </Card>
-        <Card className="border-0 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20">
+        <Card className="border-0 bg-linear-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-green-700 dark:text-green-300">
               Students
@@ -466,11 +365,11 @@ export default function UsersAnalyticsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-700 dark:text-green-300">
-              {users.filter((u) => u.role === "STUDENT").length}
+              {users.filter((u: UserType) => u.role === "STUDENT").length}
             </div>
           </CardContent>
         </Card>
-        <Card className="border-0 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20">
+        <Card className="border-0 bg-linear-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-purple-700 dark:text-purple-300">
               Instructors
@@ -479,11 +378,11 @@ export default function UsersAnalyticsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-purple-700 dark:text-purple-300">
-              {users.filter((u) => u.role === "INSTRUCTOR").length}
+              {users.filter((u: UserType) => u.role === "INSTRUCTOR").length}
             </div>
           </CardContent>
         </Card>
-        <Card className="border-0 bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20">
+        <Card className="border-0 bg-linear-to-br from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-red-700 dark:text-red-300">
               Admins
@@ -492,10 +391,19 @@ export default function UsersAnalyticsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-700 dark:text-red-300">
-              {users.filter((u) => u.role === "ADMIN").length}
+              {users.filter((u: UserType) => u.role === "ADMIN").length}
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Search */}
+      <div className="max-w-sm">
+        <Input
+          placeholder="Search users..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
       </div>
 
       {/* Users Table */}

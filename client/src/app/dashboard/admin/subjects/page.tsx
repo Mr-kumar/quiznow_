@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { adminSubjectsApi, type Subject } from "@/lib/admin-subjects-api";
-import { adminTopicsApi, type Topic } from "@/lib/admin-api";
+import { adminSubjectsApi, type Subject } from "@/api/subjects";
+import { adminTopicsApi, type Topic } from "@/api/topics";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -410,7 +410,7 @@ function TopicWorkspace({
     setAdding(true);
     try {
       const res = await adminTopicsApi.create({ name, subjectId: subject.id });
-      const created: Topic = res.data?.data ?? res.data;
+      const created: Topic = res.data;
       onTopicAdded(created);
       setNewTopicName("");
       toast({ title: `Topic "${name}" added` });

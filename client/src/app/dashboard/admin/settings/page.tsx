@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { adminSettingsApi } from "@/lib/admin-api";
+import { adminSettingsApi } from "@/api/settings";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -329,7 +329,7 @@ function useSectionSettings(prefix: string, defaults: SettingsMap) {
     adminSettingsApi
       .getAll()
       .then((res) => {
-        const all: Record<string, any> = res.data?.data ?? res.data ?? {};
+        const all: Record<string, any> = res.data ?? {};
         // Backend stores keys as e.g. "system.siteName" — merge into local state
         const merged = { ...defaults };
         Object.entries(all).forEach(([k, v]) => {
@@ -360,6 +360,7 @@ function useSectionSettings(prefix: string, defaults: SettingsMap) {
     setSaving(true);
     try {
       const batch = Object.entries(values).map(([k, v]) => ({
+        id: `${prefix}.${k}`,
         key: `${prefix}.${k}`,
         value: v,
       }));
@@ -1164,7 +1165,7 @@ export default function AdminSettingsPage() {
     <div className="space-y-5">
       {/* Page header */}
       <div className="flex items-center gap-2.5">
-        <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-slate-700 to-slate-900 dark:from-slate-600 dark:to-slate-800 flex items-center justify-center shadow-sm">
+        <div className="h-8 w-8 rounded-lg bg-linear-to-br from-slate-700 to-slate-900 dark:from-slate-600 dark:to-slate-800 flex items-center justify-center shadow-sm">
           <Settings className="h-4 w-4 text-white" />
         </div>
         <div>

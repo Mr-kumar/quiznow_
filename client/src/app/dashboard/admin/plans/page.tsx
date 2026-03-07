@@ -6,8 +6,13 @@ import {
   type Plan,
   type CreatePlanRequest,
   type UpdatePlanRequest,
-} from "@/lib/admin-api";
-import { useListData, useCrudOperations } from "@/hooks/use-admin-crud";
+} from "@/api/plans";
+import {
+  usePlans,
+  useCreatePlan,
+  useUpdatePlan,
+  useDeletePlan,
+} from "@/features/admin-plans/hooks/use-plans";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,7 +42,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useToast } from "@/components/ui/use-toast";
+// FIX: removed unused useToast import — mutation hooks handle toasts via sonner
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -62,44 +67,34 @@ const planFormSchema = z.object({
 type PlanFormValues = z.infer<typeof planFormSchema>;
 
 export default function AdminPlansPage() {
-  const { toast } = useToast();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [planToDelete, setPlanToDelete] = useState<Plan | null>(null);
 
-  const {
-    data: plans,
-    loading,
-    total,
-    page,
-    limit,
-    search,
-    setPage,
-    setLimit,
-    setSearch,
-    refetch,
-  } = useListData<Plan>(async (options) => {
-    const response = await adminPlansApi.getAll(
-      options.page,
-      options.limit,
-      options.search,
-    );
-    return response.data;
-  });
+  const [page, setPage] = useState(1);
+  const [limit] = useState(10);
+  const [search, setSearch] = useState("");
 
   const {
-    isLoading: isCrudLoading,
-    create,
-    update,
-    remove,
-  } = useCrudOperations(
-    (data) => adminPlansApi.create(data),
-    (id, data) => adminPlansApi.update(id, data),
-    (id) => adminPlansApi.delete(id),
-    () => refetch(),
-  );
+    data: plansData,
+    isLoading,
+    error,
+    refetch,
+  } = usePlans({ page, limit, search });
+
+  const plans = plansData?.data || [];
+  const total = plansData?.total || 0;
+
+  const createMutation = useCreatePlan();
+  const updateMutation = useUpdatePlan();
+  const deleteMutation = useDeletePlan();
+
+  const isCrudLoading =
+    createMutation.isPending ||
+    updateMutation.isPending ||
+    deleteMutation.isPending;
 
   const createForm = useForm<PlanFormValues>({
     resolver: zodResolver(planFormSchema),
@@ -111,10 +106,12 @@ export default function AdminPlansPage() {
   });
 
   const handleCreatePlan = async (data: PlanFormValues) => {
-    const success = await create(data as CreatePlanRequest);
-    if (success) {
+    try {
+      await createMutation.mutateAsync(data as CreatePlanRequest);
       setIsCreateDialogOpen(false);
       createForm.reset();
+    } catch {
+      // Error handled by mutation hook
     }
   };
 
@@ -133,22 +130,29 @@ export default function AdminPlansPage() {
 
   const handleUpdatePlan = async (data: PlanFormValues) => {
     if (!selectedPlan) return;
-    const success = await update(selectedPlan.id, data as UpdatePlanRequest);
-    if (success) {
+    try {
+      await updateMutation.mutateAsync({
+        id: selectedPlan.id,
+        data: data as UpdatePlanRequest,
+      });
       setIsEditDialogOpen(false);
       setSelectedPlan(null);
       editForm.reset();
+    } catch {
+      // Error handled by mutation hook
     }
   };
 
   const handleDeletePlan = useCallback(async () => {
     if (!planToDelete) return;
-    const success = await remove(planToDelete.id);
-    if (success) {
+    try {
+      await deleteMutation.mutateAsync(planToDelete.id);
       setDeleteDialogOpen(false);
       setPlanToDelete(null);
+    } catch {
+      // Error handled by mutation hook
     }
-  }, [planToDelete, remove]);
+  }, [planToDelete, deleteMutation]);
 
   const columns: ColumnDef<Plan>[] = [
     {
@@ -266,6 +270,7 @@ export default function AdminPlansPage() {
                       </FormItem>
                     )}
                   />
+                  {/* FIX: parse number values — HTML input type="number" returns strings */}
                   <FormField
                     control={createForm.control}
                     name="price"
@@ -273,7 +278,14 @@ export default function AdminPlansPage() {
                       <FormItem>
                         <FormLabel>Price (₹)</FormLabel>
                         <FormControl>
-                          <Input type="number" placeholder="499" {...field} />
+                          <Input
+                            type="number"
+                            placeholder="499"
+                            {...field}
+                            onChange={(e) =>
+                              field.onChange(parseFloat(e.target.value) || 0)
+                            }
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -286,7 +298,14 @@ export default function AdminPlansPage() {
                       <FormItem>
                         <FormLabel>Duration (Days)</FormLabel>
                         <FormControl>
-                          <Input type="number" placeholder="30" {...field} />
+                          <Input
+                            type="number"
+                            placeholder="30"
+                            {...field}
+                            onChange={(e) =>
+                              field.onChange(parseInt(e.target.value, 10) || 1)
+                            }
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -323,7 +342,7 @@ export default function AdminPlansPage() {
       {/* Table */}
       <Card>
         <CardContent className="pt-6">
-          {loading ? (
+          {isLoading ? (
             <div className="text-center py-8">Loading plans...</div>
           ) : plans.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
@@ -340,7 +359,7 @@ export default function AdminPlansPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    disabled={page === 1 || loading}
+                    disabled={page === 1 || isLoading}
                     onClick={() => setPage(page - 1)}
                   >
                     Previous
@@ -348,7 +367,7 @@ export default function AdminPlansPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    disabled={page >= Math.ceil(total / limit) || loading}
+                    disabled={page >= Math.ceil(total / limit) || isLoading}
                     onClick={() => setPage(page + 1)}
                   >
                     Next
@@ -396,7 +415,7 @@ export default function AdminPlansPage() {
                         placeholder="499"
                         {...field}
                         onChange={(e) =>
-                          field.onChange(parseFloat(e.target.value))
+                          field.onChange(parseFloat(e.target.value) || 0)
                         }
                       />
                     </FormControl>
@@ -416,7 +435,7 @@ export default function AdminPlansPage() {
                         placeholder="30"
                         {...field}
                         onChange={(e) =>
-                          field.onChange(parseInt(e.target.value))
+                          field.onChange(parseInt(e.target.value, 10) || 1)
                         }
                       />
                     </FormControl>

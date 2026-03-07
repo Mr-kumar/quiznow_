@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { cn } from "../lib/utils"; // shadcn utility
-import { QueryProvider } from "../providers/query-provider";
+import { AppProviders } from "../providers/app-providers";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -24,10 +24,10 @@ export default function RootLayout({
           inter.className,
         )}
       >
-        <QueryProvider>
+        <AppProviders>
           {/* We will add a Toaster here later for notifications */}
           {children}
-        </QueryProvider>
+        </AppProviders>
       </body>
     </html>
   );

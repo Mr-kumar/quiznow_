@@ -1,7 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { adminAuditLogsApi, type AuditLog } from "@/lib/admin-api";
+import { adminAuditLogsApi, type AuditLog } from "@/api/audit-logs";
+import {
+  useAuditLogs,
+  useCleanupAuditLogs,
+} from "@/features/admin-audit-logs/hooks/use-audit-logs";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -170,10 +174,7 @@ export default function AuditLogsPage() {
   const { toast } = useToast();
 
   // State
-  const [logs, setLogs] = useState<AuditLog[]>([]);
-  const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   // Filters
@@ -182,65 +183,38 @@ export default function AuditLogsPage() {
 
   // Dialogs
   const [cleanupOpen, setCleanupOpen] = useState(false);
-  const [cleaning, setCleaning] = useState(false);
 
   // Debounce search
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Track if the current fetch was triggered by a search change (needs page reset)
   const isSearchChange = useRef(false);
 
-  // ── Fetch ──────────────────────────────────────────────────────────────────
-  // Single fetch function that reads all params directly — no stale closures.
-  // We pass everything as explicit arguments so it never captures stale state.
-  const fetchLogs = useCallback(
-    async (
-      currentPage: number,
-      currentSearch: string,
-      currentAction: string,
-      opts: { silent?: boolean } = {},
-    ) => {
-      if (!opts.silent) setLoading(true);
-      else setRefreshing(true);
+  // Use feature hooks instead of manual API calls
+  const currentSearch = search.trim() || undefined;
+  const {
+    data: logsData,
+    isLoading: loading,
+    refetch,
+  } = useAuditLogs({
+    page,
+    limit: PAGE_SIZE,
+    search: currentSearch,
+    action: actionFilter === "all" ? undefined : actionFilter,
+  });
 
-      try {
-        const res = await adminAuditLogsApi.getAll(
-          currentPage,
-          PAGE_SIZE,
-          currentSearch.trim() || undefined,
-          currentAction === "all" ? undefined : currentAction,
-        );
-        // Backend returns { data: T[], meta: { total, page, limit, totalPages } }
-        // OR legacy flat shape { data: T[], total, page, limit }
-        // Support both so this works regardless of which backend version is live.
-        const payload = res.data as any;
-        const rows: AuditLog[] =
-          payload.data?.data ?? // nested: { data: { data: [] } }
-          (Array.isArray(payload.data) ? payload.data : []) ?? // flat: { data: [] }
-          [];
-        const count: number =
-          payload.data?.meta?.total ?? // nested meta
-          payload.meta?.total ?? // top-level meta
-          payload.total ?? // flat legacy
-          rows.length;
+  const logs = logsData?.data || [];
+  const total = logsData?.total || 0;
 
-        setLogs(rows);
-        setTotal(count);
-      } catch (err: any) {
-        toast({
-          title: "Failed to load audit logs",
-          description: err?.response?.data?.message,
-          variant: "destructive",
-        });
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
-      }
-    },
-    [toast],
-  );
+  const cleanupMutation = useCleanupAuditLogs();
 
-  // Single effect — runs when page, actionFilter, or search changes.
-  // Search changes reset to page 1 via ref flag to avoid double-fetch.
+  // ── Cleanup ────────────────────────────────────────────────────────────────
+  const handleCleanup = async () => {
+    cleanupMutation.mutate(90); // Default to 90 days
+    setCleanupOpen(false);
+    setPage(1);
+  };
+
+  // ── Search handling ───────────────────────────────────────────────────────────
   useEffect(() => {
     if (searchTimer.current) clearTimeout(searchTimer.current);
 
@@ -249,41 +223,15 @@ export default function AuditLogsPage() {
       isSearchChange.current = false;
       searchTimer.current = setTimeout(() => {
         setPage(1);
-        fetchLogs(1, search, actionFilter);
       }, 350);
-    } else {
-      // Page or actionFilter changed: fetch immediately
-      fetchLogs(page, search, actionFilter);
     }
+    // Refetch will happen automatically through the hook dependencies
 
     return () => {
       if (searchTimer.current) clearTimeout(searchTimer.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, actionFilter, search]);
-
-  // ── Cleanup ────────────────────────────────────────────────────────────────
-  const handleCleanup = async () => {
-    setCleaning(true);
-    try {
-      await adminAuditLogsApi.cleanup(90);
-      toast({
-        title: "Cleanup complete",
-        description: "Logs older than 90 days removed",
-      });
-      setCleanupOpen(false);
-      setPage(1);
-      fetchLogs(1, search, actionFilter, { silent: true });
-    } catch (err: any) {
-      toast({
-        title: "Cleanup failed",
-        description: err?.response?.data?.message,
-        variant: "destructive",
-      });
-    } finally {
-      setCleaning(false);
-    }
-  };
 
   // ── Derived ────────────────────────────────────────────────────────────────
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -297,7 +245,7 @@ export default function AuditLogsPage() {
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-sm">
+            <div className="h-8 w-8 rounded-lg bg-linear-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-sm">
               <Shield className="h-4 w-4 text-white" />
             </div>
             <h1 className="text-lg font-bold text-slate-900 dark:text-slate-50">
@@ -314,9 +262,10 @@ export default function AuditLogsPage() {
             variant="ghost"
             size="sm"
             className="h-8 gap-1.5 text-xs text-slate-500"
-            onClick={() =>
-              fetchLogs(page, search, actionFilter, { silent: true })
-            }
+            onClick={() => {
+              setRefreshing(true);
+              refetch().finally(() => setRefreshing(false));
+            }}
             disabled={refreshing}
           >
             <RefreshCw
@@ -469,7 +418,7 @@ export default function AuditLogsPage() {
                 </TableCell>
               </TableRow>
             ) : (
-              logs.map((log) => (
+              logs.map((log: AuditLog) => (
                 <TableRow
                   key={log.id}
                   className="group hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors"
@@ -639,13 +588,15 @@ export default function AuditLogsPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={cleaning}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={cleanupMutation.isPending}>
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               className="bg-red-600 hover:bg-red-700"
               onClick={handleCleanup}
-              disabled={cleaning}
+              disabled={cleanupMutation.isPending}
             >
-              {cleaning ? (
+              {cleanupMutation.isPending ? (
                 <span className="flex items-center gap-1.5">
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   Cleaning…
