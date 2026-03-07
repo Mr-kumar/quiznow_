@@ -37,6 +37,7 @@ import {
 import BulkQuestionUpload from "@/components/admin/bulk-upload";
 import api from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { useCreateTest } from "@/features/admin-tests/hooks/use-test-mutations";
 
 function StepDot({
   num,
@@ -196,6 +197,9 @@ export default function CreateTestPage() {
     negativeMark: 0.33,
   });
   const [testMode, setTestMode] = useState<"full" | "section">("full");
+
+  // Use feature hook for test creation
+  const createMutation = useCreateTest();
   const upd = (k: keyof typeof form, v: any) =>
     setForm((p) => ({ ...p, [k]: v }));
 
@@ -255,17 +259,16 @@ export default function CreateTestPage() {
     }
     setIsLoading(true);
     try {
-      const res = await api.post("/tests/wizard", {
+      const res = await createMutation.mutateAsync({
         title: form.title,
         duration: form.duration,
         totalMarks: form.totalMarks,
         passingMarks: form.passingMarks,
         negativeMarking: form.negativeMark,
         testSeriesId: form.seriesId,
-      });
-      const testId = res.data?.test?.id;
-      const sectionId = res.data?.section?.id;
-      if (!testId || !sectionId) {
+      } as any);
+      const testId = res?.data?.id;
+      if (!testId) {
         toast({
           title: "Unexpected response from server",
           variant: "destructive",
@@ -275,7 +278,7 @@ export default function CreateTestPage() {
       toast({ title: "Test created!" });
       if (testMode === "full") {
         setCreatedTestId(testId);
-        setCreatedSectionId(sectionId);
+        setCreatedSectionId(null); // Section creation might be separate
         setStep(2);
       } else {
         router.push(`/dashboard/admin/tests/${testId}`);

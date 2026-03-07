@@ -16,13 +16,13 @@ import {
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-linear-to-b from-white via-blue-50/10 to-white dark:from-black dark:via-blue-950/20 dark:to-black">
+    <div className="min-h-screen bg-gradient-to-b from-white via-blue-50/10 to-white dark:from-black dark:via-blue-950/20 dark:to-black">
       {/* Navigation */}
       <nav className="sticky top-0 z-50 border-b border-zinc-200/50 dark:border-zinc-800/50 bg-white/80 dark:bg-black/80 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-2">
-              <div className="h-10 w-10 rounded-lg bg-linear-to-br from-blue-600 to-blue-700 flex items-center justify-center">
+              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center">
                 <BarChart3 className="h-6 w-6 text-white" />
               </div>
               <span className="font-bold text-xl text-zinc-900 dark:text-white">
@@ -50,7 +50,7 @@ export default function Home() {
             <div className="space-y-4">
               <h1 className="text-5xl sm:text-6xl font-bold tracking-tight text-zinc-900 dark:text-white">
                 Online Exams Made{" "}
-                <span className="bg-linear-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent">
                   Effortless
                 </span>
               </h1>
@@ -92,12 +92,12 @@ export default function Home() {
 
           {/* Hero Image */}
           <div className="lg:block hidden relative">
-            <div className="absolute inset-0 bg-linear-to-r from-blue-600/20 to-blue-700/20 rounded-2xl blur-3xl"></div>
-            <div className="relative bg-linear-to-br from-blue-100 to-blue-200 dark:from-blue-900/30 dark:to-blue-800/30 rounded-2xl p-8 border border-blue-200/50 dark:border-blue-800/50">
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 to-blue-700/20 rounded-2xl blur-3xl"></div>
+            <div className="relative bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900/30 dark:to-blue-800/30 rounded-2xl p-8 border border-blue-200/50 dark:border-blue-800/50">
               <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-2xl p-6">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <div className="h-8 w-24 bg-linear-to-r from-blue-200 to-blue-300 dark:from-blue-900 dark:to-blue-800 rounded"></div>
+                    <div className="h-8 w-24 bg-gradient-to-r from-blue-200 to-blue-300 dark:from-blue-900 dark:to-blue-800 rounded"></div>
                     <div className="flex gap-1">
                       {[1, 2, 3].map((i) => (
                         <div
@@ -204,7 +204,7 @@ export default function Home() {
             { number: "99.9%", label: "Platform Uptime" },
           ].map((stat, idx) => (
             <div key={idx} className="space-y-2">
-              <div className="text-4xl font-bold bg-linear-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent">
+              <div className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent">
                 {stat.number}
               </div>
               <p className="text-zinc-600 dark:text-zinc-400">{stat.label}</p>
@@ -215,7 +215,7 @@ export default function Home() {
 
       {/* CTA Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-        <div className="bg-linear-to-r from-blue-600 to-blue-700 rounded-2xl p-12 sm:p-16 text-center space-y-6">
+        <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl p-12 sm:p-16 text-center space-y-6">
           <h2 className="text-4xl font-bold text-white">
             Ready to Transform Your Assessment Process?
           </h2>
@@ -238,7 +238,7 @@ export default function Home() {
           <div className="grid md:grid-cols-4 gap-8 mb-8">
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <div className="h-10 w-10 rounded-lg bg-linear-to-br from-blue-600 to-blue-700 flex items-center justify-center">
+                <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center">
                   <BarChart3 className="h-6 w-6 text-white" />
                 </div>
                 <span className="font-bold text-lg text-zinc-900 dark:text-white">

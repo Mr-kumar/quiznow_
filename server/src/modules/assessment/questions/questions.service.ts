@@ -474,10 +474,7 @@ export class QuestionsService {
     }));
   }
 
-  private async resolveTopicForRow(
-    row: Record<string, any>,
-    selectedTopicId?: string,
-  ) {
+  private async resolveTopicForRow(row: Record<string, any>) {
     if (row['topicId']) {
       const topic = await this.prisma.topic.findUnique({
         where: { id: String(row['topicId']) },
@@ -500,61 +497,21 @@ export class QuestionsService {
       return topic;
     }
 
-    if (row['topic'] && selectedTopicId) {
-      const sel = await this.prisma.topic.findUnique({
-        where: { id: selectedTopicId },
-        include: { subject: true },
-      });
-      if (!sel) throw new BadRequestException('Selected topic not found');
-
-      if (String(row['topic']).trim() === sel.name) return sel;
-
-      const topic = await this.prisma.topic.findFirst({
-        where: {
-          name: String(row['topic']).trim(),
-          subjectId: sel.subjectId,
-        },
-        include: { subject: true },
-      });
-      if (topic) return topic;
-      throw new BadRequestException(
-        'Topic name mismatch with selected topic/subject',
-      );
-    }
-
-    if (selectedTopicId) {
-      const topic = await this.prisma.topic.findUnique({
-        where: { id: selectedTopicId },
-        include: { subject: true },
-      });
-      if (!topic) throw new BadRequestException('Selected topic not found');
-      return topic;
-    }
-
-    throw new BadRequestException('Topic not provided');
+    throw new BadRequestException(
+      'Topic not found in row. Please include either topicId or both topic and subject columns in your Excel file.',
+    );
   }
 
   // ─── Bulk upload ──────────────────────────────────────────────────────────
 
-  async bulkUpload(
-    file: Express.Multer.File,
-    sectionId?: string,
-    topicId?: string,
-  ) {
-    this.logger.debug('Bulk upload started', { sectionId, topicId });
+  async bulkUpload(file: Express.Multer.File, sectionId?: string) {
+    this.logger.debug('Bulk upload started', { sectionId });
 
     if (sectionId) {
       const section = await this.prisma.section.findUnique({
         where: { id: sectionId },
       });
       if (!section) throw new BadRequestException('Section not found');
-    }
-
-    if (topicId) {
-      const topic = await this.prisma.topic.findUnique({
-        where: { id: topicId },
-      });
-      if (!topic) throw new BadRequestException('Topic not found');
     }
 
     const parsedRows = this.parseFile(file.buffer);
@@ -683,23 +640,19 @@ export class QuestionsService {
       let count = 0;
 
       for (const processedRow of processedRows) {
-        let question = hashToQuestionMap.get(processedRow.uniqueHash);
+        let question: any;
+        if (!hashToQuestionMap.has(processedRow.uniqueHash)) {
+          let rowTopicId: string;
 
-        if (!question) {
-          let rowTopicId = topicId;
-
-          if (!rowTopicId) {
-            try {
-              const resolvedTopic = await this.resolveTopicForRow(
-                processedRow.rawRow,
-                topicId,
-              );
-              rowTopicId = resolvedTopic.id;
-            } catch (err: any) {
-              throw new BadRequestException(
-                `Row ${processedRow.index}: Topic resolution failed — ${err?.message ?? String(err)}`,
-              );
-            }
+          try {
+            const resolvedTopic = await this.resolveTopicForRow(
+              processedRow.rawRow,
+            );
+            rowTopicId = resolvedTopic.id;
+          } catch (err: any) {
+            throw new BadRequestException(
+              `Row ${processedRow.index}: Topic resolution failed — ${err?.message ?? String(err)}. Please ensure each row has a valid topicId or topic name.`,
+            );
           }
 
           question = await tx.question.create({
@@ -763,6 +716,8 @@ export class QuestionsService {
           });
 
           hashToQuestionMap.set(processedRow.uniqueHash, question);
+        } else {
+          question = hashToQuestionMap.get(processedRow.uniqueHash);
         }
 
         if (sectionId) {
@@ -848,7 +803,7 @@ export class QuestionsService {
 
         let topic;
         try {
-          topic = await this.resolveTopicForRow(raw, selectedTopicId);
+          topic = await this.resolveTopicForRow(raw);
         } catch (error) {
           errors.push({
             row: r.rowNumber,

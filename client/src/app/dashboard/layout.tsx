@@ -4,7 +4,9 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuthStore } from "@/stores/auth-store";
+import { useHierarchyCounts } from "@/hooks/use-hierarchy-counts";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   LayoutDashboard,
   FolderTree,
@@ -37,6 +39,7 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const { user, logout, isAuthenticated, isLoading } = useAuthStore();
   const [isSidebarOpen, setSidebarOpen] = useState(true);
+  const { data: hierarchyCounts } = useHierarchyCounts();
 
   // Protect the route
   useEffect(() => {
@@ -106,7 +109,7 @@ export default function DashboardLayout({
       label: "Audit Logs",
       icon: Shield,
     },
-    
+
     {
       href: "/dashboard/admin/tests/create",
       label: "Create Test",
@@ -161,7 +164,7 @@ export default function DashboardLayout({
                 <Link
                   key={`${link.href}-${index}`}
                   href={link.href}
-                  className={`flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 ${
+                  className={`flex items-center justify-between px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 ${
                     isActive
                       ? user.role === "ADMIN"
                         ? "bg-linear-to-r from-red-500 to-orange-600 text-white shadow-lg shadow-red-500/25 transform hover:scale-105"
@@ -169,10 +172,22 @@ export default function DashboardLayout({
                       : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50 group"
                   }`}
                 >
-                  <Icon
-                    className={`mr-3 h-5 w-5 ${isActive ? "text-white" : "group-hover:scale-110 transition-transform"}`}
-                  />
-                  {link.label}
+                  <div className="flex items-center">
+                    <Icon
+                      className={`mr-3 h-5 w-5 ${isActive ? "text-white" : "group-hover:scale-110 transition-transform"}`}
+                    />
+                    {link.label}
+                  </div>
+                  {/* Show test series count for Manage Hierarchy */}
+                  {link.href === "/dashboard/admin/tests-hierarchy" &&
+                    hierarchyCounts?.testSeriesCount !== undefined && (
+                      <Badge
+                        variant={isActive ? "secondary" : "outline"}
+                        className={`ml-2 text-xs ${isActive ? "bg-white/20 text-white border-white/30" : "bg-zinc-100 text-zinc-600 border-zinc-200"}`}
+                      >
+                        {hierarchyCounts.testSeriesCount}
+                      </Badge>
+                    )}
                 </Link>
               );
             })}

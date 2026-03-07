@@ -1,52 +1,40 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import {
-  adminAnalyticsApi,
-  type DashboardMetrics,
-  type UserStats,
-  type TestStats,
-  type AttemptStats,
-} from "@/lib/admin-api";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ProgressBar } from "@/components/admin/progress-bar";
+import { Button } from "@/components/ui/button";
 import {
-  Users,
-  FileText,
-  CheckCircle2,
-  TrendingUp,
   Activity,
-  Calendar,
-  Clock,
-  Trophy,
-  Target,
-  BarChart3,
-  ArrowUpRight,
-  ArrowDownRight,
-  RefreshCw,
   AlertCircle,
+  ArrowDownRight,
+  ArrowUpRight,
+  BarChart3,
+  Calendar,
+  CheckCircle2,
+  Clock,
+  FileText,
+  Loader2,
+  RefreshCw,
+  Target,
+  TrendingUp,
+  Trophy,
+  Users,
 } from "lucide-react";
+import { useAdminDashboard } from "@/hooks/use-admin-dashboard";
+import { cn } from "@/lib/utils";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-interface AnalyticsState {
-  dashboardMetrics: DashboardMetrics | null;
-  userStats: UserStats | null;
-  testStats: TestStats | null;
-  attemptStats: AttemptStats | null;
+function fmt(n: number | undefined | null, suffix = ""): string {
+  if (n == null) return "—";
+  return n.toLocaleString() + suffix;
 }
-
-// ─── Sub-components ───────────────────────────────────────────────────────────
 
 function GrowthIndicator({ value, label }: { value: number; label: string }) {
   if (value > 0) {
     return (
       <div className="flex items-center gap-1 mt-1">
-        <ArrowUpRight className="h-3 w-3 text-green-600 shrink-0" />
-        <span className="text-xs font-medium text-green-600">
+        <ArrowUpRight className="h-3 w-3 text-emerald-500 shrink-0" />
+        <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
           +{value}% {label}
         </span>
       </div>
@@ -56,152 +44,285 @@ function GrowthIndicator({ value, label }: { value: number; label: string }) {
     return (
       <div className="flex items-center gap-1 mt-1">
         <ArrowDownRight className="h-3 w-3 text-red-500 shrink-0" />
-        <span className="text-xs font-medium text-red-500">
+        <span className="text-[11px] font-semibold text-red-500">
           {value}% {label}
         </span>
       </div>
     );
   }
   return (
-    <p className="text-xs text-zinc-400 mt-1">No change from last month</p>
+    <p className="text-[11px] text-slate-400 mt-1">No change from last month</p>
   );
 }
 
-function MetricCardSkeleton() {
+// ─── Metric Tile ──────────────────────────────────────────────────────────────
+
+function MetricTile({
+  label,
+  value,
+  growth,
+  growthLabel = "from last month",
+  icon: Icon,
+  colorClass,
+}: {
+  label: string;
+  value: string;
+  growth?: number;
+  growthLabel?: string;
+  icon: React.ElementType;
+  colorClass: string; // e.g. "blue" | "emerald" | "violet" | "amber"
+}) {
+  const configs: Record<
+    string,
+    { bg: string; iconBg: string; iconColor: string; text: string }
+  > = {
+    blue: {
+      bg: "bg-blue-50 dark:bg-blue-950/20",
+      iconBg: "bg-blue-500/15",
+      iconColor: "text-blue-600 dark:text-blue-400",
+      text: "text-blue-700 dark:text-blue-300",
+    },
+    emerald: {
+      bg: "bg-emerald-50 dark:bg-emerald-950/20",
+      iconBg: "bg-emerald-500/15",
+      iconColor: "text-emerald-600 dark:text-emerald-400",
+      text: "text-emerald-700 dark:text-emerald-300",
+    },
+    violet: {
+      bg: "bg-violet-50 dark:bg-violet-950/20",
+      iconBg: "bg-violet-500/15",
+      iconColor: "text-violet-600 dark:text-violet-400",
+      text: "text-violet-700 dark:text-violet-300",
+    },
+    amber: {
+      bg: "bg-amber-50 dark:bg-amber-950/20",
+      iconBg: "bg-amber-500/15",
+      iconColor: "text-amber-600 dark:text-amber-400",
+      text: "text-amber-700 dark:text-amber-300",
+    },
+  };
+  const c = configs[colorClass] ?? configs.blue;
   return (
-    <Card className="border-0 shadow-lg">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <Skeleton className="h-4 w-28" />
+    <div
+      className={cn(
+        "rounded-xl border border-slate-200 dark:border-slate-800 p-4",
+        c.bg,
+      )}
+    >
+      <div className="flex items-start justify-between mb-2">
+        <span className={cn("text-xs font-semibold", c.text)}>{label}</span>
+        <div
+          className={cn(
+            "h-8 w-8 rounded-lg flex items-center justify-center",
+            c.iconBg,
+          )}
+        >
+          <Icon className={cn("h-4 w-4", c.iconColor)} />
+        </div>
+      </div>
+      <div className={cn("text-2xl font-bold", c.text)}>{value}</div>
+      {growth != null && <GrowthIndicator value={growth} label={growthLabel} />}
+    </div>
+  );
+}
+
+function MetricTileSkeleton() {
+  return (
+    <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-4 bg-white dark:bg-slate-900 space-y-2">
+      <div className="flex justify-between">
+        <Skeleton className="h-3.5 w-20" />
         <Skeleton className="h-8 w-8 rounded-lg" />
-      </CardHeader>
-      <CardContent>
-        <Skeleton className="h-8 w-20 mb-2" />
-        <Skeleton className="h-3 w-32" />
-      </CardContent>
-    </Card>
+      </div>
+      <Skeleton className="h-7 w-16" />
+      <Skeleton className="h-3 w-28" />
+    </div>
   );
 }
 
-function StatCardSkeleton() {
-  return (
-    <Card className="border-0 shadow-xl">
-      <CardHeader className="flex flex-row items-center gap-3">
-        <Skeleton className="h-10 w-10 rounded-lg shrink-0" />
-        <div className="space-y-2">
-          <Skeleton className="h-5 w-36" />
-          <Skeleton className="h-3 w-48" />
+// ─── Stat Card ────────────────────────────────────────────────────────────────
+
+interface StatItem {
+  label: string;
+  value: string | number;
+  icon: React.ElementType;
+  color: string;
+}
+
+function StatCard({
+  icon: Icon,
+  iconColor,
+  title,
+  description,
+  highlights,
+  stats,
+  loading,
+  error,
+  onRetry,
+}: {
+  icon: React.ElementType;
+  iconColor: string;
+  title: string;
+  description: string;
+  highlights: { value: string; label: string; color: string }[];
+  stats: StatItem[];
+  loading: boolean;
+  error?: string;
+  onRetry: () => void;
+}) {
+  if (loading) {
+    return (
+      <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 space-y-4">
+        <div className="flex items-center gap-3">
+          <Skeleton className="h-9 w-9 rounded-lg" />
+          <div className="space-y-1.5">
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-3 w-44" />
+          </div>
         </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <Skeleton className="h-20 rounded-lg" />
-          <Skeleton className="h-20 rounded-lg" />
+        <div className="grid grid-cols-2 gap-3">
+          <Skeleton className="h-16 rounded-lg" />
+          <Skeleton className="h-16 rounded-lg" />
         </div>
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="flex justify-between">
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-5 w-12 rounded-full" />
+        <div className="space-y-2.5">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="flex justify-between items-center">
+              <Skeleton className="h-3.5 w-24" />
+              <Skeleton className="h-3.5 w-10" />
             </div>
           ))}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/20 p-5 flex flex-col items-center justify-center gap-3 text-center min-h-[200px]">
+        <AlertCircle className="h-8 w-8 text-red-400" />
+        <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-7 text-xs"
+          onClick={onRetry}
+        >
+          <RefreshCw className="h-3 w-3 mr-1.5" />
+          Retry
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 space-y-4">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <div
+          className={cn(
+            "h-9 w-9 rounded-lg flex items-center justify-center",
+            iconColor,
+          )}
+        >
+          <Icon
+            className="h-4.5 w-4.5 text-white"
+            style={{ height: "1.125rem", width: "1.125rem" }}
+          />
+        </div>
+        <div>
+          <p className="text-sm font-bold text-slate-800 dark:text-slate-100">
+            {title}
+          </p>
+          <p className="text-xs text-slate-400">{description}</p>
+        </div>
+      </div>
+
+      {/* Highlight grid */}
+      <div className="grid grid-cols-2 gap-2">
+        {highlights.map((h) => (
+          <div
+            key={h.label}
+            className={cn("rounded-lg px-3 py-2.5 text-center", h.color)}
+          >
+            <div className="text-lg font-bold">{h.value}</div>
+            <div className="text-[10px] mt-0.5 opacity-70">{h.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Detail rows */}
+      <div className="space-y-0">
+        {stats.map((s) => {
+          const Icon = s.icon;
+          return (
+            <div
+              key={s.label}
+              className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-800 last:border-0"
+            >
+              <div className="flex items-center gap-1.5">
+                <Icon className={cn("h-3.5 w-3.5", s.color)} />
+                <span className="text-xs text-slate-600 dark:text-slate-400">
+                  {s.label}
+                </span>
+              </div>
+              <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                {s.value}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
-// ─── Page component ───────────────────────────────────────────────────────────
+// ─── Progress Bar ─────────────────────────────────────────────────────────────
+
+function KpiBar({
+  label,
+  percentage,
+  value,
+  gradient,
+}: {
+  label: string;
+  percentage: number;
+  value: string;
+  gradient: string;
+}) {
+  const pct = Math.min(100, Math.max(0, percentage));
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+          {label}
+        </span>
+        <span className="text-xs font-bold text-slate-500">{value}</span>
+      </div>
+      <div className="h-2 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+        <div
+          className={cn(
+            "h-full rounded-full transition-all duration-700",
+            gradient,
+          )}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function AdminAnalyticsPage() {
-  const [analytics, setAnalytics] = useState<AnalyticsState>({
-    dashboardMetrics: null,
-    userStats: null,
-    testStats: null,
-    attemptStats: null,
-  });
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  // Track which individual cards failed so others still render
-  const [errors, setErrors] = useState<
-    Partial<Record<keyof AnalyticsState, string>>
-  >({});
-
-  // ── Data loading ─────────────────────────────────────────────────────────
-
-  const loadAnalytics = useCallback(async () => {
-    setErrors({});
-
-    // Run all 4 calls independently — a failure in one doesn't block the others.
-    const [metricsResult, usersResult, testsResult, attemptsResult] =
-      await Promise.allSettled([
-        adminAnalyticsApi.getDashboardMetrics(),
-        adminAnalyticsApi.getUserStats(),
-        adminAnalyticsApi.getTestStats(),
-        adminAnalyticsApi.getAttemptStats(),
-      ]);
-
-    const newErrors: typeof errors = {};
-
-    const metrics =
-      metricsResult.status === "fulfilled"
-        ? ((metricsResult.value.data as any)?.data ?? metricsResult.value.data)
-        : null;
-    if (metricsResult.status === "rejected") {
-      newErrors.dashboardMetrics = "Failed to load dashboard metrics";
-    }
-
-    const users =
-      usersResult.status === "fulfilled"
-        ? ((usersResult.value.data as any)?.data ?? usersResult.value.data)
-        : null;
-    if (usersResult.status === "rejected") {
-      newErrors.userStats = "Failed to load user stats";
-    }
-
-    const tests =
-      testsResult.status === "fulfilled"
-        ? ((testsResult.value.data as any)?.data ?? testsResult.value.data)
-        : null;
-    if (testsResult.status === "rejected") {
-      newErrors.testStats = "Failed to load test stats";
-    }
-
-    const attempts =
-      attemptsResult.status === "fulfilled"
-        ? ((attemptsResult.value.data as any)?.data ??
-          attemptsResult.value.data)
-        : null;
-    if (attemptsResult.status === "rejected") {
-      newErrors.attemptStats = "Failed to load attempt stats";
-    }
-
-    setAnalytics({
-      dashboardMetrics: metrics,
-      userStats: users,
-      testStats: tests,
-      attemptStats: attempts,
-    });
-    setErrors(newErrors);
-  }, []);
-
-  useEffect(() => {
-    const init = async () => {
-      setLoading(true);
-      await loadAnalytics();
-      setLoading(false);
-    };
-    init();
-  }, [loadAnalytics]);
-
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await loadAnalytics();
-    setRefreshing(false);
-  };
-
-  // ── Derived values ────────────────────────────────────────────────────────
-
-  const { dashboardMetrics, userStats, testStats, attemptStats } = analytics;
+  const {
+    metrics,
+    userStats,
+    testStats,
+    attemptStats,
+    errors,
+    isLoading,
+    isRefreshing,
+    refresh,
+  } = useAdminDashboard();
 
   const completionRate =
     attemptStats && attemptStats.total > 0
@@ -213,456 +334,273 @@ export default function AdminAnalyticsPage() {
       ? Math.round((userStats.activeThisMonth / userStats.total) * 100)
       : 0;
 
-  // ── Render ────────────────────────────────────────────────────────────────
-
   return (
-    <div className="space-y-6">
-      {/* Header */}
+    <div className="space-y-5">
+      {/* ── Header ── */}
       <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">
-            Analytics Dashboard
-          </h1>
-          <p className="text-zinc-500 dark:text-zinc-400 mt-1">
-            Comprehensive insights into platform performance and user activity
-          </p>
+        <div className="flex items-center gap-2.5">
+          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-sm">
+            <BarChart3 className="h-4 w-4 text-white" />
+          </div>
+          <div>
+            <h1 className="text-lg font-bold text-slate-900 dark:text-slate-50">
+              Analytics
+            </h1>
+            <p className="text-xs text-slate-400 mt-px">
+              Platform performance and engagement data
+            </p>
+          </div>
         </div>
         <Button
-          onClick={handleRefresh}
-          disabled={refreshing || loading}
           variant="outline"
-          className="shrink-0 gap-2"
+          size="sm"
+          className="h-8 gap-1.5 text-xs shrink-0"
+          onClick={refresh}
+          disabled={isRefreshing || isLoading}
         >
-          <RefreshCw
-            className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
-          />
-          {refreshing ? "Refreshing…" : "Refresh"}
+          {isRefreshing ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <RefreshCw className="h-3.5 w-3.5" />
+          )}
+          {isRefreshing ? "Refreshing…" : "Refresh"}
         </Button>
       </div>
 
-      {/* ── Key metrics row ─────────────────────────────────────────────────── */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {loading ? (
+      {/* ── Key metrics ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {isLoading ? (
           Array.from({ length: 4 }).map((_, i) => (
-            <MetricCardSkeleton key={i} />
+            <MetricTileSkeleton key={i} />
           ))
-        ) : errors.dashboardMetrics ? (
-          <div className="col-span-4">
-            <ErrorCard
-              message={errors.dashboardMetrics}
-              onRetry={handleRefresh}
+        ) : (
+          <>
+            <MetricTile
+              label="Total Users"
+              value={fmt(metrics?.totalUsers)}
+              growth={metrics?.userGrowth}
+              icon={Users}
+              colorClass="blue"
+            />
+            <MetricTile
+              label="Active Tests"
+              value={fmt(metrics?.activeTests)}
+              growth={metrics?.testGrowth}
+              icon={FileText}
+              colorClass="emerald"
+            />
+            <MetricTile
+              label="Completed Attempts"
+              value={fmt(metrics?.completedAttempts)}
+              growth={metrics?.attemptGrowth}
+              icon={CheckCircle2}
+              colorClass="violet"
+            />
+            <MetricTile
+              label="Avg Performance"
+              value={metrics ? `${metrics.avgPerformance}%` : "—"}
+              growth={metrics?.performanceGrowth}
+              growthLabel="improvement"
+              icon={TrendingUp}
+              colorClass="amber"
+            />
+          </>
+        )}
+      </div>
+
+      {/* ── Detail cards ── */}
+      <div className="grid lg:grid-cols-3 gap-4">
+        {/* Users */}
+        <StatCard
+          icon={Users}
+          iconColor="bg-blue-500"
+          title="User Statistics"
+          description="Distribution and activity"
+          loading={isLoading}
+          error={errors.users}
+          onRetry={refresh}
+          highlights={[
+            {
+              value: fmt(userStats?.total),
+              label: "Total",
+              color:
+                "bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300",
+            },
+            {
+              value: fmt(userStats?.newThisMonth),
+              label: "New this month",
+              color:
+                "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300",
+            },
+          ]}
+          stats={[
+            {
+              label: "Students",
+              value: fmt(userStats?.students),
+              icon: Users,
+              color: "text-blue-500",
+            },
+            {
+              label: "Instructors",
+              value: fmt(userStats?.instructors),
+              icon: Trophy,
+              color: "text-violet-500",
+            },
+            {
+              label: "Admins",
+              value: fmt(userStats?.admins),
+              icon: Target,
+              color: "text-red-500",
+            },
+            {
+              label: "Active this month",
+              value: fmt(userStats?.activeThisMonth),
+              icon: Activity,
+              color: "text-emerald-500",
+            },
+          ]}
+        />
+
+        {/* Tests */}
+        <StatCard
+          icon={FileText}
+          iconColor="bg-emerald-500"
+          title="Test Statistics"
+          description="Creation and publishing status"
+          loading={isLoading}
+          error={errors.tests}
+          onRetry={refresh}
+          highlights={[
+            {
+              value: fmt(testStats?.total),
+              label: "Total",
+              color:
+                "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300",
+            },
+            {
+              value: fmt(testStats?.active),
+              label: "Active",
+              color:
+                "bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300",
+            },
+          ]}
+          stats={[
+            {
+              label: "Live now",
+              value: fmt(testStats?.live),
+              icon: Activity,
+              color: "text-emerald-500",
+            },
+            {
+              label: "Premium",
+              value: fmt(testStats?.premium),
+              icon: Trophy,
+              color: "text-amber-500",
+            },
+            {
+              label: "Created this month",
+              value: fmt(testStats?.createdThisMonth),
+              icon: Calendar,
+              color: "text-blue-500",
+            },
+            {
+              label: "Completed this month",
+              value: fmt(testStats?.completedThisMonth),
+              icon: CheckCircle2,
+              color: "text-violet-500",
+            },
+          ]}
+        />
+
+        {/* Attempts */}
+        <StatCard
+          icon={Target}
+          iconColor="bg-violet-500"
+          title="Attempt Statistics"
+          description="Engagement and scoring"
+          loading={isLoading}
+          error={errors.attempts}
+          onRetry={refresh}
+          highlights={[
+            {
+              value: fmt(attemptStats?.total),
+              label: "Total",
+              color:
+                "bg-violet-50 dark:bg-violet-950/30 text-violet-700 dark:text-violet-300",
+            },
+            {
+              value: fmt(attemptStats?.completed),
+              label: "Completed",
+              color:
+                "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300",
+            },
+          ]}
+          stats={[
+            {
+              label: "In progress",
+              value: fmt(attemptStats?.started),
+              icon: Activity,
+              color: "text-blue-500",
+            },
+            {
+              label: "Expired",
+              value: fmt(attemptStats?.expired),
+              icon: Clock,
+              color: "text-red-500",
+            },
+            {
+              label: "Average score",
+              value: fmt(attemptStats?.avgScore, "%"),
+              icon: Trophy,
+              color: "text-amber-500",
+            },
+            {
+              label: "Avg duration",
+              value: `${Math.round((attemptStats?.avgDuration ?? 0) / 60)} min`,
+              icon: Clock,
+              color: "text-violet-500",
+            },
+          ]}
+        />
+      </div>
+
+      {/* ── KPI progress bars ── */}
+      {!isLoading && (
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
+          <div className="flex items-center gap-2 mb-5">
+            <BarChart3 className="h-4 w-4 text-indigo-500" />
+            <span className="text-sm font-bold text-slate-800 dark:text-slate-100">
+              Key Performance Indicators
+            </span>
+          </div>
+          <div className="grid md:grid-cols-2 gap-x-8 gap-y-5">
+            <KpiBar
+              label="Attempt Completion Rate"
+              percentage={completionRate}
+              value={`${completionRate}%`}
+              gradient="bg-gradient-to-r from-emerald-400 to-teal-500"
+            />
+            <KpiBar
+              label="Monthly User Engagement"
+              percentage={engagementRate}
+              value={`${engagementRate}%`}
+              gradient="bg-gradient-to-r from-blue-400 to-indigo-500"
+            />
+            <KpiBar
+              label="Average Score"
+              percentage={attemptStats?.avgScore ?? 0}
+              value={`${attemptStats?.avgScore ?? 0}%`}
+              gradient="bg-gradient-to-r from-violet-400 to-purple-500"
+            />
+            <KpiBar
+              label="Overall Performance"
+              percentage={metrics?.avgPerformance ?? 0}
+              value={`${metrics?.avgPerformance ?? 0}%`}
+              gradient="bg-gradient-to-r from-amber-400 to-orange-500"
             />
           </div>
-        ) : dashboardMetrics ? (
-          <>
-            {/* Total Users */}
-            <Card className="group hover:shadow-xl transition-all duration-300 border-0 shadow-lg bg-linear-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-semibold text-blue-700 dark:text-blue-300">
-                  Total Users
-                </CardTitle>
-                <div className="h-9 w-9 rounded-xl bg-blue-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <Users className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-blue-700 dark:text-blue-300">
-                  {dashboardMetrics.totalUsers.toLocaleString()}
-                </div>
-                <GrowthIndicator
-                  value={dashboardMetrics.userGrowth}
-                  label="from last month"
-                />
-              </CardContent>
-            </Card>
-
-            {/* Active Tests */}
-            <Card className="group hover:shadow-xl transition-all duration-300 border-0 shadow-lg bg-linear-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-semibold text-green-700 dark:text-green-300">
-                  Active Tests
-                </CardTitle>
-                <div className="h-9 w-9 rounded-xl bg-green-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <FileText className="h-4 w-4 text-green-600 dark:text-green-400" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-green-700 dark:text-green-300">
-                  {dashboardMetrics.activeTests}
-                </div>
-                <GrowthIndicator
-                  value={dashboardMetrics.testGrowth}
-                  label="from last month"
-                />
-              </CardContent>
-            </Card>
-
-            {/* Completed Attempts */}
-            <Card className="group hover:shadow-xl transition-all duration-300 border-0 shadow-lg bg-linear-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-semibold text-purple-700 dark:text-purple-300">
-                  Completed Attempts
-                </CardTitle>
-                <div className="h-9 w-9 rounded-xl bg-purple-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <CheckCircle2 className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-purple-700 dark:text-purple-300">
-                  {dashboardMetrics.completedAttempts.toLocaleString()}
-                </div>
-                <GrowthIndicator
-                  value={dashboardMetrics.attemptGrowth}
-                  label="from last month"
-                />
-              </CardContent>
-            </Card>
-
-            {/* Avg Performance */}
-            <Card className="group hover:shadow-xl transition-all duration-300 border-0 shadow-lg bg-linear-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-semibold text-orange-700 dark:text-orange-300">
-                  Avg Performance
-                </CardTitle>
-                <div className="h-9 w-9 rounded-xl bg-orange-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <TrendingUp className="h-4 w-4 text-orange-600 dark:text-orange-400" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-orange-700 dark:text-orange-300">
-                  {dashboardMetrics.avgPerformance}%
-                </div>
-                <GrowthIndicator
-                  value={dashboardMetrics.performanceGrowth}
-                  label="improvement"
-                />
-              </CardContent>
-            </Card>
-          </>
-        ) : null}
-      </div>
-
-      {/* ── Detailed stats row ──────────────────────────────────────────────── */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* User Statistics */}
-        {loading ? (
-          <StatCardSkeleton />
-        ) : errors.userStats ? (
-          <ErrorCard message={errors.userStats} onRetry={handleRefresh} />
-        ) : userStats ? (
-          <Card className="border-0 shadow-xl">
-            <CardHeader className="flex flex-row items-center gap-3 pb-4">
-              <div className="h-10 w-10 rounded-lg bg-blue-500/20 flex items-center justify-center shrink-0">
-                <Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-              </div>
-              <div>
-                <CardTitle>User Statistics</CardTitle>
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                  Distribution and activity
-                </p>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <StatBox
-                  value={userStats.total.toLocaleString()}
-                  label="Total Users"
-                  color="blue"
-                />
-                <StatBox
-                  value={String(userStats.newThisMonth)}
-                  label="New This Month"
-                  color="green"
-                />
-              </div>
-              <div className="space-y-2">
-                <StatRow
-                  label="Students"
-                  value={userStats.students}
-                  badgeColor="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400"
-                />
-                <StatRow
-                  label="Instructors"
-                  value={userStats.instructors}
-                  badgeColor="bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400"
-                />
-                <StatRow
-                  label="Admins"
-                  value={userStats.admins}
-                  badgeColor="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
-                />
-              </div>
-              <div className="pt-2 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
-                <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                  Active This Month
-                </span>
-                <div className="flex items-center gap-1">
-                  <Activity className="h-3 w-3 text-green-500" />
-                  <span className="text-sm font-semibold text-green-600 dark:text-green-400">
-                    {userStats.activeThisMonth}
-                  </span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ) : null}
-
-        {/* Test Statistics */}
-        {loading ? (
-          <StatCardSkeleton />
-        ) : errors.testStats ? (
-          <ErrorCard message={errors.testStats} onRetry={handleRefresh} />
-        ) : testStats ? (
-          <Card className="border-0 shadow-xl">
-            <CardHeader className="flex flex-row items-center gap-3 pb-4">
-              <div className="h-10 w-10 rounded-lg bg-green-500/20 flex items-center justify-center shrink-0">
-                <FileText className="h-5 w-5 text-green-600 dark:text-green-400" />
-              </div>
-              <div>
-                <CardTitle>Test Statistics</CardTitle>
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                  Creation and performance
-                </p>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <StatBox
-                  value={String(testStats.total)}
-                  label="Total Tests"
-                  color="green"
-                />
-                <StatBox
-                  value={String(testStats.active)}
-                  label="Active"
-                  color="blue"
-                />
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                    Live Tests
-                  </span>
-                  <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 flex items-center gap-1">
-                    <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                    {testStats.live}
-                  </Badge>
-                </div>
-                <StatRow
-                  label="Premium Tests"
-                  value={testStats.premium}
-                  badgeColor="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400"
-                />
-              </div>
-              <div className="pt-2 border-t border-zinc-200 dark:border-zinc-800 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                    Created This Month
-                  </span>
-                  <div className="flex items-center gap-1">
-                    <Calendar className="h-3 w-3 text-blue-500" />
-                    <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">
-                      {testStats.createdThisMonth}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                    Completed This Month
-                  </span>
-                  <div className="flex items-center gap-1">
-                    <CheckCircle2 className="h-3 w-3 text-green-500" />
-                    <span className="text-sm font-semibold text-green-600 dark:text-green-400">
-                      {testStats.completedThisMonth}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ) : null}
-
-        {/* Attempt Statistics */}
-        {loading ? (
-          <StatCardSkeleton />
-        ) : errors.attemptStats ? (
-          <ErrorCard message={errors.attemptStats} onRetry={handleRefresh} />
-        ) : attemptStats ? (
-          <Card className="border-0 shadow-xl">
-            <CardHeader className="flex flex-row items-center gap-3 pb-4">
-              <div className="h-10 w-10 rounded-lg bg-purple-500/20 flex items-center justify-center shrink-0">
-                <Target className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-              </div>
-              <div>
-                <CardTitle>Attempt Statistics</CardTitle>
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                  Attempts and performance
-                </p>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <StatBox
-                  value={attemptStats.total.toLocaleString()}
-                  label="Total Attempts"
-                  color="purple"
-                />
-                <StatBox
-                  value={String(attemptStats.completed)}
-                  label="Completed"
-                  color="green"
-                />
-              </div>
-              <div className="space-y-2">
-                <StatRow
-                  label="In Progress"
-                  value={attemptStats.started}
-                  badgeColor="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400"
-                />
-                <StatRow
-                  label="Expired"
-                  value={attemptStats.expired}
-                  badgeColor="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
-                />
-              </div>
-              <div className="pt-2 border-t border-zinc-200 dark:border-zinc-800 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                    Average Score
-                  </span>
-                  <div className="flex items-center gap-1">
-                    <Trophy className="h-3 w-3 text-yellow-500" />
-                    <span className="text-sm font-semibold text-yellow-600 dark:text-yellow-400">
-                      {attemptStats.avgScore}%
-                    </span>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                    Avg Duration
-                  </span>
-                  <div className="flex items-center gap-1">
-                    <Clock className="h-3 w-3 text-blue-500" />
-                    <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">
-                      {Math.round(attemptStats.avgDuration / 60)} min
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ) : null}
-      </div>
-
-      {/* ── Performance overview ─────────────────────────────────────────────── */}
-      {!loading && (userStats || attemptStats || dashboardMetrics) && (
-        <Card className="border-0 shadow-xl">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BarChart3 className="h-5 w-5" />
-              Performance Overview
-            </CardTitle>
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">
-              Key performance indicators
-            </p>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-6 md:grid-cols-2">
-              <ProgressBar
-                percentage={completionRate}
-                color="green"
-                label="Attempt Completion Rate"
-                value={`${completionRate}%`}
-              />
-              <ProgressBar
-                percentage={engagementRate}
-                color="blue"
-                label="Monthly User Engagement"
-                value={`${engagementRate}%`}
-              />
-              <ProgressBar
-                percentage={attemptStats?.avgScore ?? 0}
-                color="purple"
-                label="Average Score"
-                value={`${attemptStats?.avgScore ?? 0}%`}
-              />
-              <ProgressBar
-                percentage={dashboardMetrics?.avgPerformance ?? 0}
-                color="orange"
-                label="Overall Performance"
-                value={`${dashboardMetrics?.avgPerformance ?? 0}%`}
-              />
-            </div>
-          </CardContent>
-        </Card>
+        </div>
       )}
     </div>
-  );
-}
-
-// ─── Small reusable pieces ────────────────────────────────────────────────────
-
-function StatBox({
-  value,
-  label,
-  color,
-}: {
-  value: string;
-  label: string;
-  color: "blue" | "green" | "purple" | "orange";
-}) {
-  const styles = {
-    blue: "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 text-xs text-blue-600 dark:text-blue-400",
-    green:
-      "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 text-xs text-green-600 dark:text-green-400",
-    purple:
-      "bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 text-xs text-purple-600 dark:text-purple-400",
-    orange:
-      "bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 text-xs text-orange-600 dark:text-orange-400",
-  };
-  const [bg, textBig, , textSmall] = styles[color].split(" ");
-  return (
-    <div className={`text-center p-3 rounded-lg ${bg}`}>
-      <div className={`text-2xl font-bold ${textBig}`}>{value}</div>
-      <div className={`text-xs mt-0.5 ${textSmall}`}>{label}</div>
-    </div>
-  );
-}
-
-function StatRow({
-  label,
-  value,
-  badgeColor,
-}: {
-  label: string;
-  value: number;
-  badgeColor: string;
-}) {
-  return (
-    <div className="flex items-center justify-between">
-      <span className="text-sm text-zinc-600 dark:text-zinc-400">{label}</span>
-      <Badge className={badgeColor}>{value}</Badge>
-    </div>
-  );
-}
-
-function ErrorCard({
-  message,
-  onRetry,
-}: {
-  message: string;
-  onRetry: () => void;
-}) {
-  return (
-    <Card className="border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20">
-      <CardContent className="pt-6 flex flex-col items-center gap-3 text-center">
-        <AlertCircle className="h-8 w-8 text-red-500" />
-        <p className="text-sm text-red-600 dark:text-red-400">{message}</p>
-        <Button variant="outline" size="sm" onClick={onRetry}>
-          <RefreshCw className="h-3 w-3 mr-2" />
-          Retry
-        </Button>
-      </CardContent>
-    </Card>
   );
 }

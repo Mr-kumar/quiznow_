@@ -163,7 +163,7 @@ function TreeNode({
       <div
         className={cn(
           "group relative flex items-center gap-2 py-1 pr-2 rounded-lg cursor-pointer transition-all duration-150",
-          "hover:bg-zinc-100 dark:hover:bg-zinc-800/60",
+          "hover:bg-zinc-50 dark:hover:bg-zinc-800/60",
           isSelected &&
             "bg-zinc-100 dark:bg-zinc-800 ring-1 ring-inset ring-zinc-300 dark:ring-zinc-600",
         )}

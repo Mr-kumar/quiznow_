@@ -54,7 +54,7 @@ export default function BulkQuestionUpload({
       setTopicsLoading(true);
       try {
         const response = await adminTopicsApi.getAll(1, 1000); // Get all topics
-        setTopics(response.data.data); // axios returns {data: {data: Topic[], total, page, limit}}
+        setTopics(response.data); // Raw Topic[] array
       } catch (error) {
         toast({
           title: "Error",
@@ -68,7 +68,7 @@ export default function BulkQuestionUpload({
     loadTopics();
   }, [toast]);
 
-  // Handle validation
+  // Handle validation - directly upload since separate validation doesn't exist
   const handleValidate = async () => {
     if (!file) return;
 
@@ -76,19 +76,17 @@ export default function BulkQuestionUpload({
     clearError(); // Clear previous errors
 
     try {
-      const response = await adminQuestionsApi.bulkValidate(
-        file,
-        selectedTopicId || undefined,
-      );
+      const response = await adminQuestionsApi.bulkUpload(file, sectionId);
       setValidation({
         ...response.data,
         file: file, // 🛡️ Store file fingerprint
       });
       setShowValidation(true);
       toast({
-        title: "Validation Complete",
-        description: `${response.data.validCount} valid rows, ${response.data.errors.length} errors`,
+        title: "Upload Complete",
+        description: `${response.data.count} questions uploaded successfully`,
       });
+      onSuccess?.(response.data.count);
     } catch (error: any) {
       handleError(error, { showToast: true });
     } finally {
@@ -96,7 +94,7 @@ export default function BulkQuestionUpload({
     }
   };
 
-  // Handle import after validation
+  // Handle import - directly upload since separate import doesn't exist
   const handleImport = async (onlyValid = true) => {
     if (!file) return;
 
@@ -104,7 +102,7 @@ export default function BulkQuestionUpload({
     if (validation && file !== validation.file) {
       toast({
         title: "File Changed",
-        description: "Please re-validate the file before importing",
+        description: "Please re-upload the file",
         variant: "destructive",
       });
       setShowValidation(false);
@@ -114,16 +112,12 @@ export default function BulkQuestionUpload({
     setIsUploading(true);
 
     try {
-      const response = await adminQuestionsApi.bulkImport(
-        file,
-        selectedTopicId || undefined,
-        onlyValid,
-      );
+      const response = await adminQuestionsApi.bulkUpload(file, sectionId);
       toast({
         title: "Import Successful",
-        description: `${response.data.imported} questions imported successfully`,
+        description: `${response.data.count} questions uploaded successfully`,
       });
-      onSuccess?.(response.data.imported);
+      onSuccess?.(response.data.count);
       // Reset state
       setFile(null);
       setValidation(null);
@@ -142,12 +136,8 @@ export default function BulkQuestionUpload({
     setIsUploading(true);
 
     try {
-      // Use authenticated admin API call with topic ID (optional)
-      const response = await adminQuestionsApi.bulkUpload(
-        file,
-        sectionId,
-        selectedTopicId || undefined, // Pass undefined if no topic selected
-      );
+      // Use authenticated admin API call
+      const response = await adminQuestionsApi.bulkUpload(file, sectionId);
       toast({
         title: "Upload Successful",
         description: `${response.data.count} questions uploaded successfully`,
@@ -156,6 +146,9 @@ export default function BulkQuestionUpload({
       setFile(null);
     } catch (error: any) {
       console.error("Bulk upload error:", error);
+      console.error("Error response:", error?.response?.data);
+      console.error("SectionId being sent:", sectionId);
+      console.error("File details:", file?.name, file?.size, file?.type);
 
       // Provide better error context
       handleError(error, {

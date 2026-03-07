@@ -1,51 +1,89 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { adminSettingsApi } from "@/lib/admin-api";
+import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useToast } from "@/components/ui/use-toast";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Settings,
-  Database,
-  Users,
-  Shield,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  BarChart3,
   Bell,
+  CheckCircle2,
+  ChevronRight,
+  CreditCard,
+  Database,
   Globe,
+  Loader2,
+  Lock,
+  Mail,
   Palette,
+  Save,
+  Settings,
+  Shield,
+  TriangleAlert,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-export default function AdminSettingsPage() {
-  const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
+// ─── Section definitions ──────────────────────────────────────────────────────
 
-  // System Settings
-  const [systemSettings, setSystemSettings] = useState({
+const SECTIONS = [
+  { id: "system", label: "System", icon: Globe, color: "text-sky-500" },
+  { id: "exam", label: "Exams", icon: Database, color: "text-indigo-500" },
+  {
+    id: "payment",
+    label: "Payment",
+    icon: CreditCard,
+    color: "text-emerald-500",
+  },
+  { id: "security", label: "Security", icon: Shield, color: "text-red-500" },
+  { id: "email", label: "Email / SMTP", icon: Mail, color: "text-violet-500" },
+  {
+    id: "notifications",
+    label: "Notifications",
+    icon: Bell,
+    color: "text-amber-500",
+  },
+  { id: "content", label: "Content", icon: Palette, color: "text-pink-500" },
+  {
+    id: "analytics",
+    label: "Analytics",
+    icon: BarChart3,
+    color: "text-teal-500",
+  },
+  { id: "database", label: "Database", icon: Lock, color: "text-orange-500" },
+] as const;
+
+type SectionId = (typeof SECTIONS)[number]["id"];
+
+// ─── Default state shapes ─────────────────────────────────────────────────────
+
+const DEFAULTS = {
+  system: {
     siteName: "QuizNow",
     siteDescription: "Professional Exam Preparation Platform",
     siteUrl: "https://quiznow.com",
-    logoUrl: "",
-    faviconUrl: "",
     allowRegistration: true,
     requireEmailVerification: false,
     maintenanceMode: false,
     defaultLanguage: "en",
     timezone: "UTC",
-  });
-
-  // Exam Settings
-  const [examSettings, setExamSettings] = useState({
+  },
+  exam: {
     defaultTestDuration: 60,
     defaultPassingMarks: 40,
     defaultNegativeMarking: 0.33,
@@ -55,10 +93,8 @@ export default function AdminSettingsPage() {
     retestWaitingPeriod: 24,
     maxQuestionsPerTest: 200,
     autoSubmitOnTimeout: true,
-  });
-
-  // Payment Settings
-  const [paymentSettings, setPaymentSettings] = useState({
+  },
+  payment: {
     enablePayments: false,
     currency: "INR",
     testPrice: 99,
@@ -66,11 +102,8 @@ export default function AdminSettingsPage() {
     monthlySubscriptionPrice: 299,
     yearlySubscriptionPrice: 2990,
     freeTestsPerMonth: 5,
-    paymentGateway: "razorpay",
-  });
-
-  // Email Settings
-  const [emailSettings, setEmailSettings] = useState({
+  },
+  email: {
     smtpHost: "",
     smtpPort: "587",
     smtpUser: "",
@@ -78,23 +111,17 @@ export default function AdminSettingsPage() {
     fromEmail: "noreply@quiznow.com",
     fromName: "QuizNow Team",
     enableEmailNotifications: true,
-    emailVerificationRequired: false,
-  });
-
-  // Security Settings
-  const [securitySettings, setSecuritySettings] = useState({
+  },
+  security: {
     passwordMinLength: "8",
     requireStrongPassword: true,
     sessionTimeout: "24",
     maxLoginAttempts: "5",
     enableTwoFactor: false,
     enableCaptcha: false,
-    ipWhitelist: "",
     blockSuspiciousIPs: true,
-  });
-
-  // Notification Settings
-  const [notificationSettings, setNotificationSettings] = useState({
+  },
+  notifications: {
     emailNotifications: true,
     pushNotifications: true,
     smsNotifications: false,
@@ -103,895 +130,1128 @@ export default function AdminSettingsPage() {
     paymentAlerts: true,
     systemErrorAlerts: true,
     dailyDigest: false,
-  });
-
-  // Content Settings
-  const [contentSettings, setContentSettings] = useState({
+  },
+  content: {
     enableQuestionBank: true,
     allowUserGeneratedContent: false,
     contentModeration: true,
     autoTranslateQuestions: false,
-    supportedLanguages: ["en", "hi", "gu", "ta", "bn", "mr", "te", "kn"],
-  });
-
-  // Analytics Settings
-  const [analyticsSettings, setAnalyticsSettings] = useState({
+  },
+  analytics: {
     enableAnalytics: true,
     trackUserBehavior: true,
     trackTestPerformance: true,
     anonymizeData: true,
     dataRetentionPeriod: 365,
-  });
+  },
+  database: {
+    // read-only stats + action triggers — not persisted via key-value
+  },
+} as const;
 
-  const handleSaveSettings = async (section: string, settings: any) => {
-    setIsLoading(true);
+// ─── DRY field primitives ─────────────────────────────────────────────────────
+
+function FieldRow({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{children}</div>
+  );
+}
+
+function TextField({
+  id,
+  label,
+  value,
+  onChange,
+  placeholder,
+  type = "text",
+  step,
+  description,
+}: {
+  id: string;
+  label: string;
+  value: string | number;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  type?: string;
+  step?: string;
+  description?: string;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label
+        htmlFor={id}
+        className="text-xs font-semibold text-slate-700 dark:text-slate-300"
+      >
+        {label}
+      </Label>
+      {description && (
+        <p className="text-[11px] text-slate-400">{description}</p>
+      )}
+      <Input
+        id={id}
+        type={type}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="h-9 text-sm bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-700"
+      />
+    </div>
+  );
+}
+
+function ToggleRow({
+  label,
+  description,
+  checked,
+  onCheckedChange,
+  danger,
+}: {
+  label: string;
+  description: string;
+  checked: boolean;
+  onCheckedChange: (v: boolean) => void;
+  danger?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4 py-3 border-b border-slate-100 dark:border-slate-800 last:border-0">
+      <div className="space-y-0.5 flex-1">
+        <p
+          className={cn(
+            "text-sm font-medium",
+            danger
+              ? "text-red-600 dark:text-red-400"
+              : "text-slate-800 dark:text-slate-200",
+          )}
+        >
+          {label}
+        </p>
+        <p className="text-xs text-slate-400 dark:text-slate-500">
+          {description}
+        </p>
+      </div>
+      <Switch
+        checked={checked}
+        onCheckedChange={onCheckedChange}
+        className={danger && checked ? "data-[state=checked]:bg-red-500" : ""}
+      />
+    </div>
+  );
+}
+
+function SectionHeader({
+  icon: Icon,
+  color,
+  title,
+  description,
+}: {
+  icon: React.ElementType;
+  color: string;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="flex items-center gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
+      <div className="h-9 w-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+        <Icon
+          className={cn("h-4.5 w-4.5", color)}
+          style={{ height: "1.125rem", width: "1.125rem" }}
+        />
+      </div>
+      <div>
+        <h2 className="text-base font-bold text-slate-900 dark:text-slate-50">
+          {title}
+        </h2>
+        <p className="text-xs text-slate-400 mt-px">{description}</p>
+      </div>
+    </div>
+  );
+}
+
+function SaveButton({
+  onSave,
+  saving,
+  dirty,
+}: {
+  onSave: () => void;
+  saving: boolean;
+  dirty: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800 mt-6">
+      {dirty ? (
+        <span className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400">
+          <TriangleAlert className="h-3.5 w-3.5" />
+          Unsaved changes
+        </span>
+      ) : (
+        <span className="flex items-center gap-1.5 text-xs text-slate-400">
+          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+          All changes saved
+        </span>
+      )}
+      <Button
+        size="sm"
+        onClick={onSave}
+        disabled={saving || !dirty}
+        className="h-8 gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white"
+      >
+        {saving ? (
+          <>
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            Saving…
+          </>
+        ) : (
+          <>
+            <Save className="h-3.5 w-3.5" />
+            Save Changes
+          </>
+        )}
+      </Button>
+    </div>
+  );
+}
+
+// ─── useSectionSettings hook — handles load / save / dirty tracking ──────────
+
+type SettingsMap = Record<string, any>;
+
+function useSectionSettings(prefix: string, defaults: SettingsMap) {
+  const [values, setValues] = useState<SettingsMap>(defaults);
+  const [saved, setSaved] = useState<SettingsMap>(defaults);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const { toast } = useToast();
+
+  // Load from backend once on mount
+  useEffect(() => {
+    setLoading(true);
+    adminSettingsApi
+      .getAll()
+      .then((res) => {
+        const all: Record<string, any> = res.data?.data ?? res.data ?? {};
+        // Backend stores keys as e.g. "system.siteName" — merge into local state
+        const merged = { ...defaults };
+        Object.entries(all).forEach(([k, v]) => {
+          if (k.startsWith(`${prefix}.`)) {
+            const field = k.slice(prefix.length + 1);
+            if (field in merged) {
+              (merged as any)[field] = v;
+            }
+          }
+        });
+        setValues(merged);
+        setSaved(merged);
+      })
+      .catch(() => {
+        // API not ready / no settings yet — silently use defaults
+      })
+      .finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefix]);
+
+  const set = useCallback(<K extends keyof SettingsMap>(key: K, value: any) => {
+    setValues((prev) => ({ ...prev, [key]: value }));
+  }, []);
+
+  const dirty = JSON.stringify(values) !== JSON.stringify(saved);
+
+  const save = useCallback(async () => {
+    setSaving(true);
     try {
-      // In a real implementation, this would call the backend API
-      console.log(`Saving ${section} settings:`, settings);
-
+      const batch = Object.entries(values).map(([k, v]) => ({
+        key: `${prefix}.${k}`,
+        value: v,
+      }));
+      await adminSettingsApi.updateBatch(batch);
+      setSaved({ ...values });
       toast({
-        title: "Settings Saved",
-        description: `${section} settings have been updated successfully.`,
+        title: "Settings saved",
+        description: `${prefix} settings updated.`,
       });
-    } catch (error) {
+    } catch (err: any) {
       toast({
-        title: "Error",
-        description: "Failed to save settings. Please try again.",
+        title: "Save failed",
+        description: err?.response?.data?.message ?? "Please try again.",
         variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      setSaving(false);
     }
+  }, [values, prefix, toast]);
+
+  return { values, set, save, saving, dirty, loading };
+}
+
+// ─── Individual section panels ────────────────────────────────────────────────
+
+function SystemPanel() {
+  const {
+    values: v,
+    set,
+    save,
+    saving,
+    dirty,
+    loading,
+  } = useSectionSettings("system", DEFAULTS.system);
+  if (loading) return <PanelSkeleton />;
+  return (
+    <div className="space-y-6">
+      <SectionHeader
+        icon={Globe}
+        color="text-sky-500"
+        title="System Configuration"
+        description="Basic platform settings, branding, and access control"
+      />
+      <FieldRow>
+        <TextField
+          id="siteName"
+          label="Site Name"
+          value={v.siteName}
+          onChange={(val) => set("siteName", val)}
+          placeholder="QuizNow"
+        />
+        <TextField
+          id="siteDescription"
+          label="Site Description"
+          value={v.siteDescription}
+          onChange={(val) => set("siteDescription", val)}
+          placeholder="Professional Exam Preparation"
+        />
+        <TextField
+          id="siteUrl"
+          label="Site URL"
+          value={v.siteUrl}
+          onChange={(val) => set("siteUrl", val)}
+          placeholder="https://quiznow.com"
+        />
+        <TextField
+          id="defaultLanguage"
+          label="Default Language"
+          value={v.defaultLanguage}
+          onChange={(val) => set("defaultLanguage", val)}
+          placeholder="en"
+        />
+        <TextField
+          id="timezone"
+          label="Timezone"
+          value={v.timezone}
+          onChange={(val) => set("timezone", val)}
+          placeholder="UTC"
+        />
+      </FieldRow>
+      <div className="pt-2">
+        <ToggleRow
+          label="Allow User Registration"
+          description="New users can sign up on the platform"
+          checked={v.allowRegistration}
+          onCheckedChange={(c) => set("allowRegistration", c)}
+        />
+        <ToggleRow
+          label="Require Email Verification"
+          description="Users must verify their email before access"
+          checked={v.requireEmailVerification}
+          onCheckedChange={(c) => set("requireEmailVerification", c)}
+        />
+        <ToggleRow
+          label="Maintenance Mode"
+          description="Platform shows a maintenance page to all users"
+          checked={v.maintenanceMode}
+          onCheckedChange={(c) => set("maintenanceMode", c)}
+          danger
+        />
+      </div>
+      <SaveButton onSave={save} saving={saving} dirty={dirty} />
+    </div>
+  );
+}
+
+function ExamPanel() {
+  const {
+    values: v,
+    set,
+    save,
+    saving,
+    dirty,
+    loading,
+  } = useSectionSettings("exam", DEFAULTS.exam);
+  if (loading) return <PanelSkeleton />;
+  return (
+    <div className="space-y-6">
+      <SectionHeader
+        icon={Database}
+        color="text-indigo-500"
+        title="Exam Configuration"
+        description="Defaults for test timing, scoring, and retry rules"
+      />
+      <FieldRow>
+        <TextField
+          id="defaultTestDuration"
+          label="Default Test Duration (min)"
+          type="number"
+          value={v.defaultTestDuration}
+          onChange={(val) => set("defaultTestDuration", Number(val))}
+        />
+        <TextField
+          id="defaultPassingMarks"
+          label="Default Passing Marks (%)"
+          type="number"
+          value={v.defaultPassingMarks}
+          onChange={(val) => set("defaultPassingMarks", Number(val))}
+        />
+        <TextField
+          id="defaultNegativeMarking"
+          label="Default Negative Marking"
+          type="number"
+          step="0.01"
+          value={v.defaultNegativeMarking}
+          onChange={(val) => set("defaultNegativeMarking", Number(val))}
+        />
+        <TextField
+          id="maxQuestionsPerTest"
+          label="Max Questions Per Test"
+          type="number"
+          value={v.maxQuestionsPerTest}
+          onChange={(val) => set("maxQuestionsPerTest", Number(val))}
+        />
+        <TextField
+          id="retestWaitingPeriod"
+          label="Retest Waiting Period (hrs)"
+          type="number"
+          value={v.retestWaitingPeriod}
+          onChange={(val) => set("retestWaitingPeriod", Number(val))}
+        />
+      </FieldRow>
+      <div className="pt-2">
+        <ToggleRow
+          label="Allow Negative Marking"
+          description="Deduct marks for wrong answers"
+          checked={v.allowNegativeMarking}
+          onCheckedChange={(c) => set("allowNegativeMarking", c)}
+        />
+        <ToggleRow
+          label="Show Results Immediately"
+          description="Display scores as soon as test is submitted"
+          checked={v.showResultsImmediately}
+          onCheckedChange={(c) => set("showResultsImmediately", c)}
+        />
+        <ToggleRow
+          label="Allow Retest"
+          description="Users can retake the same test"
+          checked={v.allowRetest}
+          onCheckedChange={(c) => set("allowRetest", c)}
+        />
+        <ToggleRow
+          label="Auto Submit on Timeout"
+          description="Automatically submit when time expires"
+          checked={v.autoSubmitOnTimeout}
+          onCheckedChange={(c) => set("autoSubmitOnTimeout", c)}
+        />
+      </div>
+      <SaveButton onSave={save} saving={saving} dirty={dirty} />
+    </div>
+  );
+}
+
+function PaymentPanel() {
+  const {
+    values: v,
+    set,
+    save,
+    saving,
+    dirty,
+    loading,
+  } = useSectionSettings("payment", DEFAULTS.payment);
+  if (loading) return <PanelSkeleton />;
+  return (
+    <div className="space-y-6">
+      <SectionHeader
+        icon={CreditCard}
+        color="text-emerald-500"
+        title="Payment Configuration"
+        description="Gateway settings, pricing, and subscription plans"
+      />
+      <FieldRow>
+        <TextField
+          id="currency"
+          label="Currency"
+          value={v.currency}
+          onChange={(val) => set("currency", val)}
+          placeholder="INR"
+        />
+        <TextField
+          id="testPrice"
+          label="Per-Test Price (₹)"
+          type="number"
+          value={v.testPrice}
+          onChange={(val) => set("testPrice", Number(val))}
+        />
+        <TextField
+          id="monthlySubscriptionPrice"
+          label="Monthly Subscription (₹)"
+          type="number"
+          value={v.monthlySubscriptionPrice}
+          onChange={(val) => set("monthlySubscriptionPrice", Number(val))}
+        />
+        <TextField
+          id="yearlySubscriptionPrice"
+          label="Yearly Subscription (₹)"
+          type="number"
+          value={v.yearlySubscriptionPrice}
+          onChange={(val) => set("yearlySubscriptionPrice", Number(val))}
+        />
+        <TextField
+          id="freeTestsPerMonth"
+          label="Free Tests Per Month"
+          type="number"
+          value={v.freeTestsPerMonth}
+          onChange={(val) => set("freeTestsPerMonth", Number(val))}
+        />
+      </FieldRow>
+      <div className="pt-2">
+        <ToggleRow
+          label="Enable Payments"
+          description="Collect payments for premium tests"
+          checked={v.enablePayments}
+          onCheckedChange={(c) => set("enablePayments", c)}
+        />
+        <ToggleRow
+          label="Enable Subscriptions"
+          description="Allow users to subscribe for unlimited access"
+          checked={v.subscriptionEnabled}
+          onCheckedChange={(c) => set("subscriptionEnabled", c)}
+        />
+      </div>
+      <SaveButton onSave={save} saving={saving} dirty={dirty} />
+    </div>
+  );
+}
+
+function SecurityPanel() {
+  const {
+    values: v,
+    set,
+    save,
+    saving,
+    dirty,
+    loading,
+  } = useSectionSettings("security", DEFAULTS.security);
+  if (loading) return <PanelSkeleton />;
+  return (
+    <div className="space-y-6">
+      <SectionHeader
+        icon={Shield}
+        color="text-red-500"
+        title="Security Configuration"
+        description="Password policy, sessions, and authentication controls"
+      />
+      <FieldRow>
+        <TextField
+          id="passwordMinLength"
+          label="Minimum Password Length"
+          type="number"
+          value={v.passwordMinLength}
+          onChange={(val) => set("passwordMinLength", val)}
+        />
+        <TextField
+          id="sessionTimeout"
+          label="Session Timeout (hours)"
+          type="number"
+          value={v.sessionTimeout}
+          onChange={(val) => set("sessionTimeout", val)}
+        />
+        <TextField
+          id="maxLoginAttempts"
+          label="Max Login Attempts"
+          type="number"
+          value={v.maxLoginAttempts}
+          onChange={(val) => set("maxLoginAttempts", val)}
+        />
+      </FieldRow>
+      <div className="pt-2">
+        <ToggleRow
+          label="Require Strong Password"
+          description="Enforce uppercase, number, and symbol requirements"
+          checked={v.requireStrongPassword}
+          onCheckedChange={(c) => set("requireStrongPassword", c)}
+        />
+        <ToggleRow
+          label="Enable Two-Factor Authentication"
+          description="Allow users to enable 2FA via authenticator app"
+          checked={v.enableTwoFactor}
+          onCheckedChange={(c) => set("enableTwoFactor", c)}
+        />
+        <ToggleRow
+          label="Enable CAPTCHA"
+          description="Show CAPTCHA on login and registration forms"
+          checked={v.enableCaptcha}
+          onCheckedChange={(c) => set("enableCaptcha", c)}
+        />
+        <ToggleRow
+          label="Block Suspicious IPs"
+          description="Automatically block IPs with too many failed attempts"
+          checked={v.blockSuspiciousIPs}
+          onCheckedChange={(c) => set("blockSuspiciousIPs", c)}
+        />
+      </div>
+      <SaveButton onSave={save} saving={saving} dirty={dirty} />
+    </div>
+  );
+}
+
+function EmailPanel() {
+  const {
+    values: v,
+    set,
+    save,
+    saving,
+    dirty,
+    loading,
+  } = useSectionSettings("email", DEFAULTS.email);
+  if (loading) return <PanelSkeleton />;
+  return (
+    <div className="space-y-6">
+      <SectionHeader
+        icon={Mail}
+        color="text-violet-500"
+        title="Email / SMTP Configuration"
+        description="Outbound email settings for notifications and verification"
+      />
+      <FieldRow>
+        <TextField
+          id="smtpHost"
+          label="SMTP Host"
+          value={v.smtpHost}
+          onChange={(val) => set("smtpHost", val)}
+          placeholder="smtp.gmail.com"
+        />
+        <TextField
+          id="smtpPort"
+          label="SMTP Port"
+          type="number"
+          value={v.smtpPort}
+          onChange={(val) => set("smtpPort", val)}
+          placeholder="587"
+        />
+        <TextField
+          id="smtpUser"
+          label="SMTP Username"
+          value={v.smtpUser}
+          onChange={(val) => set("smtpUser", val)}
+          placeholder="your@email.com"
+        />
+        <TextField
+          id="smtpPassword"
+          label="SMTP Password"
+          type="password"
+          value={v.smtpPassword}
+          onChange={(val) => set("smtpPassword", val)}
+          placeholder="App password"
+        />
+        <TextField
+          id="fromEmail"
+          label="From Email"
+          value={v.fromEmail}
+          onChange={(val) => set("fromEmail", val)}
+          placeholder="noreply@quiznow.com"
+        />
+        <TextField
+          id="fromName"
+          label="From Name"
+          value={v.fromName}
+          onChange={(val) => set("fromName", val)}
+          placeholder="QuizNow Team"
+        />
+      </FieldRow>
+      <div className="pt-2">
+        <ToggleRow
+          label="Enable Email Notifications"
+          description="Send automated emails to users"
+          checked={v.enableEmailNotifications}
+          onCheckedChange={(c) => set("enableEmailNotifications", c)}
+        />
+      </div>
+      <SaveButton onSave={save} saving={saving} dirty={dirty} />
+    </div>
+  );
+}
+
+function NotificationsPanel() {
+  const {
+    values: v,
+    set,
+    save,
+    saving,
+    dirty,
+    loading,
+  } = useSectionSettings("notifications", DEFAULTS.notifications);
+  if (loading) return <PanelSkeleton />;
+  return (
+    <div className="space-y-6">
+      <SectionHeader
+        icon={Bell}
+        color="text-amber-500"
+        title="Notification Preferences"
+        description="Control which alerts and digests are sent"
+      />
+      <div className="pt-2">
+        <ToggleRow
+          label="Email Notifications"
+          description="Send email notifications to users"
+          checked={v.emailNotifications}
+          onCheckedChange={(c) => set("emailNotifications", c)}
+        />
+        <ToggleRow
+          label="Push Notifications"
+          description="Enable browser push notifications"
+          checked={v.pushNotifications}
+          onCheckedChange={(c) => set("pushNotifications", c)}
+        />
+        <ToggleRow
+          label="SMS Notifications"
+          description="Send SMS alerts (requires SMS gateway)"
+          checked={v.smsNotifications}
+          onCheckedChange={(c) => set("smsNotifications", c)}
+        />
+        <ToggleRow
+          label="New Test Alerts"
+          description="Notify users when new tests are published"
+          checked={v.newTestAlerts}
+          onCheckedChange={(c) => set("newTestAlerts", c)}
+        />
+        <ToggleRow
+          label="User Registration Alerts"
+          description="Alert admins on new user signups"
+          checked={v.userRegistrationAlerts}
+          onCheckedChange={(c) => set("userRegistrationAlerts", c)}
+        />
+        <ToggleRow
+          label="Payment Alerts"
+          description="Notify admins of successful payments"
+          checked={v.paymentAlerts}
+          onCheckedChange={(c) => set("paymentAlerts", c)}
+        />
+        <ToggleRow
+          label="System Error Alerts"
+          description="Alert admins of critical system errors"
+          checked={v.systemErrorAlerts}
+          onCheckedChange={(c) => set("systemErrorAlerts", c)}
+        />
+        <ToggleRow
+          label="Daily Digest"
+          description="Send a daily summary email to admins"
+          checked={v.dailyDigest}
+          onCheckedChange={(c) => set("dailyDigest", c)}
+        />
+      </div>
+      <SaveButton onSave={save} saving={saving} dirty={dirty} />
+    </div>
+  );
+}
+
+function ContentPanel() {
+  const {
+    values: v,
+    set,
+    save,
+    saving,
+    dirty,
+    loading,
+  } = useSectionSettings("content", DEFAULTS.content);
+  if (loading) return <PanelSkeleton />;
+  return (
+    <div className="space-y-6">
+      <SectionHeader
+        icon={Palette}
+        color="text-pink-500"
+        title="Content Settings"
+        description="Question bank, moderation, and multilingual support"
+      />
+      <div className="pt-2">
+        <ToggleRow
+          label="Enable Question Bank"
+          description="Allow admins to manage a shared question library"
+          checked={v.enableQuestionBank}
+          onCheckedChange={(c) => set("enableQuestionBank", c)}
+        />
+        <ToggleRow
+          label="Allow User Generated Content"
+          description="Instructors can contribute questions"
+          checked={v.allowUserGeneratedContent}
+          onCheckedChange={(c) => set("allowUserGeneratedContent", c)}
+        />
+        <ToggleRow
+          label="Content Moderation"
+          description="Review user-submitted content before publishing"
+          checked={v.contentModeration}
+          onCheckedChange={(c) => set("contentModeration", c)}
+        />
+        <ToggleRow
+          label="Auto-Translate Questions"
+          description="Automatically translate questions using AI (experimental)"
+          checked={v.autoTranslateQuestions}
+          onCheckedChange={(c) => set("autoTranslateQuestions", c)}
+        />
+      </div>
+      <SaveButton onSave={save} saving={saving} dirty={dirty} />
+    </div>
+  );
+}
+
+function AnalyticsPanel() {
+  const {
+    values: v,
+    set,
+    save,
+    saving,
+    dirty,
+    loading,
+  } = useSectionSettings("analytics", DEFAULTS.analytics);
+  if (loading) return <PanelSkeleton />;
+  return (
+    <div className="space-y-6">
+      <SectionHeader
+        icon={BarChart3}
+        color="text-teal-500"
+        title="Analytics Configuration"
+        description="Data collection, retention, and performance tracking"
+      />
+      <FieldRow>
+        <TextField
+          id="dataRetentionPeriod"
+          label="Data Retention Period (days)"
+          type="number"
+          value={v.dataRetentionPeriod}
+          onChange={(val) => set("dataRetentionPeriod", Number(val))}
+          description="Analytics data older than this will be purged"
+        />
+      </FieldRow>
+      <div className="pt-2">
+        <ToggleRow
+          label="Enable Analytics"
+          description="Track platform-wide usage statistics"
+          checked={v.enableAnalytics}
+          onCheckedChange={(c) => set("enableAnalytics", c)}
+        />
+        <ToggleRow
+          label="Track User Behavior"
+          description="Record page views, clicks, and session data"
+          checked={v.trackUserBehavior}
+          onCheckedChange={(c) => set("trackUserBehavior", c)}
+        />
+        <ToggleRow
+          label="Track Test Performance"
+          description="Collect question-level accuracy and timing data"
+          checked={v.trackTestPerformance}
+          onCheckedChange={(c) => set("trackTestPerformance", c)}
+        />
+        <ToggleRow
+          label="Anonymize Data"
+          description="Strip PII before storing analytics"
+          checked={v.anonymizeData}
+          onCheckedChange={(c) => set("anonymizeData", c)}
+        />
+      </div>
+      <SaveButton onSave={save} saving={saving} dirty={dirty} />
+    </div>
+  );
+}
+
+// ─── Database panel (actions only — nothing persisted) ────────────────────────
+
+function DatabasePanel() {
+  const { toast } = useToast();
+  const [running, setRunning] = useState<string | null>(null);
+  const [resetOpen, setResetOpen] = useState(false);
+
+  const dbStats = [
+    { label: "Total Users", value: "—" },
+    { label: "Total Tests", value: "—" },
+    { label: "Total Questions", value: "—" },
+    { label: "Total Attempts", value: "—" },
+  ];
+
+  const runAction = async (action: string, label: string) => {
+    setRunning(action);
+    // Simulated — wire to real endpoints when available
+    await new Promise((r) => setTimeout(r, 1200));
+    toast({ title: `${label} complete` });
+    setRunning(null);
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <SectionHeader
+        icon={Lock}
+        color="text-orange-500"
+        title="Database Management"
+        description="Stats and maintenance actions — use with caution"
+      />
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {dbStats.map((s) => (
+          <div
+            key={s.label}
+            className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-4 py-3 text-center"
+          >
+            <p className="text-lg font-bold text-slate-800 dark:text-slate-100">
+              {s.value}
+            </p>
+            <p className="text-[11px] text-slate-400 mt-0.5">{s.label}</p>
+          </div>
+        ))}
+      </div>
+
+      <Separator />
+
+      {/* Maintenance actions */}
+      <div className="space-y-2">
+        {[
+          {
+            id: "cache",
+            label: "Clear Cache",
+            description: "Flush all server-side caches",
+          },
+          {
+            id: "optimize",
+            label: "Optimize Database",
+            description: "Run VACUUM and re-index tables",
+          },
+          {
+            id: "backup",
+            label: "Backup Database",
+            description: "Download a full database snapshot",
+          },
+        ].map((action) => (
+          <div
+            key={action.id}
+            className="flex items-center justify-between gap-4 p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
+          >
+            <div>
+              <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
+                {action.label}
+              </p>
+              <p className="text-xs text-slate-400">{action.description}</p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs shrink-0"
+              disabled={running === action.id}
+              onClick={() => runAction(action.id, action.label)}
+            >
+              {running === action.id ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                action.label
+              )}
+            </Button>
+          </div>
+        ))}
+
+        {/* Destructive action */}
+        <div className="flex items-center justify-between gap-4 p-3 rounded-lg border border-red-200 dark:border-red-900/50 bg-red-50/50 dark:bg-red-950/10">
+          <div>
+            <p className="text-sm font-medium text-red-700 dark:text-red-400">
+              Reset Demo Data
+            </p>
+            <p className="text-xs text-red-400">
+              Permanently delete all demo content. Cannot be undone.
+            </p>
+          </div>
+          <Button
+            variant="destructive"
+            size="sm"
+            className="h-8 text-xs shrink-0"
+            disabled={!!running}
+            onClick={() => setResetOpen(true)}
+          >
+            Reset
+          </Button>
+        </div>
+      </div>
+
+      <AlertDialog open={resetOpen} onOpenChange={setResetOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset demo data?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete all demo content including test
+              attempts, demo users, and sample questions.{" "}
+              <strong>This cannot be undone.</strong>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={async () => {
+                setResetOpen(false);
+                await runAction("reset", "Reset Demo Data");
+              }}
+            >
+              Yes, reset
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
+// ─── Skeleton for loading state ───────────────────────────────────────────────
+
+function PanelSkeleton() {
+  return (
+    <div className="space-y-5 animate-pulse">
+      <div className="flex items-center gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
+        <Skeleton className="h-9 w-9 rounded-xl" />
+        <div className="space-y-1.5">
+          <Skeleton className="h-4 w-48" />
+          <Skeleton className="h-3 w-72" />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="space-y-1.5">
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="h-9 w-full rounded-md" />
+          </div>
+        ))}
+      </div>
+      <div className="space-y-2 pt-2">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div
+            key={i}
+            className="flex items-center justify-between py-3 border-b border-slate-100 dark:border-slate-800"
+          >
+            <div className="space-y-1.5">
+              <Skeleton className="h-3.5 w-40" />
+              <Skeleton className="h-3 w-60" />
+            </div>
+            <Skeleton className="h-5 w-9 rounded-full" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Panel map ────────────────────────────────────────────────────────────────
+
+const PANEL_MAP: Record<SectionId, React.ComponentType> = {
+  system: SystemPanel,
+  exam: ExamPanel,
+  payment: PaymentPanel,
+  security: SecurityPanel,
+  email: EmailPanel,
+  notifications: NotificationsPanel,
+  content: ContentPanel,
+  analytics: AnalyticsPanel,
+  database: DatabasePanel,
+};
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
+
+export default function AdminSettingsPage() {
+  const [activeSection, setActiveSection] = useState<SectionId>("system");
+
+  const ActivePanel = PANEL_MAP[activeSection];
+  const activeInfo = SECTIONS.find((s) => s.id === activeSection)!;
+
+  return (
+    <div className="space-y-5">
+      {/* Page header */}
+      <div className="flex items-center gap-2.5">
+        <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-slate-700 to-slate-900 dark:from-slate-600 dark:to-slate-800 flex items-center justify-center shadow-sm">
+          <Settings className="h-4 w-4 text-white" />
+        </div>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-          <p className="text-muted-foreground">
-            Manage your QuizNow platform settings and preferences
+          <h1 className="text-lg font-bold text-slate-900 dark:text-slate-50">
+            Settings
+          </h1>
+          <p className="text-xs text-slate-400 mt-px">
+            Configure your QuizNow platform
           </p>
         </div>
       </div>
 
-      <Tabs defaultValue="system" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-8">
-          <TabsTrigger value="system" className="flex items-center gap-2">
-            <Settings className="h-4 w-4" />
-            System
-          </TabsTrigger>
-          <TabsTrigger value="exam" className="flex items-center gap-2">
-            <Database className="h-4 w-4" />
-            Exams
-          </TabsTrigger>
-          <TabsTrigger value="payment" className="flex items-center gap-2">
-            <Database className="h-4 w-4" />
-            Payment
-          </TabsTrigger>
-          <TabsTrigger value="security" className="flex items-center gap-2">
-            <Shield className="h-4 w-4" />
-            Security
-          </TabsTrigger>
-          <TabsTrigger value="email" className="flex items-center gap-2">
-            <Bell className="h-4 w-4" />
-            Email
-          </TabsTrigger>
-          <TabsTrigger
-            value="notifications"
-            className="flex items-center gap-2"
-          >
-            <Bell className="h-4 w-4" />
-            Notifications
-          </TabsTrigger>
-          <TabsTrigger value="content" className="flex items-center gap-2">
-            <Palette className="h-4 w-4" />
-            Content
-          </TabsTrigger>
-          <TabsTrigger value="analytics" className="flex items-center gap-2">
-            <Database className="h-4 w-4" />
-            Analytics
-          </TabsTrigger>
-          <TabsTrigger value="database" className="flex items-center gap-2">
-            <Database className="h-4 w-4" />
-            Database
-          </TabsTrigger>
-        </TabsList>
+      {/* Two-column layout */}
+      <div className="flex gap-5 items-start">
+        {/* ── Left nav ── */}
+        <nav className="w-52 shrink-0 hidden md:block sticky top-4">
+          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
+            <div className="px-3.5 py-2.5 border-b border-slate-100 dark:border-slate-800">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                Configuration
+              </p>
+            </div>
+            <div className="p-1.5 space-y-0.5">
+              {SECTIONS.map((s) => {
+                const Icon = s.icon;
+                const isActive = activeSection === s.id;
+                return (
+                  <button
+                    key={s.id}
+                    onClick={() => setActiveSection(s.id)}
+                    className={cn(
+                      "w-full text-left flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-all group",
+                      isActive
+                        ? "bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400"
+                        : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50",
+                    )}
+                  >
+                    <Icon
+                      className={cn(
+                        "h-3.5 w-3.5 shrink-0 transition-colors",
+                        isActive
+                          ? s.color
+                          : "text-slate-300 dark:text-slate-600 group-hover:text-slate-400",
+                      )}
+                    />
+                    <span className="truncate flex-1">{s.label}</span>
+                    {isActive && (
+                      <ChevronRight className="h-3 w-3 text-indigo-400 shrink-0" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </nav>
 
-        {/* System Settings */}
-        <TabsContent value="system">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Globe className="h-5 w-5" />
-                System Configuration
-              </CardTitle>
-              <CardDescription>
-                Configure your platform's basic settings and appearance
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label htmlFor="siteName">Site Name</Label>
-                  <Input
-                    id="siteName"
-                    value={systemSettings.siteName}
-                    onChange={(e) =>
-                      setSystemSettings((prev) => ({
-                        ...prev,
-                        siteName: e.target.value,
-                      }))
-                    }
-                    placeholder="QuizNow"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="siteDescription">Site Description</Label>
-                  <Input
-                    id="siteDescription"
-                    value={systemSettings.siteDescription}
-                    onChange={(e) =>
-                      setSystemSettings((prev) => ({
-                        ...prev,
-                        siteDescription: e.target.value,
-                      }))
-                    }
-                    placeholder="Professional Exam Preparation Platform"
-                  />
-                </div>
-              </div>
+        {/* ── Content panel ── */}
+        <div className="flex-1 min-w-0">
+          {/* Mobile section picker (shown instead of sidebar) */}
+          <div className="md:hidden mb-4">
+            <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
+              {SECTIONS.map((s) => {
+                const Icon = s.icon;
+                return (
+                  <button
+                    key={s.id}
+                    onClick={() => setActiveSection(s.id)}
+                    className={cn(
+                      "shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all",
+                      activeSection === s.id
+                        ? "bg-indigo-600 text-white border-indigo-600"
+                        : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700",
+                    )}
+                  >
+                    <Icon className="h-3 w-3" />
+                    {s.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>Allow User Registration</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Enable new user registration on the platform
-                    </p>
-                  </div>
-                  <Switch
-                    checked={systemSettings.allowRegistration}
-                    onCheckedChange={(checked) =>
-                      setSystemSettings((prev) => ({
-                        ...prev,
-                        allowRegistration: checked,
-                      }))
-                    }
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>Require Email Verification</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Users must verify their email before accessing the
-                      platform
-                    </p>
-                  </div>
-                  <Switch
-                    checked={systemSettings.requireEmailVerification}
-                    onCheckedChange={(checked) =>
-                      setSystemSettings((prev) => ({
-                        ...prev,
-                        requireEmailVerification: checked,
-                      }))
-                    }
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>Maintenance Mode</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Put the platform in maintenance mode
-                    </p>
-                  </div>
-                  <Switch
-                    checked={systemSettings.maintenanceMode}
-                    onCheckedChange={(checked) =>
-                      setSystemSettings((prev) => ({
-                        ...prev,
-                        maintenanceMode: checked,
-                      }))
-                    }
-                  />
-                </div>
-              </div>
-
-              <Button
-                onClick={() => handleSaveSettings("System", systemSettings)}
-                disabled={isLoading}
-              >
-                {isLoading ? "Saving..." : "Save System Settings"}
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Exam Settings */}
-        <TabsContent value="exam">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Database className="h-5 w-5" />
-                Exam Configuration
-              </CardTitle>
-              <CardDescription>
-                Configure exam rules, timing, and scoring parameters
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label htmlFor="defaultTestDuration">
-                    Default Test Duration (minutes)
-                  </Label>
-                  <Input
-                    id="defaultTestDuration"
-                    type="number"
-                    value={examSettings.defaultTestDuration}
-                    onChange={(e) =>
-                      setExamSettings((prev) => ({
-                        ...prev,
-                        defaultTestDuration: Number(e.target.value),
-                      }))
-                    }
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="defaultPassingMarks">
-                    Default Passing Marks (%)
-                  </Label>
-                  <Input
-                    id="defaultPassingMarks"
-                    type="number"
-                    value={examSettings.defaultPassingMarks}
-                    onChange={(e) =>
-                      setExamSettings((prev) => ({
-                        ...prev,
-                        defaultPassingMarks: Number(e.target.value),
-                      }))
-                    }
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="defaultNegativeMarking">
-                    Default Negative Marking
-                  </Label>
-                  <Input
-                    id="defaultNegativeMarking"
-                    type="number"
-                    step="0.01"
-                    value={examSettings.defaultNegativeMarking}
-                    onChange={(e) =>
-                      setExamSettings((prev) => ({
-                        ...prev,
-                        defaultNegativeMarking: Number(e.target.value),
-                      }))
-                    }
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="maxQuestionsPerTest">
-                    Max Questions Per Test
-                  </Label>
-                  <Input
-                    id="maxQuestionsPerTest"
-                    type="number"
-                    value={examSettings.maxQuestionsPerTest}
-                    onChange={(e) =>
-                      setExamSettings((prev) => ({
-                        ...prev,
-                        maxQuestionsPerTest: Number(e.target.value),
-                      }))
-                    }
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>Allow Negative Marking</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Enable negative marks for wrong answers
-                    </p>
-                  </div>
-                  <Switch
-                    checked={examSettings.allowNegativeMarking}
-                    onCheckedChange={(checked) =>
-                      setExamSettings((prev) => ({
-                        ...prev,
-                        allowNegativeMarking: checked,
-                      }))
-                    }
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>Show Results Immediately</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Display results as soon as test is submitted
-                    </p>
-                  </div>
-                  <Switch
-                    checked={examSettings.showResultsImmediately}
-                    onCheckedChange={(checked) =>
-                      setExamSettings((prev) => ({
-                        ...prev,
-                        showResultsImmediately: checked,
-                      }))
-                    }
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>Allow Retest</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Allow users to retake the same test
-                    </p>
-                  </div>
-                  <Switch
-                    checked={examSettings.allowRetest}
-                    onCheckedChange={(checked) =>
-                      setExamSettings((prev) => ({
-                        ...prev,
-                        allowRetest: checked,
-                      }))
-                    }
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>Auto Submit on Timeout</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Automatically submit test when time expires
-                    </p>
-                  </div>
-                  <Switch
-                    checked={examSettings.autoSubmitOnTimeout}
-                    onCheckedChange={(checked) =>
-                      setExamSettings((prev) => ({
-                        ...prev,
-                        autoSubmitOnTimeout: checked,
-                      }))
-                    }
-                  />
-                </div>
-              </div>
-
-              <Button
-                onClick={() => handleSaveSettings("Exam", examSettings)}
-                disabled={isLoading}
-              >
-                {isLoading ? "Saving..." : "Save Exam Settings"}
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Payment Settings */}
-        <TabsContent value="payment">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Database className="h-5 w-5" />
-                Payment Configuration
-              </CardTitle>
-              <CardDescription>
-                Configure payment gateway and subscription plans
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label htmlFor="currency">Currency</Label>
-                  <Input
-                    id="currency"
-                    value={paymentSettings.currency}
-                    onChange={(e) =>
-                      setPaymentSettings((prev) => ({
-                        ...prev,
-                        currency: e.target.value,
-                      }))
-                    }
-                    placeholder="INR"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="testPrice">Test Price</Label>
-                  <Input
-                    id="testPrice"
-                    type="number"
-                    value={paymentSettings.testPrice}
-                    onChange={(e) =>
-                      setPaymentSettings((prev) => ({
-                        ...prev,
-                        testPrice: Number(e.target.value),
-                      }))
-                    }
-                    placeholder="99"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="monthlySubscriptionPrice">
-                    Monthly Subscription
-                  </Label>
-                  <Input
-                    id="monthlySubscriptionPrice"
-                    type="number"
-                    value={paymentSettings.monthlySubscriptionPrice}
-                    onChange={(e) =>
-                      setPaymentSettings((prev) => ({
-                        ...prev,
-                        monthlySubscriptionPrice: Number(e.target.value),
-                      }))
-                    }
-                    placeholder="299"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="yearlySubscriptionPrice">
-                    Yearly Subscription
-                  </Label>
-                  <Input
-                    id="yearlySubscriptionPrice"
-                    type="number"
-                    value={paymentSettings.yearlySubscriptionPrice}
-                    onChange={(e) =>
-                      setPaymentSettings((prev) => ({
-                        ...prev,
-                        yearlySubscriptionPrice: Number(e.target.value),
-                      }))
-                    }
-                    placeholder="2990"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>Enable Payments</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Enable payment system for premium tests
-                    </p>
-                  </div>
-                  <Switch
-                    checked={paymentSettings.enablePayments}
-                    onCheckedChange={(checked) =>
-                      setPaymentSettings((prev) => ({
-                        ...prev,
-                        enablePayments: checked,
-                      }))
-                    }
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>Enable Subscriptions</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Allow users to subscribe for unlimited access
-                    </p>
-                  </div>
-                  <Switch
-                    checked={paymentSettings.subscriptionEnabled}
-                    onCheckedChange={(checked) =>
-                      setPaymentSettings((prev) => ({
-                        ...prev,
-                        subscriptionEnabled: checked,
-                      }))
-                    }
-                  />
-                </div>
-              </div>
-
-              <Button
-                onClick={() => handleSaveSettings("Payment", paymentSettings)}
-                disabled={isLoading}
-              >
-                {isLoading ? "Saving..." : "Save Payment Settings"}
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Security Settings */}
-        <TabsContent value="security">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Shield className="h-5 w-5" />
-                Security Configuration
-              </CardTitle>
-              <CardDescription>
-                Configure security policies and authentication settings
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label htmlFor="passwordMinLength">
-                    Minimum Password Length
-                  </Label>
-                  <Input
-                    id="passwordMinLength"
-                    type="number"
-                    value={securitySettings.passwordMinLength}
-                    onChange={(e) =>
-                      setSecuritySettings((prev) => ({
-                        ...prev,
-                        passwordMinLength: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="sessionTimeout">
-                    Session Timeout (hours)
-                  </Label>
-                  <Input
-                    id="sessionTimeout"
-                    type="number"
-                    value={securitySettings.sessionTimeout}
-                    onChange={(e) =>
-                      setSecuritySettings((prev) => ({
-                        ...prev,
-                        sessionTimeout: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>Require Strong Password</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Enforce strong password requirements
-                    </p>
-                  </div>
-                  <Switch
-                    checked={securitySettings.requireStrongPassword}
-                    onCheckedChange={(checked) =>
-                      setSecuritySettings((prev) => ({
-                        ...prev,
-                        requireStrongPassword: checked,
-                      }))
-                    }
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>Enable Two-Factor Authentication</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Allow users to enable 2FA for additional security
-                    </p>
-                  </div>
-                  <Switch
-                    checked={securitySettings.enableTwoFactor}
-                    onCheckedChange={(checked) =>
-                      setSecuritySettings((prev) => ({
-                        ...prev,
-                        enableTwoFactor: checked,
-                      }))
-                    }
-                  />
-                </div>
-              </div>
-
-              <Button
-                onClick={() => handleSaveSettings("Security", securitySettings)}
-                disabled={isLoading}
-              >
-                {isLoading ? "Saving..." : "Save Security Settings"}
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Email Settings */}
-        <TabsContent value="email">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Bell className="h-5 w-5" />
-                Email Configuration
-              </CardTitle>
-              <CardDescription>
-                Configure email settings for notifications and user
-                communications
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label htmlFor="smtpHost">SMTP Host</Label>
-                  <Input
-                    id="smtpHost"
-                    value={emailSettings.smtpHost}
-                    onChange={(e) =>
-                      setEmailSettings((prev) => ({
-                        ...prev,
-                        smtpHost: e.target.value,
-                      }))
-                    }
-                    placeholder="smtp.gmail.com"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="smtpPort">SMTP Port</Label>
-                  <Input
-                    id="smtpPort"
-                    value={emailSettings.smtpPort}
-                    onChange={(e) =>
-                      setEmailSettings((prev) => ({
-                        ...prev,
-                        smtpPort: e.target.value,
-                      }))
-                    }
-                    placeholder="587"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="smtpUser">SMTP Username</Label>
-                  <Input
-                    id="smtpUser"
-                    value={emailSettings.smtpUser}
-                    onChange={(e) =>
-                      setEmailSettings((prev) => ({
-                        ...prev,
-                        smtpUser: e.target.value,
-                      }))
-                    }
-                    placeholder="your-email@gmail.com"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="smtpPassword">SMTP Password</Label>
-                  <Input
-                    id="smtpPassword"
-                    type="password"
-                    value={emailSettings.smtpPassword}
-                    onChange={(e) =>
-                      setEmailSettings((prev) => ({
-                        ...prev,
-                        smtpPassword: e.target.value,
-                      }))
-                    }
-                    placeholder="Your app password"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="fromEmail">From Email</Label>
-                  <Input
-                    id="fromEmail"
-                    value={emailSettings.fromEmail}
-                    onChange={(e) =>
-                      setEmailSettings((prev) => ({
-                        ...prev,
-                        fromEmail: e.target.value,
-                      }))
-                    }
-                    placeholder="noreply@quiznow.com"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="fromName">From Name</Label>
-                  <Input
-                    id="fromName"
-                    value={emailSettings.fromName}
-                    onChange={(e) =>
-                      setEmailSettings((prev) => ({
-                        ...prev,
-                        fromName: e.target.value,
-                      }))
-                    }
-                    placeholder="QuizNow Team"
-                  />
-                </div>
-              </div>
-
-              <Button
-                onClick={() => handleSaveSettings("Email", emailSettings)}
-                disabled={isLoading}
-              >
-                {isLoading ? "Saving..." : "Save Email Settings"}
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Notification Settings */}
-        <TabsContent value="notifications">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Bell className="h-5 w-5" />
-                Notification Preferences
-              </CardTitle>
-              <CardDescription>
-                Configure system notifications and alerts
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>Email Notifications</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Send email notifications to users
-                    </p>
-                  </div>
-                  <Switch
-                    checked={notificationSettings.emailNotifications}
-                    onCheckedChange={(checked) =>
-                      setNotificationSettings((prev) => ({
-                        ...prev,
-                        emailNotifications: checked,
-                      }))
-                    }
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>Push Notifications</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Enable browser push notifications
-                    </p>
-                  </div>
-                  <Switch
-                    checked={notificationSettings.pushNotifications}
-                    onCheckedChange={(checked) =>
-                      setNotificationSettings((prev) => ({
-                        ...prev,
-                        pushNotifications: checked,
-                      }))
-                    }
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>New Test Alerts</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Notify users when new tests are available
-                    </p>
-                  </div>
-                  <Switch
-                    checked={notificationSettings.newTestAlerts}
-                    onCheckedChange={(checked) =>
-                      setNotificationSettings((prev) => ({
-                        ...prev,
-                        newTestAlerts: checked,
-                      }))
-                    }
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>User Registration Alerts</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Alert admins when new users register
-                    </p>
-                  </div>
-                  <Switch
-                    checked={notificationSettings.userRegistrationAlerts}
-                    onCheckedChange={(checked) =>
-                      setNotificationSettings((prev) => ({
-                        ...prev,
-                        userRegistrationAlerts: checked,
-                      }))
-                    }
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>System Error Alerts</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Notify admins of system errors
-                    </p>
-                  </div>
-                  <Switch
-                    checked={notificationSettings.systemErrorAlerts}
-                    onCheckedChange={(checked) =>
-                      setNotificationSettings((prev) => ({
-                        ...prev,
-                        systemErrorAlerts: checked,
-                      }))
-                    }
-                  />
-                </div>
-              </div>
-
-              <Button
-                onClick={() =>
-                  handleSaveSettings("Notifications", notificationSettings)
-                }
-                disabled={isLoading}
-              >
-                {isLoading ? "Saving..." : "Save Notification Settings"}
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Database Settings */}
-        <TabsContent value="database">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Database className="h-5 w-5" />
-                Database Management
-              </CardTitle>
-              <CardDescription>
-                Database operations and maintenance tools
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">
-                      Database Statistics
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex justify-between">
-                      <span>Total Users:</span>
-                      <Badge variant="secondary">4</Badge>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Total Tests:</span>
-                      <Badge variant="secondary">0</Badge>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Total Questions:</span>
-                      <Badge variant="secondary">0</Badge>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Total Attempts:</span>
-                      <Badge variant="secondary">2</Badge>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">
-                      Maintenance Actions
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <Button variant="outline" className="w-full">
-                      Clear Cache
-                    </Button>
-                    <Button variant="outline" className="w-full">
-                      Optimize Database
-                    </Button>
-                    <Button variant="outline" className="w-full">
-                      Backup Database
-                    </Button>
-                    <Button variant="destructive" className="w-full">
-                      Reset Demo Data
-                    </Button>
-                  </CardContent>
-                </Card>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6">
+            <ActivePanel />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

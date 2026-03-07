@@ -83,14 +83,14 @@ interface Section {
   name: string;
   testId: string;
   order: number;
-  durationMins?: number | null;
+  duration?: number | null; // Fixed: was durationMins
   questions: LinkedQuestion[];
 }
 
 interface TestData {
   id: string;
   title: string;
-  durationMins: number;
+  duration: number; // Fixed: was durationMins
   totalMarks: number;
   isLive: boolean;
   isActive: boolean;
@@ -233,7 +233,7 @@ export default function TestAssemblyPage() {
   const fetchTest = async (preserveTab = true) => {
     try {
       const res = await api.get(`/tests/${testId}`);
-      const data: TestData = res.data?.data ?? res.data;
+      const data: TestData = res.data;
       setTestData(data);
       if (data.sections?.length > 0) {
         setActiveSection((prev) =>
@@ -287,7 +287,7 @@ export default function TestAssemblyPage() {
         testId,
         name: newSectionName.trim(),
         order: (testData?.sections?.length ?? 0) + 1,
-        durationMins:
+        duration:
           newSectionDuration === "" ? undefined : Number(newSectionDuration),
       });
       setAddSectionOpen(false);
@@ -310,7 +310,7 @@ export default function TestAssemblyPage() {
   const openEditSection = (s: Section) => {
     setEditSection(s);
     setEditName(s.name);
-    setEditDuration(typeof s.durationMins === "number" ? s.durationMins : "");
+    setEditDuration(typeof s.duration === "number" ? s.duration : "");
   };
 
   const handleUpdateSection = async () => {
@@ -319,7 +319,7 @@ export default function TestAssemblyPage() {
     try {
       await api.patch(`/sections/${editSection.id}`, {
         name: editName.trim(),
-        durationMins: editDuration === "" ? undefined : Number(editDuration),
+        duration: editDuration === "" ? undefined : Number(editDuration),
       });
       toast({ title: "Section updated" });
       setEditSection(null);
@@ -543,7 +543,7 @@ export default function TestAssemblyPage() {
         <div className="flex items-center gap-2 flex-wrap">
           <StatChip
             icon={<Clock className="h-3.5 w-3.5" />}
-            value={testData.durationMins}
+            value={testData.duration}
             label="mins"
           />
           <StatChip
@@ -672,10 +672,10 @@ export default function TestAssemblyPage() {
                       <h2 className="text-base font-bold text-slate-800 dark:text-slate-100">
                         {currentSection.name}
                       </h2>
-                      {currentSection.durationMins && (
+                      {currentSection.duration && (
                         <span className="flex items-center gap-1 text-xs text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
                           <Clock className="h-3 w-3" />
-                          {currentSection.durationMins}m
+                          {currentSection.duration}m
                         </span>
                       )}
                     </div>
