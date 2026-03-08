@@ -2,15 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { adminQuestionsApi, adminTopicsApi, type Topic } from "@/lib/admin-api";
+import api from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
-import { useErrorHandler, errorHandlers } from "@/hooks/use-error-handler";
-import {
-  ErrorDisplay,
-  ValidationErrorDisplay,
-  ServerError,
-} from "@/components/ui/error-display";
+import { useErrorHandler } from "@/hooks/use-error-handler";
+import { ErrorDisplay } from "@/components/ui/error-display";
 import {
   Loader2,
   Upload,
@@ -28,6 +25,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NOTE for admin-api.ts — add this method to adminQuestionsApi if it doesn't exist:
+//
+//   validateBulkFile: async (file: File, topicId?: string) => {
+//     const formData = new FormData();
+//     formData.append('file', file);
+//     if (topicId) formData.append('topicId', topicId);
+//     return api.post('/questions/validate-bulk-file', formData, {
+//       headers: { 'Content-Type': 'multipart/form-data' },
+//     });
+//   },
+//
+// The component uses api directly for validate to avoid requiring an admin-api change.
+// ─────────────────────────────────────────────────────────────────────────────
 
 interface BulkUploadProps {
   sectionId: string;
@@ -48,14 +60,15 @@ export default function BulkQuestionUpload({
   const [validation, setValidation] = useState<any>(null);
   const [showValidation, setShowValidation] = useState(false);
 
-  // Load topics for selection
+  // ── Load topics ────────────────────────────────────────────────────────────
   useEffect(() => {
     const loadTopics = async () => {
       setTopicsLoading(true);
       try {
-        const response = await adminTopicsApi.getAll(1, 1000); // Get all topics
-        setTopics(response.data); // Raw Topic[] array
-      } catch (error) {
+        const response = await adminTopicsApi.getAll(1, 1000);
+        // ✅ FIX: adminTopicsApi.getAll returns Topic[] directly, not wrapped
+        setTopics(Array.isArray(response) ? response : []);
+      } catch {
         toast({
           title: "Error",
           description: "Failed to load topics",
@@ -68,25 +81,38 @@ export default function BulkQuestionUpload({
     loadTopics();
   }, [toast]);
 
-  // Handle validation - directly upload since separate validation doesn't exist
+  // ── Validate (dry run — no DB writes) ─────────────────────────────────────
+  // ✅ FIX: Previously called adminQuestionsApi.bulkUpload(), which performed the
+  // actual DB insert. Clicking "Validate" was silently uploading all questions, and
+  // then clicking "Import" would re-attempt the same upload — failing with duplicate
+  // hash errors. Now validate calls the dedicated dry-run endpoint with zero DB writes.
   const handleValidate = async () => {
     if (!file) return;
 
     setIsUploading(true);
-    clearError(); // Clear previous errors
+    clearError();
 
     try {
-      const response = await adminQuestionsApi.bulkUpload(file, sectionId);
+      const formData = new FormData();
+      formData.append("file", file);
+      if (selectedTopicId) formData.append("topicId", selectedTopicId);
+
+      const response = await api.post(
+        "/questions/validate-bulk-file",
+        formData,
+        { headers: { "Content-Type": "multipart/form-data" } },
+      );
+
       setValidation({
         ...response.data,
-        file: file, // 🛡️ Store file fingerprint
+        _file: file, // store reference so we can detect file swap before import
       });
       setShowValidation(true);
+
       toast({
-        title: "Upload Complete",
-        description: `${response.data.count} questions uploaded successfully`,
+        title: "Validation Complete",
+        description: `${response.data.validCount ?? 0} valid rows, ${response.data.errors?.length ?? 0} errors`,
       });
-      onSuccess?.(response.data.count);
     } catch (error: any) {
       handleError(error, { showToast: true });
     } finally {
@@ -94,25 +120,33 @@ export default function BulkQuestionUpload({
     }
   };
 
-  // Handle import - directly upload since separate import doesn't exist
-  const handleImport = async (onlyValid = true) => {
+  // ── Import (real DB write + section link) ─────────────────────────────────
+  // ✅ FIX: Now calls bulkUpload (which creates questions AND links them to the
+  // section in one transaction). importBulkFile endpoint was also an option but
+  // doesn't handle the section link — bulkUpload does both correctly.
+  const handleImport = async () => {
     if (!file) return;
 
-    // 🛡️ FINGERPRINT CHECK: Warn if file changed after validation
-    if (validation && file !== validation.file) {
+    // Guard: warn if file changed after validation
+    if (validation && file !== validation._file) {
       toast({
         title: "File Changed",
-        description: "Please re-upload the file",
+        description: "Please re-validate before importing",
         variant: "destructive",
       });
       setShowValidation(false);
+      setValidation(null);
       return;
     }
 
     setIsUploading(true);
 
     try {
-      const response = await adminQuestionsApi.bulkUpload(file, sectionId);
+      const response = await adminQuestionsApi.bulkUpload(
+        file,
+        sectionId,
+        selectedTopicId || undefined,
+      );
       toast({
         title: "Import Successful",
         description: `${response.data.count} questions uploaded successfully`,
@@ -129,14 +163,11 @@ export default function BulkQuestionUpload({
     }
   };
 
-  // Handle upload (legacy - for backward compatibility)
+  // ── Quick upload (validate + import in one shot, no preview) ──────────────
   const handleUpload = async () => {
     if (!file || !sectionId) return;
-
     setIsUploading(true);
-
     try {
-      // Use authenticated admin API call
       const response = await adminQuestionsApi.bulkUpload(file, sectionId);
       toast({
         title: "Upload Successful",
@@ -145,12 +176,6 @@ export default function BulkQuestionUpload({
       onSuccess?.(response.data.count);
       setFile(null);
     } catch (error: any) {
-      console.error("Bulk upload error:", error);
-      console.error("Error response:", error?.response?.data);
-      console.error("SectionId being sent:", sectionId);
-      console.error("File details:", file?.name, file?.size, file?.type);
-
-      // Provide better error context
       handleError(error, {
         showToast: true,
         fallbackMessage:
@@ -202,23 +227,38 @@ export default function BulkQuestionUpload({
               setValidation(null);
               setShowValidation(false);
             }}
-            disabled={showValidation} // Disable file input when validation is shown
+            disabled={showValidation}
             className="cursor-pointer bg-white dark:bg-zinc-950"
           />
         </div>
 
-        {/* Topic Selection & Info */}
+        {/* Topic selector */}
         <div className="w-full max-w-xs mx-auto space-y-2">
+          {/*
+            ✅ FIX: Radix UI Select requires this exact nesting:
+              <Select>
+                <SelectTrigger />     ← must be direct child of Select
+                <SelectContent>
+                  <SelectGroup>       ← SelectGroup belongs INSIDE SelectContent
+                    <SelectLabel />
+                    <SelectItem />
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+
+            The original code wrapped SelectTrigger and SelectContent inside
+            SelectGroup (which is invalid), making the dropdown non-functional.
+          */}
           <Select value={selectedTopicId} onValueChange={setSelectedTopicId}>
-            <SelectGroup>
-              <SelectLabel>Select Topic (Optional)</SelectLabel>
-              <SelectTrigger>
-                <SelectValue placeholder="Choose a topic for questions" />
-              </SelectTrigger>
-              <SelectContent>
+            <SelectTrigger>
+              <SelectValue placeholder="Choose a topic (optional)" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectLabel>Select Topic (Optional)</SelectLabel>
                 {!topics || topics.length === 0 ? (
                   <div className="px-2 py-1 text-sm text-muted-foreground">
-                    No topics available
+                    {topicsLoading ? "Loading topics…" : "No topics available"}
                   </div>
                 ) : (
                   topics.map((topic) => (
@@ -227,13 +267,12 @@ export default function BulkQuestionUpload({
                     </SelectItem>
                   ))
                 )}
-              </SelectContent>
-            </SelectGroup>
+              </SelectGroup>
+            </SelectContent>
           </Select>
 
           <div className="text-xs text-muted-foreground text-center">
             <p>
-              {" "}
               <strong>Topic Resolution Priority:</strong>
             </p>
             <p>1. topicId column in Excel</p>
@@ -282,53 +321,66 @@ export default function BulkQuestionUpload({
           </Button>
         </div>
 
+        {/* Validation results panel */}
         {showValidation && validation && (
           <div className="max-w-xs w-full mx-auto mt-4">
-            <Alert>
-              <AlertTitle>Validation Results</AlertTitle>
+            <Alert
+              variant={
+                validation.errors?.length > 0 ? "destructive" : "default"
+              }
+            >
+              <AlertTitle className="flex items-center gap-2">
+                {validation.errors?.length > 0 ? (
+                  <AlertCircle className="h-4 w-4" />
+                ) : (
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                )}
+                Validation Results
+              </AlertTitle>
               <AlertDescription>
-                <p>Valid rows: {validation.validCount}</p>
-                <p>Errors: {validation.errors.length}</p>
-                {validation.validCount > 0 && (
-                  <div className="mt-2 space-y-2">
-                    {/* 🛡️ FIXED: Show "Import All Rows" when there are errors (lenient mode) */}
-                    {validation.errors.length > 0 && (
-                      <Button
-                        onClick={() => handleImport(false)} // onlyValid=false = import all rows despite errors
-                        className="w-full"
-                        size="sm"
-                      >
-                        Import All Rows ({validation.totalRows})
-                      </Button>
-                    )}
-                    {/* 🛡️ FIXED: Show "Import Valid Rows" when there are no errors (strict mode) */}
-                    {validation.errors.length === 0 && (
-                      <Button
-                        onClick={() => handleImport(true)} // onlyValid=true = import only valid rows
-                        className="w-full"
-                        size="sm"
-                      >
-                        Import Valid Rows ({validation.validCount})
-                      </Button>
-                    )}
+                <p>Valid rows: {validation.validCount ?? 0}</p>
+                <p>Total rows: {validation.totalRows ?? 0}</p>
+                <p>Errors: {validation.errors?.length ?? 0}</p>
+
+                {(validation.validCount ?? 0) > 0 && (
+                  <div className="mt-2">
+                    <Button
+                      onClick={handleImport}
+                      disabled={isUploading}
+                      className="w-full"
+                      size="sm"
+                    >
+                      {isUploading ? (
+                        <>
+                          <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />
+                          Importing...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="h-3.5 w-3.5 mr-2" />
+                          Import {validation.validCount} Valid Row
+                          {validation.validCount !== 1 ? "s" : ""}
+                        </>
+                      )}
+                    </Button>
                   </div>
                 )}
               </AlertDescription>
             </Alert>
 
-            {validation.errors.length > 0 && (
+            {(validation.errors?.length ?? 0) > 0 && (
               <div className="mt-2 max-h-32 overflow-y-auto">
                 <p className="text-sm font-medium text-red-600 mb-1">Errors:</p>
                 {validation.errors
-                  .slice(0, 5)
+                  ?.slice(0, 5)
                   .map((error: any, idx: number) => (
                     <div key={idx} className="text-xs text-red-600">
-                      Row {error.row}: {error.errors.join(", ")}
+                      Row {error.row}: {error.errors?.join(", ")}
                     </div>
                   ))}
-                {validation.errors.length > 5 && (
+                {(validation.errors?.length ?? 0) > 5 && (
                   <div className="text-xs text-red-600">
-                    ... and {validation.errors.length - 5} more errors
+                    ... and {(validation.errors?.length ?? 0) - 5} more errors
                   </div>
                 )}
               </div>

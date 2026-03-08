@@ -1,13 +1,13 @@
 import api from "@/lib/api";
-import type { ApiResponse, PaginatedResponse } from "@/types/api";
+import type { PaginatedResponse } from "@/types/api";
 
 export interface Subscription {
   id: string;
   userId: string;
   planId: string;
   status: "ACTIVE" | "EXPIRED" | "CANCELLED";
-  startAt: string; // Fixed: was startsAt, matches server
-  expiresAt: string; // Fixed: was endsAt, matches server
+  startAt: string; // server field name (NOT startsAt)
+  expiresAt: string; // server field name (NOT endsAt)
   createdAt: string;
   updatedAt: string;
   user?: {
@@ -23,7 +23,6 @@ export interface Subscription {
   };
 }
 
-// Minimal create payload — server computes startsAt/endsAt from planId
 export interface CreateSubscriptionRequest {
   userId: string;
   planId: string;
@@ -38,16 +37,19 @@ export const adminSubscriptionsApi = {
     api.get<PaginatedResponse<Subscription>>("/admin/subscriptions", {
       params: { page, limit, search, status },
     }),
-  getById: (id: string) =>
-    api.get<ApiResponse<Subscription>>(`/admin/subscriptions/${id}`),
+
+  getById: (id: string) => api.get<Subscription>(`/admin/subscriptions/${id}`),
+
   create: (data: CreateSubscriptionRequest) =>
-    api.post<ApiResponse<Subscription>>("/admin/subscriptions", data),
+    api.post<Subscription>("/admin/subscriptions", data),
+
   update: (id: string, data: UpdateSubscriptionRequest) =>
-    api.patch<ApiResponse<Subscription>>(`/admin/subscriptions/${id}`, data),
-  // Cancel maps to DELETE (soft-cancel via status=CANCELLED)
+    api.patch<Subscription>(`/admin/subscriptions/${id}`, data),
+
+  // Server only has DELETE /admin/subscriptions/:id for cancellation (soft cancel → status=CANCELLED)
+  // There is no PATCH .../cancel or .../extend endpoint on the server
   cancel: (id: string) =>
-    api.delete<ApiResponse<void>>(`/admin/subscriptions/${id}`),
-  // Extend is not supported by server
-  delete: (id: string) =>
-    api.delete<ApiResponse<void>>(`/admin/subscriptions/${id}`),
+    api.delete<Subscription>(`/admin/subscriptions/${id}`),
+
+  delete: (id: string) => api.delete(`/admin/subscriptions/${id}`),
 };

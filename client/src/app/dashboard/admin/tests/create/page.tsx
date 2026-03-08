@@ -261,13 +261,15 @@ export default function CreateTestPage() {
     try {
       const res = await createMutation.mutateAsync({
         title: form.title,
-        duration: form.duration,
+        duration: form.duration, // server DTO: duration (not durationMins)
         totalMarks: form.totalMarks,
-        passingMarks: form.passingMarks,
-        negativeMarking: form.negativeMark,
-        testSeriesId: form.seriesId,
-      } as any);
-      const testId = res?.data?.id;
+        passingMarks: form.passingMarks, // server DTO: passingMarks (not passMarks)
+        negativeMarking: form.negativeMark, // server DTO: negativeMarking
+        testSeriesId: form.seriesId, // server DTO: testSeriesId
+      });
+      // Wizard returns { test, section } — wrapped in AxiosResponse
+      const testId = res?.data?.test?.id;
+      const sectionId = res?.data?.section?.id;
       if (!testId) {
         toast({
           title: "Unexpected response from server",
@@ -278,7 +280,7 @@ export default function CreateTestPage() {
       toast({ title: "Test created!" });
       if (testMode === "full") {
         setCreatedTestId(testId);
-        setCreatedSectionId(null); // Section creation might be separate
+        setCreatedSectionId(sectionId ?? null); // wizard always returns a section
         setStep(2);
       } else {
         router.push(`/dashboard/admin/tests/${testId}`);

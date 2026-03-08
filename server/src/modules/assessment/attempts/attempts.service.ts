@@ -128,7 +128,7 @@ export class AttemptsService {
       },
     });
 
-    // Build a map of questionId → { correctAnswer (0-based index), totalOptions, topicId }
+    // Build a map of questionId → { correctAnswer (0-based index), totalOptions, topicId, options }
     // correctAnswer is the 0-based index of the option where isCorrect = true,
     // falling back to the legacy correctAnswer field on the question if options
     // haven't been migrated yet.
@@ -154,6 +154,7 @@ export class AttemptsService {
             correctAnswer: correctAnswerIdx,
             totalOptions,
             topicId: qAny.topicId as string | null, // FIX #3: needed for topic stats
+            options: qAny.options as any[], // ✅ ADD THIS — needed to resolve optionId
           },
         ];
       }),
@@ -199,10 +200,18 @@ export class AttemptsService {
           wrongCount++;
         }
 
+        // ✅ FIXED: resolve the actual QuestionOption CUID by index
+        const selectedOptionId: string | null =
+          answer.selectedOptionIndex !== null &&
+          answer.selectedOptionIndex !== undefined &&
+          question.options?.[answer.selectedOptionIndex]
+            ? question.options[answer.selectedOptionIndex].id
+            : null;
+
         return {
           attemptId: whereId,
           questionId: answer.questionId,
-          selectedOption: answer.selectedOptionIndex,
+          optionId: selectedOptionId, // ✅ FIXED: correct field name, correct type
           isCorrect,
           isMarked: true,
           answeredAt: new Date(),
@@ -387,7 +396,7 @@ export class AttemptsService {
         options: optionTexts,
         explanation: translation?.explanation ?? 'No explanation provided',
         correctOptionIndex,
-        userSelectedOption: userAnswer?.selectedOption ?? null,
+        userSelectedOption: userAnswer?.optionId ?? null, // ✅ FIXED: read optionId, not selectedOption
         status: userAnswer
           ? userAnswer.isCorrect
             ? 'CORRECT'

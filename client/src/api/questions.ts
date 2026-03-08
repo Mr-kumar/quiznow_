@@ -83,18 +83,15 @@ export interface CursorPaginationResponse<T> {
     prevCursor: string | null;
     hasMore: boolean;
     hasPrevious: boolean;
-    /** Not used in cursor mode — always 0 */
     currentPage: number;
-    /** Not used in cursor mode — always 1 */
     totalPages: number;
-    /** Not used in cursor mode — always 0 */
     total: number;
     limit: number;
   };
 }
 
 export const adminQuestionsApi = {
-  // Cursor-based pagination (primary — O(1) performance)
+  // Cursor-based pagination (primary)
   getCursorPaginated: (params: CursorPaginationParams = {}) =>
     api.get<CursorPaginationResponse<Question>>("/questions/cursor-paginated", {
       params: {
@@ -108,13 +105,19 @@ export const adminQuestionsApi = {
       },
     }),
 
-  // Legacy offset pagination (for backward compat — avoid on large datasets)
-  getAll: (page = 1, limit = 10, search?: string) =>
+  // FIX: added topicId / subject / lang params (previously silently dropped)
+  getAll: (
+    page = 1,
+    limit = 10,
+    search?: string,
+    topicId?: string,
+    subject?: string,
+    lang?: string,
+  ) =>
     api.get<PaginatedResponse<Question>>("/questions", {
-      params: { page, limit, search },
+      params: { page, limit, search, topicId, subject, lang },
     }),
 
-  // CRUD
   getById: (id: string) => api.get<ApiResponse<Question>>(`/questions/${id}`),
   create: (questionData: CreateQuestionRequest) =>
     api.post<ApiResponse<Question>>("/questions", questionData),
@@ -122,32 +125,24 @@ export const adminQuestionsApi = {
     api.patch<ApiResponse<Question>>(`/questions/${id}`, questionData),
   delete: (id: string) => api.delete<ApiResponse<void>>(`/questions/${id}`),
 
-  // Soft delete — hides question, preserves student history
   softDelete: (id: string) =>
     api.patch<ApiResponse<Question>>(`/questions/${id}/soft-delete`, {}),
 
-  // Bulk operations
   bulkTag: (questionIds: string[], topicId: string) =>
     api.patch<{ success: boolean; updatedCount: number }>(
       "/questions/bulk-tag",
-      {
-        questionIds,
-        topicId,
-      },
+      { questionIds, topicId },
     ),
 
-  bulkUpload: (file: File, sectionId: string) => {
+  bulkUpload: (file: File, sectionId: string, topicId?: string) => {
     const form = new FormData();
     form.append("file", file);
     form.append("sectionId", sectionId);
+    if (topicId) form.append("topicId", topicId);
     return api.post<{ success: boolean; count: number }>(
       "/questions/upload",
       form,
-      {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      },
+      { headers: { "Content-Type": "multipart/form-data" } },
     );
   },
 };

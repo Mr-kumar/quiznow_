@@ -14,7 +14,15 @@ export interface AuditLog {
 
 export const adminAuditLogsApi = {
   getAll: (page = 1, limit = 10, search?: string, action?: string) =>
-    api.get<PaginatedResponse<AuditLog>>("/admin/audit-logs", {
+    api.get<{
+      data: AuditLog[];
+      meta: {
+        total: number;
+        page: number;
+        limit: number;
+        totalPages: number;
+      };
+    }>("/admin/audit-logs", {
       params: { page, limit, search, action },
     }),
   getByActor: (actorId: string, page = 1, limit = 10) =>

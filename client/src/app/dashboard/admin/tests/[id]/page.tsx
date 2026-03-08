@@ -60,6 +60,7 @@ const LANG_LABELS: Record<Lang, string> = {
 
 interface LinkedQuestion {
   order: number;
+  questionId: string;
   question: {
     id: string;
     translations: Array<{ lang: string; content: string }>;
@@ -75,7 +76,6 @@ interface LinkedQuestion {
     };
     _count?: { sectionLinks: number };
   };
-  questionId: string;
 }
 
 interface Section {
@@ -83,17 +83,28 @@ interface Section {
   name: string;
   testId: string;
   order: number;
-  duration?: number | null; // Fixed: was durationMins
+  durationMins?: number | null;
   questions: LinkedQuestion[];
 }
 
 interface TestData {
   id: string;
   title: string;
-  duration: number; // Fixed: was durationMins
+  durationMins: number;
   totalMarks: number;
+  passMarks: number;
+  positiveMark: number;
+  negativeMark: number;
+  startAt?: string;
+  endAt?: string;
   isLive: boolean;
+  isPremium: boolean;
+  maxAttempts?: number;
   isActive: boolean;
+  seriesId: string;
+  createdAt: string;
+  updatedAt: string;
+  series?: { id: string; title: string };
   sections: Section[];
 }
 
@@ -112,7 +123,6 @@ function pickText(
   );
 }
 
-/** Returns true if the question has a non-empty translation for `lang`. */
 function hasLang(
   translations: Array<{ lang: string; content: string }>,
   lang: Lang,
@@ -150,6 +160,8 @@ function LangToggle({
 }
 
 function getQuestionId(lq: LinkedQuestion): string {
+  // After the correct fetchTest transformation, lq.question.id is always present.
+  // lq.questionId is the FK stored on SectionQuestion and is the reliable fallback.
   return lq.question?.id ?? lq.questionId;
 }
 
@@ -190,10 +202,7 @@ export default function TestAssemblyPage() {
   const [loading, setLoading] = useState(true);
   const [activeSection, setActiveSection] = useState<string | null>(null);
 
-  // Language toggle for questions
   const [lang, setLang] = useState<Lang>("EN");
-
-  // Publish
   const [togglingPublish, setTogglingPublish] = useState(false);
 
   // Add section dialog
@@ -233,13 +242,45 @@ export default function TestAssemblyPage() {
   const fetchTest = async (preserveTab = true) => {
     try {
       const res = await api.get(`/tests/${testId}`);
-      const data: TestData = res.data;
-      setTestData(data);
-      if (data.sections?.length > 0) {
+      const serverData = res.data;
+
+      // ✅ FIX: The server returns SectionQuestion[] where each item has the shape:
+      //   { order, questionId, question: { id, translations, options, topic, ... } }
+      //
+      // The BROKEN original code was:
+      //   questions: section.questions?.map((sq) => ({ ...sq.question, order: sq.order }))
+      //
+      // Spreading sq.question to root level means:
+      //   - lq.question is undefined (the nested object is gone)
+      //   - lq.questionId is undefined (sq.questionId was never in sq.question)
+      //   - Every lq.question?.translations, lq.question?.options, lq.question?.topic
+      //     returns undefined → all questions render blank, no text, no options
+      //   - getQuestionId(lq) returns undefined → bank "already linked" check breaks
+      //   - handleReorder sends undefined question IDs → reorder silently does nothing
+      //
+      // Fix: preserve the nested structure exactly as the server sends it.
+      const transformedData: TestData = {
+        ...serverData,
+        sections:
+          serverData.sections?.map((section: any) => ({
+            ...section,
+            questions:
+              section.questions?.map((sq: any) => ({
+                order: sq.order,
+                questionId: sq.questionId,
+                question: sq.question,
+              })) ?? [],
+          })) ?? [],
+      };
+
+      setTestData(transformedData);
+      if (transformedData.sections?.length > 0) {
         setActiveSection((prev) =>
-          preserveTab && prev && data.sections.find((s) => s.id === prev)
+          preserveTab &&
+          prev &&
+          transformedData.sections.find((s) => s.id === prev)
             ? prev
-            : data.sections[0].id,
+            : transformedData.sections[0].id,
         );
       }
     } catch (err: any) {
@@ -287,7 +328,10 @@ export default function TestAssemblyPage() {
         testId,
         name: newSectionName.trim(),
         order: (testData?.sections?.length ?? 0) + 1,
-        duration:
+        // ✅ FIX: CreateSectionDto uses 'durationMins', not 'duration'.
+        // NestJS strips unknown fields with whitelist: true, so 'duration' was
+        // silently dropped and every section was saved with durationMins: null.
+        durationMins:
           newSectionDuration === "" ? undefined : Number(newSectionDuration),
       });
       setAddSectionOpen(false);
@@ -310,7 +354,7 @@ export default function TestAssemblyPage() {
   const openEditSection = (s: Section) => {
     setEditSection(s);
     setEditName(s.name);
-    setEditDuration(typeof s.duration === "number" ? s.duration : "");
+    setEditDuration(typeof s.durationMins === "number" ? s.durationMins : "");
   };
 
   const handleUpdateSection = async () => {
@@ -319,7 +363,9 @@ export default function TestAssemblyPage() {
     try {
       await api.patch(`/sections/${editSection.id}`, {
         name: editName.trim(),
-        duration: editDuration === "" ? undefined : Number(editDuration),
+        // ✅ FIX: UpdateSectionDto uses 'durationMins', not 'duration'.
+        // Same whitelist-strip issue as handleCreateSection above.
+        durationMins: editDuration === "" ? undefined : Number(editDuration),
       });
       toast({ title: "Section updated" });
       setEditSection(null);
@@ -436,7 +482,7 @@ export default function TestAssemblyPage() {
       await api.patch(`/sections/${sectionId}/reorder-questions`, {
         questionIds: ids,
       });
-    } catch (err: any) {
+    } catch {
       setTestData(snapshot);
       toast({ title: "Reorder failed", variant: "destructive" });
     }
@@ -483,7 +529,6 @@ export default function TestAssemblyPage() {
       {/* ── Top header bar ── */}
       <div className="sticky top-0 z-20 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-4">
-          {/* Back */}
           <Link
             href="/dashboard/admin/tests"
             className="shrink-0 flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
@@ -494,12 +539,10 @@ export default function TestAssemblyPage() {
 
           <ChevronRight className="h-3.5 w-3.5 text-slate-300 shrink-0" />
 
-          {/* Title */}
           <h1 className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate flex-1 min-w-0">
             {testData.title}
           </h1>
 
-          {/* Live badge */}
           {testData.isLive ? (
             <span className="shrink-0 flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
               <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -511,7 +554,6 @@ export default function TestAssemblyPage() {
             </span>
           )}
 
-          {/* Publish toggle */}
           <Button
             size="sm"
             onClick={handleTogglePublish}
@@ -543,7 +585,7 @@ export default function TestAssemblyPage() {
         <div className="flex items-center gap-2 flex-wrap">
           <StatChip
             icon={<Clock className="h-3.5 w-3.5" />}
-            value={testData.duration}
+            value={testData.durationMins}
             label="mins"
           />
           <StatChip
@@ -672,10 +714,10 @@ export default function TestAssemblyPage() {
                       <h2 className="text-base font-bold text-slate-800 dark:text-slate-100">
                         {currentSection.name}
                       </h2>
-                      {currentSection.duration && (
+                      {currentSection.durationMins && (
                         <span className="flex items-center gap-1 text-xs text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
                           <Clock className="h-3 w-3" />
-                          {currentSection.duration}m
+                          {currentSection.durationMins}m
                         </span>
                       )}
                     </div>
@@ -688,7 +730,6 @@ export default function TestAssemblyPage() {
                     </p>
                   </div>
 
-                  {/* Section actions */}
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => openEditSection(currentSection)}
@@ -709,7 +750,6 @@ export default function TestAssemblyPage() {
 
                 {/* Add questions row */}
                 <div className="grid sm:grid-cols-2 gap-3">
-                  {/* Vault picker */}
                   <button
                     onClick={() => openBankForSection(currentSection)}
                     className="flex items-center gap-3 px-4 py-3.5 rounded-xl border-2 border-dashed border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-950/10 hover:border-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/20 transition-all group text-left"
@@ -728,7 +768,6 @@ export default function TestAssemblyPage() {
                     <ChevronRight className="ml-auto h-4 w-4 text-indigo-300 group-hover:text-indigo-500 transition-colors shrink-0" />
                   </button>
 
-                  {/* Bulk upload toggle */}
                   <button
                     onClick={() =>
                       setUploadSectionId((prev) =>
@@ -759,7 +798,7 @@ export default function TestAssemblyPage() {
                   </button>
                 </div>
 
-                {/* Bulk upload panel (collapsible) */}
+                {/* Bulk upload panel */}
                 {uploadSectionId === currentSection.id && (
                   <div className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-white dark:bg-slate-900 p-4">
                     <BulkQuestionUpload
@@ -774,7 +813,6 @@ export default function TestAssemblyPage() {
 
                 {/* Questions list */}
                 <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
-                  {/* List header */}
                   <div className="px-5 py-3.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/60 dark:bg-slate-900">
                     <div className="flex items-center gap-2">
                       <Eye className="h-4 w-4 text-slate-400" />
@@ -787,7 +825,6 @@ export default function TestAssemblyPage() {
                     </Badge>
                   </div>
 
-                  {/* Question rows */}
                   {!currentSection.questions?.length ? (
                     <div className="py-16 flex flex-col items-center text-slate-400">
                       <div className="h-12 w-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-3">
@@ -821,7 +858,6 @@ export default function TestAssemblyPage() {
                             )
                           : null;
 
-                        // Check translation availability
                         const hasEN = hasLang(
                           lq.question?.translations ?? [],
                           "EN",
@@ -841,7 +877,6 @@ export default function TestAssemblyPage() {
                             key={`${qId}-${idx}`}
                             className="group flex items-start gap-3 px-4 py-3.5 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors"
                           >
-                            {/* Order + drag handle */}
                             <div className="shrink-0 flex items-center gap-1 mt-px">
                               <GripVertical className="h-4 w-4 text-slate-200 dark:text-slate-700 group-hover:text-slate-300 dark:group-hover:text-slate-600 cursor-grab" />
                               <span className="h-6 w-6 flex items-center justify-center rounded-md bg-slate-100 dark:bg-slate-800 text-[11px] font-bold text-slate-500">
@@ -849,9 +884,7 @@ export default function TestAssemblyPage() {
                               </span>
                             </div>
 
-                            {/* Content */}
                             <div className="flex-1 min-w-0">
-                              {/* Fallback language warning */}
                               {isFallback && (
                                 <p className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 mb-1 flex items-center gap-1">
                                   <Languages className="h-3 w-3" />
@@ -869,7 +902,6 @@ export default function TestAssemblyPage() {
                                 )}
                               </p>
 
-                              {/* Meta row */}
                               <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                                 {subjectName && (
                                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-violet-50 dark:bg-violet-950/30 text-violet-600 dark:text-violet-400 border border-violet-100 dark:border-violet-800 font-semibold">
@@ -881,8 +913,6 @@ export default function TestAssemblyPage() {
                                     {topicName}
                                   </span>
                                 )}
-
-                                {/* Language availability */}
                                 {isBilingual ? (
                                   <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-teal-50 dark:bg-teal-950/30 text-teal-700 dark:text-teal-400 border border-teal-200 dark:border-teal-800">
                                     <Languages className="h-2.5 w-2.5" />
@@ -902,7 +932,6 @@ export default function TestAssemblyPage() {
                                     )}
                                   </>
                                 )}
-
                                 {correctText && (
                                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800 max-w-[200px] truncate">
                                     ✓ {correctText}
@@ -911,7 +940,6 @@ export default function TestAssemblyPage() {
                               </div>
                             </div>
 
-                            {/* Actions */}
                             <div className="shrink-0 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                               <button
                                 className="h-7 w-7 flex items-center justify-center rounded text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors disabled:opacity-30"

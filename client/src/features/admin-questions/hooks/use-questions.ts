@@ -12,12 +12,34 @@ interface UseQuestionsParams {
 }
 
 export function useQuestions(params: UseQuestionsParams = {}) {
-  const { page = 1, limit = 10, search = "", topicId, subject, lang = "en" } = params;
+  const {
+    page = 1,
+    limit = 10,
+    search = "",
+    topicId,
+    subject,
+    lang = "en",
+  } = params;
 
   return useQuery({
-    queryKey: questionKeys.list({ page, limit, search, topicId, subject, lang }),
+    queryKey: questionKeys.list({
+      page,
+      limit,
+      search,
+      topicId,
+      subject,
+      lang,
+    }),
     queryFn: async () => {
-      const res = await adminQuestionsApi.getAll(page, limit, search || undefined);
+      const res = await adminQuestionsApi.getCursorPaginated({
+        cursor: undefined,
+        limit,
+        direction: "forward",
+        search: search || undefined,
+        topicId: topicId || undefined,
+        subject: subject || undefined,
+        lang,
+      });
       return (res.data as any)?.data ?? res.data;
     },
     placeholderData: (prev) => prev,
@@ -49,29 +71,42 @@ interface UseCursorQuestionsParams {
 }
 
 export function useCursorQuestions(params: UseCursorQuestionsParams = {}) {
-  const { 
-    cursor, 
-    limit = 50, 
-    direction = "forward", 
-    search, 
-    topicId, 
-    subject, 
-    lang = "en" 
+  const {
+    cursor,
+    limit = 50,
+    direction = "forward",
+    search,
+    topicId,
+    subject,
+    lang = "en",
   } = params;
 
   return useQuery({
-    queryKey: questionKeys.cursor({ cursor, limit, direction, search, topicId, subject, lang }),
+    queryKey: questionKeys.cursor({
+      cursor,
+      limit,
+      direction,
+      search,
+      topicId,
+      subject,
+      lang,
+    }),
     queryFn: async () => {
-      const res = await adminQuestionsApi.getCursorPaginated({
-        cursor,
-        limit,
-        direction,
-        search: search || undefined,
-        topicId: topicId || undefined,
-        subject: subject || undefined,
-        lang,
-      });
-      return (res.data as any)?.data ?? res.data;
+      try {
+        const res = await adminQuestionsApi.getCursorPaginated({
+          cursor,
+          limit,
+          direction,
+          search: search || undefined,
+          topicId: topicId || undefined,
+          subject: subject || undefined,
+          lang,
+        });
+        return res.data;
+      } catch (error) {
+        console.error("Questions API Error:", error);
+        throw error;
+      }
     },
     placeholderData: (prev) => prev,
     staleTime: 1000 * 60 * 1, // 1 min - fresher for cursor pagination

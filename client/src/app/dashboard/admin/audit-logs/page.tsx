@@ -203,7 +203,7 @@ export default function AuditLogsPage() {
   });
 
   const logs = logsData?.data || [];
-  const total = logsData?.total || 0;
+  const total = logsData?.meta?.total || 0;
 
   const cleanupMutation = useCleanupAuditLogs();
 

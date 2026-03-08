@@ -42,14 +42,12 @@ export class QuestionsService {
 
   constructor(
     private prisma: PrismaService,
-    // FIX #5: inject AuditLogsService so mutations can produce audit records
     private auditLogs: AuditLogsService,
   ) {}
 
   // ─── CRUD ─────────────────────────────────────────────────────────────────
 
   async create(dto: CreateQuestionDto) {
-    // Ghost question guard
     if (!dto.topicId) {
       throw new BadRequestException(
         'Topic ID is required. Every question must be categorized under a topic to prevent Ghost Questions.',
@@ -67,7 +65,6 @@ export class QuestionsService {
     if (!topic) throw new NotFoundException('Topic not found');
 
     return this.prisma.$transaction(async (tx) => {
-      // 1. Create base question
       const question = await tx.question.create({
         data: {
           hash: QuestionsService.computeQuestionHash(dto.content),
@@ -76,7 +73,6 @@ export class QuestionsService {
         },
       });
 
-      // 2. Create the EN translation (content + explanation)
       await tx.questionTranslation.create({
         data: {
           questionId: question.id,
@@ -87,10 +83,6 @@ export class QuestionsService {
         } as any,
       });
 
-      // FIX #2: Save options to QuestionOption + OptionTranslation rows.
-      // Previously the options array in the DTO was silently dropped — only
-      // content/explanation were persisted. The bulk-upload path already used
-      // the correct QuestionOption model; now create() does the same.
       const options: string[] = (dto as any).options ?? [];
       const correctAnswer: number = (dto as any).correctAnswer ?? 0;
 
@@ -113,7 +105,6 @@ export class QuestionsService {
         });
       }
 
-      // 3. Link question to section
       await tx.sectionQuestion.create({
         data: {
           sectionId: dto.sectionId,
@@ -163,7 +154,13 @@ export class QuestionsService {
 
     return this.prisma.$transaction(async (tx) => {
       const data: any = {};
-      if (typeof correctAnswer === 'number') data.correctAnswer = correctAnswer;
+
+      // ✅ FIX: The `Question` model has NO `correctAnswer` field — the correct
+      // answer is stored on `QuestionOption.isCorrect`. Writing correctAnswer
+      // here causes: PrismaClientValidationError: Unknown field `correctAnswer`.
+      // REMOVED: if (typeof correctAnswer === 'number') data.correctAnswer = correctAnswer;
+      // The options loop below handles isCorrect correctly.
+
       if (typeof rest.isActive === 'boolean') data.isActive = rest.isActive;
       if (rest.topicId) data.topicId = rest.topicId;
 
@@ -181,7 +178,6 @@ export class QuestionsService {
         });
       }
 
-      // Update option text translations when options array is provided
       if (Array.isArray(options) && options.length > 0) {
         const existingOptions = await tx.questionOption.findMany({
           where: { questionId: id },
@@ -200,7 +196,6 @@ export class QuestionsService {
           });
         }
 
-        // Update isCorrect if correctAnswer provided
         if (typeof correctAnswer === 'number') {
           for (let i = 0; i < existingOptions.length; i++) {
             await tx.questionOption.update({
@@ -219,14 +214,12 @@ export class QuestionsService {
     return this.prisma.question.delete({ where: { id } });
   }
 
-  // FIX #5: Log the audit event when a question is soft-deleted
   async softDelete(id: string, actorId?: string, actorRole?: string) {
     const result = await this.prisma.question.update({
       where: { id },
       data: { isActive: false },
     });
 
-    // Fire-and-forget: audit failures must never break the main operation
     this.auditLogs
       .log({
         action: 'QUESTION_SOFT_DELETED',
@@ -234,9 +227,7 @@ export class QuestionsService {
         targetId: id,
         actorId,
         actorRole: actorRole as any,
-        metadata: {
-          isActive: false,
-        },
+        metadata: { isActive: false },
       })
       .catch((err) =>
         this.logger.error('Audit log failed for QUESTION_SOFT_DELETED', err),
@@ -254,7 +245,6 @@ export class QuestionsService {
 
   // ─── Bulk tagging ─────────────────────────────────────────────────────────
 
-  // FIX #5: Log the audit event for bulk tag
   async bulkTagQuestions(
     questionIds: string[],
     topicId: string,
@@ -273,11 +263,7 @@ export class QuestionsService {
         targetId: topicId,
         actorId,
         actorRole: actorRole as any,
-        metadata: {
-          questionIds,
-          topicId,
-          updatedCount: result.count,
-        },
+        metadata: { questionIds, topicId, updatedCount: result.count },
       })
       .catch((err) =>
         this.logger.error('Audit log failed for QUESTIONS_BULK_TAGGED', err),
@@ -286,7 +272,7 @@ export class QuestionsService {
     return result;
   }
 
-  // ─── Inject into section (N+4 → 4 total queries) ─────────────────────────
+  // ─── Inject into section ──────────────────────────────────────────────────
 
   async injectQuestionsIntoSection(questionIds: string[], sectionId?: string) {
     if (!sectionId) {
@@ -301,33 +287,23 @@ export class QuestionsService {
     if (!section) throw new BadRequestException('Section not found');
 
     return this.prisma.$transaction(async (tx) => {
-      // FIX #4: Replace the N+4-query loop with 4 total DB round-trips regardless
-      // of how many questions are being injected.
-
-      // Query 1: verify all requested questions exist in one shot
       const questions = await tx.question.findMany({
         where: { id: { in: questionIds } },
         select: { id: true },
       });
 
-      // Query 2: fetch all existing links for this section+question combination
       const existingLinks = await tx.sectionQuestion.findMany({
-        where: {
-          sectionId,
-          questionId: { in: questionIds },
-        },
+        where: { sectionId, questionId: { in: questionIds } },
         select: { questionId: true },
       });
       const alreadyLinked = new Set(existingLinks.map((l) => l.questionId));
 
-      // Query 3: get current max order so new questions continue the sequence
       const maxResult = await tx.sectionQuestion.aggregate({
         where: { sectionId },
         _max: { order: true },
       });
       let nextOrder = (maxResult._max.order ?? 0) + 1;
 
-      // Query 4: bulk-insert only the genuinely new links
       const newLinks = questions
         .filter((q) => !alreadyLinked.has(q.id))
         .map((q) => ({
@@ -340,7 +316,7 @@ export class QuestionsService {
         await tx.sectionQuestion.createMany({ data: newLinks });
       }
 
-      const skippedCount = questionIds.length - questions.length; // IDs not found
+      const skippedCount = questionIds.length - questions.length;
       this.logger.debug(
         `injectQuestionsIntoSection: ${newLinks.length} injected, ` +
           `${alreadyLinked.size} already linked, ${skippedCount} not found`,
@@ -350,12 +326,7 @@ export class QuestionsService {
     });
   }
 
-  // ─── Cursor-based pagination (SINGLE consolidated implementation) ─────────
-  // FIX #6: The service previously had two separate cursor implementations:
-  //   • getPaginatedQuestions() — used by /questions/paginated endpoint
-  //   • findWithCursor() — used by /questions/cursor-paginated endpoint
-  // Both did roughly the same thing. Keeping findWithCursor() as the canonical
-  // implementation and removing getPaginatedQuestions() entirely.
+  // ─── Cursor-based pagination ──────────────────────────────────────────────
 
   async findWithCursor(params: {
     cursor?: { id: string };
@@ -373,7 +344,6 @@ export class QuestionsService {
       take = 50,
       skip = 0,
       orderBy = { id: 'asc' },
-      lang = 'EN',
       search,
       subject,
       topicId,
@@ -395,6 +365,17 @@ export class QuestionsService {
             },
           },
         },
+        {
+          options: {
+            some: {
+              translations: {
+                some: {
+                  text: { contains: search, mode: 'insensitive' },
+                },
+              },
+            },
+          },
+        },
       ];
     }
 
@@ -404,23 +385,16 @@ export class QuestionsService {
       where.topic = { subject: { name: subject } };
     }
 
-    const questions = await this.prisma.question.findMany({
+    return this.prisma.question.findMany({
       cursor,
       take: enforcedTake,
       skip,
       where,
       include: {
-        translations: {
-          where: { lang: lang.toUpperCase() as any },
-          take: 1,
-        },
+        translations: true,
         options: {
           orderBy: { order: 'asc' },
-          include: {
-            translations: {
-              where: { lang: lang.toUpperCase() as any },
-            },
-          },
+          include: { translations: true },
         },
         topic: {
           include: { subject: true },
@@ -431,11 +405,8 @@ export class QuestionsService {
       },
       orderBy,
     });
-
-    return questions;
   }
 
-  // Pagination metadata for the cursor-based endpoint
   async getCursorMetadata(questions: any[], take: number = 50) {
     const hasMore = questions.length === take;
     return { hasMore, hasPrevious: false };
@@ -443,7 +414,6 @@ export class QuestionsService {
 
   // ─── Hash ─────────────────────────────────────────────────────────────────
 
-  // Single canonical hash function used across the entire codebase
   static computeQuestionHash(enText: string, hiText?: string): string {
     const normalise = (s: string) => (s || '').replace(/\s+/g, ' ').trim();
     const combined = `${normalise(enText)}\x00${normalise(hiText ?? '')}`;
@@ -474,10 +444,21 @@ export class QuestionsService {
     }));
   }
 
-  private async resolveTopicForRow(row: Record<string, any>) {
-    if (row['topicId']) {
-      const topic = await this.prisma.topic.findUnique({
-        where: { id: String(row['topicId']) },
+  // ✅ FIX: Pass optional prismaClient so this can be called inside a $transaction
+  // using the transaction client (tx) instead of the outer prisma client.
+  // Without this, reads inside a transaction see a different snapshot → stale reads
+  // and possible FK constraint failures if a topic is deleted mid-transaction.
+  private async resolveTopicForRow(
+    row: Record<string, any>,
+    prismaClient?: any,
+  ) {
+    // After normalizeRowKeys(), ALL keys are lowercase with no special chars.
+    // 'Topic ID', 'topicId', 'topic_id', 'TOPICID' all become 'topicid'
+    const prisma = prismaClient || this.prisma;
+
+    if (row['topicid']) {
+      const topic = await prisma.topic.findUnique({
+        where: { id: String(row['topicid']) },
         include: { subject: true },
       });
       if (!topic) throw new BadRequestException('topicId not found');
@@ -485,7 +466,7 @@ export class QuestionsService {
     }
 
     if (row['topic'] && row['subject']) {
-      const topic = await this.prisma.topic.findFirst({
+      const topic = await prisma.topic.findFirst({
         where: {
           name: String(row['topic']).trim(),
           subject: { name: String(row['subject']).trim() },
@@ -498,7 +479,7 @@ export class QuestionsService {
     }
 
     throw new BadRequestException(
-      'Topic not found in row. Please include either topicId or both topic and subject columns in your Excel file.',
+      'Topic not found in row. Please include either "Topic ID" or both "Topic" and "Subject" columns.',
     );
   }
 
@@ -541,6 +522,10 @@ export class QuestionsService {
         }
 
         const questionText = rawQuestion.toString().trim();
+
+        // ✅ FIX: Keep original indices — do NOT filter before mapping.
+        // If option C is blank and we filter first, option D shifts to index 2,
+        // meaning isCorrect = (idx === correctIndex) maps D→C. Wrong answer stored.
         const options = [
           row['optionaen'] ||
             row['optiona'] ||
@@ -558,7 +543,7 @@ export class QuestionsService {
             row['optiond'] ||
             row['option_d_en'] ||
             row['option_d'],
-        ].filter(Boolean);
+        ];
 
         const validAnswers = ['A', 'B', 'C', 'D', '1', '2', '3', '4'];
         const rawCorrectAnswer =
@@ -575,7 +560,7 @@ export class QuestionsService {
           c: 'C',
           d: 'D',
         };
-        let finalCorrectAnswer = validAnswers.includes(correctAnswer)
+        const finalCorrectAnswer = validAnswers.includes(correctAnswer)
           ? correctAnswer
           : (answerMap[correctAnswer] ?? 'A');
 
@@ -629,7 +614,6 @@ export class QuestionsService {
         allHashes.push(uniqueHash);
       }
 
-      // Batch fetch existing questions by hash (one query, not N)
       const existingQuestions = await tx.question.findMany({
         where: { hash: { in: allHashes } },
       });
@@ -647,11 +631,13 @@ export class QuestionsService {
           try {
             const resolvedTopic = await this.resolveTopicForRow(
               processedRow.rawRow,
+              tx, // ✅ Pass transaction client — keeps reads in the same snapshot
             );
             rowTopicId = resolvedTopic.id;
           } catch (err: any) {
             throw new BadRequestException(
-              `Row ${processedRow.index}: Topic resolution failed — ${err?.message ?? String(err)}. Please ensure each row has a valid topicId or topic name.`,
+              `Row ${processedRow.index}: Topic resolution failed — ${err?.message ?? String(err)}. ` +
+                `Please ensure each row has a valid topicId or topic name.`,
             );
           }
 
@@ -659,6 +645,7 @@ export class QuestionsService {
             data: {
               hash: processedRow.uniqueHash,
               topicId: rowTopicId,
+              isActive: true,
               translations: {
                 create: [
                   {
@@ -688,29 +675,35 @@ export class QuestionsService {
                 ],
               },
               options: {
-                create: processedRow.options.map(
-                  (optionText: string, idx: number) => ({
-                    order: idx + 1,
-                    isCorrect: idx === processedRow.correctIndex,
-                    translations: {
-                      create: [
-                        { lang: 'EN' as any, text: optionText },
-                        ...(processedRow.rawRow[
-                          `option${String.fromCharCode(97 + idx)}hi`
-                        ]?.trim()
-                          ? [
-                              {
-                                lang: 'HI' as any,
-                                text: processedRow.rawRow[
-                                  `option${String.fromCharCode(97 + idx)}hi`
-                                ],
-                              },
-                            ]
-                          : []),
-                      ],
-                    },
-                  }),
-                ),
+                // ✅ FIX: Map first (to preserve idx → correctIndex alignment),
+                // filter nulls after. This ensures isCorrect is set on the right option
+                // even when some options are blank (e.g. only A, B, D provided).
+                create: processedRow.options
+                  .map((optionText: string, idx: number) => {
+                    if (!optionText || !String(optionText).trim()) return null;
+                    return {
+                      order: idx + 1,
+                      isCorrect: idx === processedRow.correctIndex,
+                      translations: {
+                        create: [
+                          { lang: 'EN' as any, text: String(optionText) },
+                          ...(processedRow.rawRow[
+                            `option${String.fromCharCode(97 + idx)}hi`
+                          ]?.trim()
+                            ? [
+                                {
+                                  lang: 'HI' as any,
+                                  text: processedRow.rawRow[
+                                    `option${String.fromCharCode(97 + idx)}hi`
+                                  ],
+                                },
+                              ]
+                            : []),
+                        ],
+                      },
+                    };
+                  })
+                  .filter(Boolean),
               },
             } as any,
           });
@@ -723,10 +716,7 @@ export class QuestionsService {
         if (sectionId) {
           await tx.sectionQuestion.upsert({
             where: {
-              sectionId_questionId: {
-                sectionId,
-                questionId: question.id,
-              },
+              sectionId_questionId: { sectionId, questionId: question.id },
             },
             update: {},
             create: {
@@ -760,7 +750,6 @@ export class QuestionsService {
           .toString()
           .trim();
         const qHi = (raw['questionhi'] || '').toString().trim();
-
         const optAEn = (raw['optionaen'] || raw['optiona'] || '')
           .toString()
           .trim();
@@ -790,11 +779,10 @@ export class QuestionsService {
           validationErrors.push('Missing Question text (EN or HI)');
         if (!optAEn || !optBEn)
           validationErrors.push('At least Option A and Option B are required');
-        if (!['A', 'B', 'C', 'D', '1', '2', '3', '4'].includes(correct)) {
+        if (!['A', 'B', 'C', 'D', '1', '2', '3', '4'].includes(correct))
           validationErrors.push(
             'Invalid Correct Answer (must be A/B/C/D or 1/2/3/4)',
           );
-        }
 
         if (validationErrors.length > 0) {
           errors.push({ row: r.rowNumber, errors: validationErrors });
@@ -848,7 +836,6 @@ export class QuestionsService {
       }
     }
 
-    // Deduplicate within the file
     const seen = new Map<string, number>();
     const validResults: any[] = [];
     for (const res of results) {
@@ -865,7 +852,6 @@ export class QuestionsService {
       }
     }
 
-    // Check DB duplicates
     const hashes = validResults.map((r) => r.hash);
     if (hashes.length) {
       const existing = await this.prisma.question.findMany({
@@ -889,7 +875,7 @@ export class QuestionsService {
 
     return {
       totalRows: rows.length,
-      validCount: validResults.length,
+      validCount: finalValidResults.length,
       errors,
       preview: finalValidResults.slice(0, 5),
       allValidRows: finalValidResults as any[],
@@ -919,7 +905,6 @@ export class QuestionsService {
     }
 
     await this.prisma.$transaction(async (tx) => {
-      // Race-condition guard: re-check hashes inside the transaction
       const hashes = toInsert.map((q) => q.hash);
       const existingInTx = await tx.question.findMany({
         where: { hash: { in: hashes } },
@@ -935,8 +920,10 @@ export class QuestionsService {
           continue;
         }
 
+        // ✅ FIX: Added isActive: true — without this, questions are inactive
+        // by default and won't appear in queries that filter isActive: true.
         const createdQ = await tx.question.create({
-          data: { topicId: q.topicId, hash: q.hash },
+          data: { topicId: q.topicId, hash: q.hash, isActive: true },
         });
 
         await tx.questionTranslation.createMany({

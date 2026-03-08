@@ -1,20 +1,27 @@
 import api from "@/lib/api";
-import type { ApiResponse } from "@/types/api";
 
-// Server returns key-value object, not array
-export type AppSettings = Record<string, any>;
+// Server GET /admin/settings returns a plain key-value object:
+// { "system.siteName": "QuizNow", "system.tagline": "...", ... }
+export type SettingsMap = Record<string, string>;
+
+// For display/editing we convert the flat map to this shape
+export interface AppSetting {
+  key: string;
+  value: string;
+}
 
 export const adminSettingsApi = {
-  getAll: () => api.get<AppSettings>("/admin/settings"),
+  // Returns flat object: { "key": "value", ... }
+  getAll: () => api.get<SettingsMap>("/admin/settings"),
 
-  getByKey: (key: string) =>
-    api.get<{ key: string; value: any }>(`/admin/settings/${key}`),
+  // POST /admin/settings  body: { key, value }
+  update: (key: string, value: string) =>
+    api.post<AppSetting>("/admin/settings", { key, value }),
 
-  update: (key: string, value: any) =>
-    api.post<{ key: string; value: any }>("/admin/settings", { key, value }),
+  // POST /admin/settings/batch  body: [{ key, value }, ...]
+  updateBatch: (updates: AppSetting[]) =>
+    api.post<AppSetting[]>("/admin/settings/batch", updates),
 
-  updateBatch: (updates: Array<{ key: string; value: any }>) =>
-    api.post<{ key: string; value: any }[]>("/admin/settings/batch", updates),
-
-  delete: (key: string) => api.delete<void>(`/admin/settings/${key}`),
+  // DELETE /admin/settings/:key
+  delete: (key: string) => api.delete(`/admin/settings/${key}`),
 };

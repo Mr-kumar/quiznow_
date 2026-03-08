@@ -23,7 +23,10 @@ export function useAuditLogs(params: UseAuditLogsParams = {}) {
         search || undefined,
         action,
       );
-      return (res.data as any)?.data ?? res.data;
+      console.log("Audit Logs API Response:", res);
+      console.log("Audit Logs Response data:", res.data);
+      // Return the complete response structure as expected by the server
+      return res.data;
     },
     placeholderData: (prev) => prev,
     staleTime: 1000 * 60 * 1, // 1 min - audit logs change frequently

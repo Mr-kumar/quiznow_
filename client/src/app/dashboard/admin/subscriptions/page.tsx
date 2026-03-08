@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
+  adminSubscriptionsApi,
   type Subscription,
   type CreateSubscriptionRequest,
   type UpdateSubscriptionRequest,
 } from "@/api/subscriptions";
-import { type User } from "@/api/users";
-import { type Plan } from "@/api/plans";
+import { adminPlansApi, type Plan } from "@/api/plans";
+import { adminUsersApi, type User } from "@/api/users";
 import {
   useSubscriptions,
   useCreateSubscription,
@@ -51,7 +52,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-// FIX: removed unused useToast — mutation hooks use sonner internally
+import { useToast } from "@/components/ui/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -59,8 +60,12 @@ import {
   CreditCard,
   Plus,
   Trash2,
+  Calendar,
   User as UserIcon,
+  CheckCircle,
+  XCircle,
   Search,
+  Filter,
 } from "lucide-react";
 import { DataTable } from "@/components/admin/admin-data-table";
 import { ColumnDef } from "@tanstack/react-table";
@@ -74,16 +79,22 @@ const subscriptionFormSchema = z.object({
 type SubscriptionFormValues = z.infer<typeof subscriptionFormSchema>;
 
 export default function SubscriptionsPage() {
+  const { toast } = useToast();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [subscriptionToDelete, setSubscriptionToDelete] =
     useState<Subscription | null>(null);
 
+  // Pagination and search state
   const [page, setPage] = useState(1);
-  const [limit] = useState(10);
+  const [limit, setLimit] = useState(10);
   const [search, setSearch] = useState("");
 
-  const { data: subscriptionsData, isLoading } = useSubscriptions({
+  const {
+    data: subscriptionsData,
+    isLoading,
+    refetch,
+  } = useSubscriptions({
     page,
     limit,
     search,
@@ -105,15 +116,17 @@ export default function SubscriptionsPage() {
     limit: 1000,
   });
 
-  const plans = plansData?.data || [];
-  const users = usersData?.data || [];
+  const plans = Array.isArray(plansData)
+    ? plansData
+    : ((plansData as any)?.data ?? []);
+  const users = Array.isArray(usersData)
+    ? usersData
+    : ((usersData as any)?.data ?? []);
 
   const isCrudLoading =
     createMutation.isPending ||
     updateMutation.isPending ||
     cancelMutation.isPending;
-
-  // FIX: removed empty useEffect — no side effects needed
 
   const createForm = useForm<SubscriptionFormValues>({
     resolver: zodResolver(subscriptionFormSchema),
@@ -125,8 +138,8 @@ export default function SubscriptionsPage() {
       await createMutation.mutateAsync(data as CreateSubscriptionRequest);
       setIsCreateDialogOpen(false);
       createForm.reset();
-    } catch {
-      // Error handled by mutation hook
+    } catch (error) {
+      // Error is handled by the mutation hook
     }
   };
 
@@ -136,8 +149,8 @@ export default function SubscriptionsPage() {
       await cancelMutation.mutateAsync(subscriptionToDelete.id);
       setDeleteDialogOpen(false);
       setSubscriptionToDelete(null);
-    } catch {
-      // Error handled by mutation hook
+    } catch (error) {
+      // Error is handled by the mutation hook
     }
   }, [subscriptionToDelete, cancelMutation]);
 
@@ -192,21 +205,20 @@ export default function SubscriptionsPage() {
       ),
     },
     {
-      // FIX: interface field is `startsAt` (with 's'), not `startAt`
-      accessorKey: "startsAt",
+      accessorKey: "startAt",
       header: "Start Date",
       cell: ({ row }) => (
         <span className="text-sm">
-          {new Date(row.getValue("startsAt") as string).toLocaleDateString()}
+          {new Date(row.getValue("startAt") as string).toLocaleDateString()}
         </span>
       ),
     },
     {
-      accessorKey: "endsAt",
+      accessorKey: "expiresAt",
       header: "Expires",
       cell: ({ row }) => (
         <span className="text-sm font-medium">
-          {new Date(row.getValue("endsAt") as string).toLocaleDateString()}
+          {new Date(row.getValue("expiresAt") as string).toLocaleDateString()}
         </span>
       ),
     },
@@ -278,7 +290,7 @@ export default function SubscriptionsPage() {
                               <SelectValue placeholder="Select user" />
                             </SelectTrigger>
                             <SelectContent>
-                              {users.map((user: User) => (
+                              {users.map((user) => (
                                 <SelectItem key={user.id} value={user.id}>
                                   {user.name} ({user.email})
                                 </SelectItem>
@@ -305,7 +317,7 @@ export default function SubscriptionsPage() {
                               <SelectValue placeholder="Select plan" />
                             </SelectTrigger>
                             <SelectContent>
-                              {plans.map((plan: Plan) => (
+                              {plans.map((plan) => (
                                 <SelectItem key={plan.id} value={plan.id}>
                                   {plan.name} (₹{plan.price})
                                 </SelectItem>

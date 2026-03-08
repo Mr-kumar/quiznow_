@@ -49,7 +49,7 @@ export function useDeleteQuestion() {
     mutationFn: (id: string) => adminQuestionsApi.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: questionKeys.lists() });
-      toast.success("Question deleted successfully");
+      toast.success("Question deleted");
     },
     onError: (error: unknown) => {
       const apiError = parseApiError(error);
@@ -66,7 +66,7 @@ export function useSoftDeleteQuestion() {
     onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: questionKeys.lists() });
       queryClient.invalidateQueries({ queryKey: questionKeys.detail(id) });
-      toast.success("Question soft deleted successfully");
+      toast.success("Question deactivated");
     },
     onError: (error: unknown) => {
       const apiError = parseApiError(error);
@@ -86,9 +86,10 @@ export function useBulkTagQuestions() {
       questionIds: string[];
       topicId: string;
     }) => adminQuestionsApi.bulkTag(questionIds, topicId),
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: questionKeys.lists() });
-      toast.success("Questions bulk tagged successfully");
+      const count = data?.data?.updatedCount ?? data?.updatedCount ?? "?";
+      toast.success(`${count} questions reassigned`);
     },
     onError: (error: unknown) => {
       const apiError = parseApiError(error);
@@ -109,10 +110,13 @@ export function useBulkUploadQuestions() {
       file: File;
       sectionId: string;
       topicId?: string;
-    }) => adminQuestionsApi.bulkUpload(file, sectionId),
-    onSuccess: () => {
+    }) =>
+      // ✅ FIX: Pass topicId through — the original hook silently dropped it.
+      adminQuestionsApi.bulkUpload(file, sectionId, topicId),
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: questionKeys.lists() });
-      toast.success("Questions bulk uploaded successfully");
+      const count = data?.data?.count ?? data?.count ?? "?";
+      toast.success(`${count} questions uploaded`);
     },
     onError: (error: unknown) => {
       const apiError = parseApiError(error);

@@ -38,7 +38,7 @@ async function bootstrap() {
 
   // 🛡️ Rate limiting for file uploads
   app.use(
-    '/questions/upload',
+    '/api/questions/upload', // ✅ FIXED: include /api prefix
     rateLimit({
       windowMs: 60 * 60 * 1000, // 1 hour
       max: 20, // Increased from 5 to 20 for development
