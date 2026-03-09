@@ -65,7 +65,7 @@ export default function BulkQuestionUpload({
     const loadTopics = async () => {
       setTopicsLoading(true);
       try {
-        const response = await adminTopicsApi.getAll(1, 1000);
+        const response = await adminTopicsApi.getAll();
         // ✅ FIX: adminTopicsApi.getAll returns Topic[] directly, not wrapped
         setTopics(Array.isArray(response) ? response : []);
       } catch {

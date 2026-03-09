@@ -1,3 +1,17 @@
+/**
+ * api/query-keys.ts  (UPDATED — added exam, attempt, leaderboard keys)
+ *
+ * Centralised query key factory. Every useQuery / useMutation must use
+ * keys from here — never inline string arrays.
+ *
+ * Pattern: keys.lists() → keys.list(params) → keys.detail(id)
+ * This lets us invalidate at any granularity:
+ *   queryClient.invalidateQueries({ queryKey: testKeys.lists() })
+ *   → invalidates ALL test list queries (any params)
+ */
+
+// ── Admin keys (existing) ──────────────────────────────────────────────────────
+
 export const userKeys = {
   all: () => ["users"] as const,
   lists: () => [...userKeys.all(), "list"] as const,
@@ -7,8 +21,6 @@ export const userKeys = {
 
 export const questionKeys = {
   all: () => ["questions"] as const,
-  lists: () => [...questionKeys.all(), "list"] as const,
-  list: (params: object) => [...questionKeys.lists(), params] as const,
   detail: (id: string) => [...questionKeys.all(), "detail", id] as const,
   cursor: (params: object) =>
     [...questionKeys.all(), "cursor", params] as const,
@@ -60,4 +72,52 @@ export const subscriptionKeys = {
   lists: () => [...subscriptionKeys.all(), "list"] as const,
   list: (params: object) => [...subscriptionKeys.lists(), params] as const,
   detail: (id: string) => [...subscriptionKeys.all(), "detail", id] as const,
+};
+
+// ── NEW: Student exam keys ────────────────────────────────────────────────────
+
+/**
+ * Exam loader keys — scoped under "exam" to never collide with admin test cache.
+ * staleTime: Infinity on all — test content never changes mid-exam.
+ */
+export const examKeys = {
+  all: () => ["exam"] as const,
+  test: (testId: string) => [...examKeys.all(), "test", testId] as const,
+  sections: (testId: string) =>
+    [...examKeys.all(), "sections", testId] as const,
+};
+
+/**
+ * Attempt keys — result and review data per attempt.
+ * staleTime: Infinity on result — it's immutable once submitted.
+ */
+export const attemptKeys = {
+  all: () => ["attempts"] as const,
+  result: (attemptId: string) =>
+    [...attemptKeys.all(), "result", attemptId] as const,
+  review: (attemptId: string, lang?: string) =>
+    [...attemptKeys.all(), "review", attemptId, lang ?? "EN"] as const,
+  history: (params: object) =>
+    [...attemptKeys.all(), "history", params] as const,
+};
+
+/**
+ * Leaderboard keys.
+ * staleTime: 2 min — updates frequently as more students submit.
+ */
+export const leaderboardKeys = {
+  all: () => ["leaderboard"] as const,
+  test: (testId: string, page?: number) =>
+    [...leaderboardKeys.all(), "test", testId, page ?? 1] as const,
+};
+
+/**
+ * Student profile / topic stats keys.
+ */
+export const studentKeys = {
+  all: () => ["student"] as const,
+  topicStats: () => [...studentKeys.all(), "topic-stats"] as const,
+  topicStatsBySubject: (subjectId: string) =>
+    [...studentKeys.topicStats(), subjectId] as const,
+  profile: () => [...studentKeys.all(), "profile"] as const,
 };

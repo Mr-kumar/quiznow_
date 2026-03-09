@@ -2,51 +2,6 @@ import { useQuery } from "@tanstack/react-query";
 import { adminQuestionsApi } from "@/api/questions";
 import { questionKeys } from "@/api/query-keys";
 
-interface UseQuestionsParams {
-  page?: number;
-  limit?: number;
-  search?: string;
-  topicId?: string;
-  subject?: string;
-  lang?: string;
-}
-
-export function useQuestions(params: UseQuestionsParams = {}) {
-  const {
-    page = 1,
-    limit = 10,
-    search = "",
-    topicId,
-    subject,
-    lang = "en",
-  } = params;
-
-  return useQuery({
-    queryKey: questionKeys.list({
-      page,
-      limit,
-      search,
-      topicId,
-      subject,
-      lang,
-    }),
-    queryFn: async () => {
-      const res = await adminQuestionsApi.getCursorPaginated({
-        cursor: undefined,
-        limit,
-        direction: "forward",
-        search: search || undefined,
-        topicId: topicId || undefined,
-        subject: subject || undefined,
-        lang,
-      });
-      return (res.data as any)?.data ?? res.data;
-    },
-    placeholderData: (prev) => prev,
-    staleTime: 1000 * 60 * 2, // 2 min
-  });
-}
-
 export function useQuestion(id: string) {
   return useQuery({
     queryKey: questionKeys.detail(id),

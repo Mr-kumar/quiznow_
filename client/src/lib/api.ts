@@ -31,8 +31,8 @@ api.interceptors.response.use(
       const authStore = useAuthStore.getState();
       authStore.logout(); // Use logout method for proper cleanup
 
-      // Only show toast if this wasn't an automatic logout
-      if (!authStore.tokenExpiry || Date.now() <= authStore.tokenExpiry) {
+      // Only show toast if this wasn't an automatic logout due to expired token
+      if (authStore.tokenExpiry && Date.now() > authStore.tokenExpiry) {
         console.warn("Session expired - logging out");
         // You could add a toast here if needed
       }

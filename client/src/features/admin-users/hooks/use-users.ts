@@ -15,8 +15,7 @@ export function useUsers(params: UseUsersParams = {}) {
     queryKey: userKeys.list({ page, limit, search }),
     queryFn: async () => {
       const res = await adminUsersApi.getAll(page, limit, search || undefined);
-      // Normalise both response shapes: { data: [...] } and { data: { data: [...] } }
-      return (res.data as any)?.data ?? res.data;
+      return res.data; // Now returns PaginatedResponse<User> consistently
     },
     placeholderData: (prev) => prev, // keeps old data visible while fetching next page
     staleTime: 1000 * 60 * 2, // 2 min — user lists don't change often
@@ -28,7 +27,7 @@ export function useUser(id: string) {
     queryKey: userKeys.detail(id),
     queryFn: async () => {
       const res = await adminUsersApi.getById(id);
-      return (res.data as any)?.data ?? res.data;
+      return res.data; // Now returns ApiResponse<User> consistently
     },
     enabled: !!id,
     staleTime: 1000 * 60 * 5, // 5 min

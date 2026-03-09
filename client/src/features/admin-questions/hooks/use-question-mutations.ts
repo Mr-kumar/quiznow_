@@ -14,7 +14,7 @@ export function useCreateQuestion() {
   return useMutation({
     mutationFn: adminQuestionsApi.create,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: questionKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: questionKeys.all() });
       toast.success("Question created successfully");
     },
     onError: (error: unknown) => {
@@ -31,7 +31,7 @@ export function useUpdateQuestion() {
     mutationFn: ({ id, data }: { id: string; data: UpdateQuestionRequest }) =>
       adminQuestionsApi.update(id, data),
     onSuccess: (_, { id }) => {
-      queryClient.invalidateQueries({ queryKey: questionKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: questionKeys.all() });
       queryClient.invalidateQueries({ queryKey: questionKeys.detail(id) });
       toast.success("Question updated successfully");
     },
@@ -48,7 +48,7 @@ export function useDeleteQuestion() {
   return useMutation({
     mutationFn: (id: string) => adminQuestionsApi.delete(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: questionKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: questionKeys.all() });
       toast.success("Question deleted");
     },
     onError: (error: unknown) => {
@@ -64,7 +64,7 @@ export function useSoftDeleteQuestion() {
   return useMutation({
     mutationFn: (id: string) => adminQuestionsApi.softDelete(id),
     onSuccess: (_, id) => {
-      queryClient.invalidateQueries({ queryKey: questionKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: questionKeys.all() });
       queryClient.invalidateQueries({ queryKey: questionKeys.detail(id) });
       toast.success("Question deactivated");
     },
@@ -87,7 +87,7 @@ export function useBulkTagQuestions() {
       topicId: string;
     }) => adminQuestionsApi.bulkTag(questionIds, topicId),
     onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: questionKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: questionKeys.all() });
       const count = data?.data?.updatedCount ?? data?.updatedCount ?? "?";
       toast.success(`${count} questions reassigned`);
     },
@@ -114,7 +114,7 @@ export function useBulkUploadQuestions() {
       // ✅ FIX: Pass topicId through — the original hook silently dropped it.
       adminQuestionsApi.bulkUpload(file, sectionId, topicId),
     onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: questionKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: questionKeys.all() });
       const count = data?.data?.count ?? data?.count ?? "?";
       toast.success(`${count} questions uploaded`);
     },

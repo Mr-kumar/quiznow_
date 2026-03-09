@@ -91,7 +91,7 @@ export default function UsersAnalyticsPage() {
     search: searchTerm,
   });
 
-  const users = usersData || [];
+  const users = usersData?.data || [];
 
   const createMutation = useCreateUser();
   const updateMutation = useUpdateUser();

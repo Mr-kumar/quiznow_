@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { adminSubjectsApi } from "@/api/subjects";
-import { adminTopicsApi } from "@/api/topics";
+import { adminTopicsApi } from "@/api/subjects";
 import { subjectKeys } from "@/api/query-keys";
 import { parseApiError } from "@/lib/errors";
 import { unwrap } from "@/lib/unwrap";

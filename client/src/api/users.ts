@@ -24,16 +24,10 @@ export interface UpdateUserRequest {
 
 export const adminUsersApi = {
   getAll: (page = 1, limit = 10, search?: string) =>
-    api.get<{ success: boolean; message: string; data: User[] }>(
-      "/admin/users",
-      {
-        params: { page, limit, search },
-      },
-    ),
-  getById: (id: string) =>
-    api.get<{ success: boolean; message: string; data: User }>(
-      `/admin/users/${id}`,
-    ),
+    api.get<PaginatedResponse<User>>("/admin/users", {
+      params: { page, limit, search },
+    }),
+  getById: (id: string) => api.get<ApiResponse<User>>(`/admin/users/${id}`),
   create: (userData: CreateUserRequest) =>
     api.post<ApiResponse<User>>("/admin/users", userData),
   update: (id: string, userData: UpdateUserRequest) =>

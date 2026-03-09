@@ -73,11 +73,7 @@ export default function DashboardLayout({
       label: "Admin Overview",
       icon: LayoutDashboard,
     },
-    {
-      href: "/dashboard/admin/tests-hierarchy",
-      label: "Manage Hierarchy",
-      icon: FolderTree,
-    },
+  
     {
       href: "/dashboard/admin/tests",
       label: "Manage Tests",
@@ -88,12 +84,7 @@ export default function DashboardLayout({
       label: "Global Question Vault",
       icon: BookOpen,
     },
-    {
-      href: "/dashboard/admin/subjects",
-      label: "Subjects & Topics",
-      icon: Library,
-    },
-
+    
     {
       href: "/dashboard/admin/plans",
       label: "Plans",

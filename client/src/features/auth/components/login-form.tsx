@@ -36,36 +36,25 @@ export default function LoginForm() {
       // 1. Call your NestJS Backend
       const { data } = await api.post("/auth/dev-login", { email });
 
-      // 2. Create the User Object based on email
-      let user;
-      if (email === "admin@quiznow.com") {
-        user = {
-          id: "c1234567890abcdef1234567890abcdef", // Admin ID
-          email: email,
-          name: "Super Admin",
-          role: "ADMIN" as const,
-        };
-      } else if (email === "student@quiznow.com") {
-        user = {
-          id: "c1234567890abcdef1234567890abcde1", // Student ID
-          email: email,
-          name: "John Student",
-          role: "STUDENT" as const,
-        };
-      } else {
-        // Default to student for any other email
-        user = {
-          id: "c1234567890abcdef1234567890abcde2", // Default student ID
-          email: email,
-          name: email.split("@")[0], // Use email prefix as name
-          role: "STUDENT" as const,
-        };
-      }
+      // 2. Decode JWT from server to get real user data
+      const payload = JSON.parse(
+        atob(
+          data.access_token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"),
+        ),
+      );
 
-      // 3. Save to Zustand Store (Persistent Memory)
+      // 3. Create user object from JWT payload
+      const user = {
+        id: payload.sub,
+        email: payload.email,
+        name: payload.name ?? payload.email,
+        role: payload.role,
+      };
+
+      // 4. Save to Zustand Store (Persistent Memory)
       login(user, data.access_token);
 
-      // 4. 🎯 Intelligent Redirect based on Role
+      // 5. 🎯 Intelligent Redirect based on Role
       if (user.role === "ADMIN") {
         router.push("/dashboard/admin");
       } else {

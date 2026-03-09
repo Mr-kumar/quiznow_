@@ -78,12 +78,6 @@ export function useCursorPagination(options: UseCursorPaginationOptions = {}) {
 
         const response = await adminQuestionsApi.getCursorPaginated(params);
 
-        if (response.status === 401 || response.status === 403) {
-          setError("Authentication required. Please log in again.");
-          setData([]);
-          return;
-        }
-
         if (!response.data || !Array.isArray(response.data.data)) {
           setError("Unexpected response from server. Please try again.");
           setData([]);
@@ -120,13 +114,25 @@ export function useCursorPagination(options: UseCursorPaginationOptions = {}) {
         setHasMore(response.data.pagination?.hasMore ?? false);
         setTotal(response.data.pagination?.total ?? 0);
       } catch (err) {
-        const message =
-          err !== null &&
-          typeof err === "object" &&
-          "response" in err &&
-          (err as any).response?.data?.message
-            ? (err as any).response.data.message
-            : "Failed to fetch questions";
+        // Handle different error scenarios
+        let message = "Failed to fetch questions";
+
+        if (err !== null && typeof err === "object" && "response" in err) {
+          const axiosError = err as any;
+          if (axiosError.response?.data?.message) {
+            message = axiosError.response.data.message;
+          } else if (axiosError.response?.status === 401) {
+            message = "Authentication required. Please log in again.";
+          } else if (axiosError.response?.status === 403) {
+            message =
+              "Access denied. You don't have permission to view these questions.";
+          } else if (axiosError.response?.status >= 500) {
+            message = "Server error. Please try again later.";
+          }
+        } else if (err instanceof Error) {
+          message = err.message || message;
+        }
+
         setError(message);
       } finally {
         setLoading(false);

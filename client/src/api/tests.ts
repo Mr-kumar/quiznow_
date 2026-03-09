@@ -89,7 +89,10 @@ export interface UpdateTestRequest {
 
 export const adminTestsApi = {
   // Returns raw Test[] (no wrapper)
-  getAll: () => api.get<Test[]>("/tests"),
+  getAll: (page?: number, limit?: number, search?: string, seriesId?: string) =>
+    api.get<Test[]>("/tests", {
+      params: { page, limit, search, seriesId },
+    }),
 
   getById: (id: string) => api.get<Test>(`/tests/${id}`),
 

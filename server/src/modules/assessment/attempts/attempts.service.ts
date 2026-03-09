@@ -427,8 +427,19 @@ export class AttemptsService {
   // ─── 4. Basic result / CRUD ───────────────────────────────────────────────
 
   findOne(id: string | number | bigint) {
+    // Convert string id to BigInt if needed
+    if (!id || id === 'null' || id === 'undefined') {
+      throw new Error('Invalid attempt ID');
+    }
+
+    const attemptId = typeof id === 'string' ? BigInt(id) : id;
+
+    if (!attemptId) {
+      throw new Error('Invalid attempt ID');
+    }
+
     return this.prisma.attempt.findUnique({
-      where: { id: id as any },
+      where: { id: attemptId },
       include: {
         test: true,
         user: true,

@@ -14,7 +14,7 @@ interface DevLoginResponse {
 // Simple JWT decode function (for development only)
 function decodeJwt(token: string) {
   const base64Payload = token.split(".")[1];
-  const payload = Buffer.from(base64Payload, "base64").toString();
+  const payload = atob(base64Payload);
   return JSON.parse(payload);
 }
 
