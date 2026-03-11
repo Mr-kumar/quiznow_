@@ -121,7 +121,10 @@ function hasLang(question: VaultQuestion, lang: Lang): boolean {
   return !!question.translations.find((t) => t.lang === lang)?.content?.trim();
 }
 
-const OPTION_LETTERS = ["A", "B", "C", "D", "E"];
+const getOptionLabel = (index: number): string => {
+  const LETTERS = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"];
+  return LETTERS[index] ?? `Option ${index + 1}`;
+};
 
 const LANG_LABELS: Record<Lang, string> = {
   EN: "English",
@@ -312,7 +315,7 @@ function QuestionRow({
                         : "bg-slate-300 dark:bg-slate-600 text-slate-600 dark:text-slate-300",
                     )}
                   >
-                    {OPTION_LETTERS[i]}
+                    {getOptionLabel(i)}
                   </span>
                   {/* Options rendered in selected language */}
                   <span className="leading-snug">

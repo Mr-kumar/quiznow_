@@ -17,7 +17,12 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { AlertTriangleIcon, CheckCircle2Icon, Loader2Icon } from "lucide-react";
+import {
+  AlertTriangleIcon,
+  CheckCircle2Icon,
+  Loader2Icon,
+  XCircleIcon,
+} from "lucide-react";
 import { useExamStore } from "../stores/exam-store";
 import { cn } from "@/lib/utils";
 
@@ -30,6 +35,8 @@ interface SubmitConfirmDialogProps {
   onConfirm: () => void;
   /** Show spinner on confirm button during API call */
   isSubmitting?: boolean;
+  /** Error message to display inline in the dialog */
+  submitError?: string | null;
   totalQuestions: number;
 }
 
@@ -63,15 +70,11 @@ export function SubmitConfirmDialog({
   onOpenChange,
   onConfirm,
   isSubmitting = false,
+  submitError = null,
   totalQuestions,
 }: SubmitConfirmDialogProps) {
   const answers = useExamStore((s) => s.answers);
   const visitedQuestions = useExamStore((s) => s.visitedQuestions);
-
-  // Debug dialog state
-  React.useEffect(() => {
-    console.log("🔍 DEBUG: SubmitConfirmDialog open state changed:", open);
-  }, [open]);
 
   // Compute counts live from store
   const answered = Object.values(answers).filter(
@@ -84,24 +87,12 @@ export function SubmitConfirmDialog({
     (a) => a.isMarked && a.optionId === null,
   ).length;
 
-  // ✅ FIXED: Calculate notAnswered correctly - only count visited questions that weren't answered
+  // Calculate notAnswered correctly - only count visited questions that weren't answered
   const visitedButNotAnswered = Array.from(visitedQuestions).filter(
     (questionId) => !answers[questionId]?.optionId,
   ).length;
   const notVisited = Math.max(0, totalQuestions - visitedQuestions.size);
   const unattempted = visitedButNotAnswered + notVisited;
-
-  // Debug the counts
-  console.log("🔍 DEBUG: Submit Dialog Counts:");
-  console.log("  totalQuestions (prop):", totalQuestions);
-  console.log("  visitedQuestions.size:", visitedQuestions.size);
-  console.log("  answers keys:", Object.keys(answers).length);
-  console.log("  answered:", answered);
-  console.log("  visitedButNotAnswered:", visitedButNotAnswered);
-  console.log("  notVisited:", notVisited);
-  console.log("  unattempted:", unattempted);
-  console.log("  visitedQuestions array:", Array.from(visitedQuestions));
-  console.log("  answer keys:", Object.keys(answers));
 
   const hasUnattempted = unattempted > 0;
 
@@ -125,6 +116,16 @@ export function SubmitConfirmDialog({
             <p className="text-sm text-amber-800 dark:text-amber-300 font-medium">
               You have {unattempted} unanswered question
               {unattempted !== 1 ? "s" : ""}. This cannot be undone.
+            </p>
+          </div>
+        )}
+
+        {/* Error banner — shown inline so user always sees it */}
+        {submitError && (
+          <div className="rounded-lg bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 px-4 py-3 flex items-start gap-2">
+            <XCircleIcon className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
+            <p className="text-sm text-red-700 dark:text-red-300 font-medium">
+              {submitError}
             </p>
           </div>
         )}
@@ -174,10 +175,7 @@ export function SubmitConfirmDialog({
           </Button>
           <Button
             type="button"
-            onClick={() => {
-              console.log("🔍 DEBUG: SubmitFinal button clicked in dialog!");
-              onConfirm();
-            }}
+            onClick={onConfirm}
             disabled={isSubmitting}
             className={cn(
               "flex-1 sm:flex-none gap-2",
@@ -191,6 +189,8 @@ export function SubmitConfirmDialog({
                 <Loader2Icon className="h-4 w-4 animate-spin" />
                 Submitting...
               </>
+            ) : submitError ? (
+              "Retry Submit"
             ) : (
               "Submit Final"
             )}

@@ -321,7 +321,7 @@ export default function DashboardTestsPage() {
   });
 
   const {
-    data: tests = [],
+    data: testsData,
     isLoading: testsLoading,
     isError: testsError,
   } = useQuery({
@@ -336,54 +336,46 @@ export default function DashboardTestsPage() {
         LIMIT,
         debouncedSearch || undefined,
       );
-      // Student API returns { success: true, data: tests } structure
-      const response = res.data as any;
-      console.log("[DEBUG] Student tests API response:", response);
-      console.log("[DEBUG] Response data:", response?.data);
-      const tests = response?.data ?? [];
-      console.log("[DEBUG] Final tests array:", tests);
-      return tests;
+      // Server returns { success, data: { data: Test[], total, page, limit } }
+      // Axios res.data = { success, data: { data, total } }
+      const outer = res.data as any;
+      const inner = outer?.data ?? outer;
+      // inner may be { data: Test[], total } or Test[] directly
+      if (inner && typeof inner === 'object' && Array.isArray(inner.data)) {
+        return { tests: inner.data as Test[], total: inner.total as number };
+      }
+      // Fallback: direct array
+      return { tests: Array.isArray(inner) ? inner : [], total: 0 };
     },
     staleTime: 1000 * 60 * 2,
   });
 
-  // Fetch recent attempt history to determine CTAs (page 1, 50 attempts)
+  const tests: Test[] = testsData?.tests ?? [];
+  const totalCount = testsData?.total ?? 0;
+  const totalPages = Math.ceil(totalCount / LIMIT);
+
+  // Fetch recent attempt history to determine CTAs
   const { data: historyData } = useQuery({
     queryKey: attemptKeys.history({ page: 1, limit: 50 }),
     queryFn: async () => {
       const res = await attemptsApi.getMyHistory(1, 50);
-      return (
-        (res.data as unknown as { data?: AttemptSummary[] }).data ??
-        (res.data as unknown as AttemptSummary[]) ??
-        []
-      );
+      // Server returns { data: AttemptSummary[], total, page, limit }
+      const response = res.data as any;
+      return (response?.data ?? response) as AttemptSummary[];
     },
     staleTime: 1000 * 60 * 2,
   });
 
   const attempts: AttemptSummary[] = historyData ?? [];
 
-  // Client-side category filter (API doesn't support categoryId filter on /tests)
+  // Client-side category filter
   const filteredTests = useMemo(() => {
-    console.log("[DEBUG] tests variable:", tests);
-    console.log("[DEBUG] tests type:", typeof tests);
-    console.log("[DEBUG] tests isArray:", Array.isArray(tests));
-
-    // Safety check: ensure tests is always an array
     const safeTests = Array.isArray(tests) ? tests : [];
-
     if (!activeCategoryId) return safeTests;
     return safeTests.filter(
       (t: Test) => t.series?.exam?.categoryId === activeCategoryId,
     );
   }, [tests, activeCategoryId]);
-
-  // Final safety check: ensure filteredTests is always an array
-  const safeFilteredTests = Array.isArray(filteredTests) ? filteredTests : [];
-
-  console.log("[DEBUG] filteredTests:", filteredTests);
-  console.log("[DEBUG] filteredTests isArray:", Array.isArray(filteredTests));
-  console.log("[DEBUG] safeFilteredTests:", safeFilteredTests);
 
   const handleClearSearch = useCallback(() => {
     setSearchInput("");
@@ -483,7 +475,7 @@ export default function DashboardTestsPage() {
               Check your connection and refresh.
             </p>
           </div>
-        ) : safeFilteredTests.length === 0 ? (
+        ) : filteredTests.length === 0 ? (
           <div className="flex flex-col items-center py-16 text-center">
             <BookOpenIcon className="h-10 w-10 text-slate-300 dark:text-slate-600 mb-3" />
             <h3 className="text-base font-semibold text-slate-700 dark:text-slate-300 mb-1">
@@ -509,17 +501,19 @@ export default function DashboardTestsPage() {
         ) : (
           <>
             <p className="text-xs text-slate-400 dark:text-slate-500">
-              {safeFilteredTests.length} test
-              {safeFilteredTests.length !== 1 ? "s" : ""} found
+              {totalCount} test{totalCount !== 1 ? "s" : ""} found
+              {filteredTests.length !== totalCount && activeCategoryId
+                ? ` · showing ${filteredTests.length} in this category`
+                : ""}
             </p>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {safeFilteredTests.map((test: Test) => (
+              {filteredTests.map((test: Test) => (
                 <TestCard key={test.id} test={test} attempts={attempts} />
               ))}
             </div>
 
             {/* Pagination */}
-            {(safeFilteredTests.length === LIMIT || page > 1) && (
+            {totalPages > 1 && (
               <div className="flex items-center justify-center gap-3 pt-2">
                 <Button
                   variant="outline"
@@ -531,12 +525,12 @@ export default function DashboardTestsPage() {
                   Previous
                 </Button>
                 <span className="text-xs text-slate-500 dark:text-slate-400 tabular-nums">
-                  Page {page}
+                  Page {page} of {totalPages}
                 </span>
                 <Button
                   variant="outline"
                   size="sm"
-                  disabled={filteredTests.length < LIMIT}
+                  disabled={page >= totalPages}
                   onClick={() => setPage((p) => p + 1)}
                   className="h-8"
                 >

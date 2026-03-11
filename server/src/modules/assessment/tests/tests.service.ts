@@ -402,8 +402,6 @@ export class TestsService {
 
   // 6. Get Test Sections
   async getSections(testId: string) {
-    console.log(`🔍 DEBUG: getSections called for testId: ${testId}`);
-
     const sections = await this.prisma.section.findMany({
       where: { testId },
       include: {
@@ -426,30 +424,11 @@ export class TestsService {
       orderBy: { order: 'asc' },
     });
 
-    console.log(`🔍 DEBUG: Raw sections from DB: ${sections.length}`);
-    sections.forEach((section, idx) => {
-      console.log(
-        `  Section ${idx + 1}: ${section.name}, Questions: ${section.questions.length}`,
-      );
-      section.questions.forEach((sq, qIdx) => {
-        console.log(
-          `    Q${qIdx + 1}: ${sq.question.id} - Has translations: ${sq.question.translations.length > 0}`,
-        );
-      });
-    });
-
     // Transform the data to match expected structure
     const transformed = sections.map((section) => ({
       ...section,
       questions: section.questions.map((sq) => sq.question),
     }));
-
-    console.log(`🔍 DEBUG: Transformed sections: ${transformed.length}`);
-    transformed.forEach((section, idx) => {
-      console.log(
-        `  Section ${idx + 1}: ${section.name}, Questions: ${section.questions.length}`,
-      );
-    });
 
     return transformed;
   }

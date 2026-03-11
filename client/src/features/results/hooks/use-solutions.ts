@@ -55,9 +55,12 @@ export function useSolutions(attemptId: string | null): UseSolutionsReturn {
     queryKey: attemptKeys.review(attemptId ?? "", lang),
     queryFn: async (): Promise<ReviewQuestion[]> => {
       const res = await attemptsApi.getReview(attemptId!, lang);
-      const data =
-        (res.data as { data?: ReviewQuestion[] }).data ??
-        (res.data as ReviewQuestion[]);
+      // Server returns { summary, questions } — extract the questions array
+      const raw = (res.data as { data?: any }).data ?? res.data;
+      // Handle both shapes: { questions: [...] } or flat array
+      const data: ReviewQuestion[] = Array.isArray(raw)
+        ? raw
+        : raw?.questions ?? [];
       // Sort by order within each section (defensive — server should pre-sort)
       return [...data].sort((a, b) =>
         a.sectionId === b.sectionId

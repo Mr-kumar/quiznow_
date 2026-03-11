@@ -30,24 +30,18 @@ export const examKeys = {
 // These are student-facing endpoints (different from admin /tests)
 
 async function fetchExamTest(testId: string): Promise<ExamTest> {
-  console.log("[DEBUG] Fetching exam test for:", testId);
   const res = await api.get<ExamTest>(`/student/tests/${testId}`);
-  console.log("[DEBUG] Exam test response:", res);
   // Student API returns { success: true, data: ExamTest } structure
   const test = (res.data as { data?: ExamTest }).data ?? (res.data as ExamTest);
-  console.log("[DEBUG] Parsed exam test:", test);
   return test;
 }
 
 async function fetchExamSections(testId: string): Promise<ExamSection[]> {
-  console.log("[DEBUG] Fetching exam sections for:", testId);
   // GET /student/tests/:id/sections returns sections[] with nested questions[]
   // Questions are pre-sorted by SectionQuestion.order on the server
   const res = await api.get<ExamSection[]>(`/student/tests/${testId}/sections`);
-  console.log("[DEBUG] Exam sections response:", res);
   const data =
     (res.data as { data?: ExamSection[] }).data ?? (res.data as ExamSection[]);
-  console.log("[DEBUG] Parsed exam sections:", data);
 
   // Sort sections by order (defensive — server should already sort)
   return [...data].sort((a, b) => a.order - b.order);

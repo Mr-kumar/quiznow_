@@ -258,14 +258,6 @@ export const useExamStore = create<ExamState>()((set, get) => ({
       const visited = new Set(state.visitedQuestions);
       visited.add(questionId);
 
-      console.log("🔍 DEBUG: Navigate function called:");
-      console.log("  Adding questionId to visited:", questionId);
-      console.log(
-        "  Before - visitedQuestions.size:",
-        state.visitedQuestions.size,
-      );
-      console.log("  After - visitedQuestions.size:", visited.size);
-
       const nextState = {
         currentSectionIdx: sectionIdx,
         currentQuestionIdx: questionIdx,

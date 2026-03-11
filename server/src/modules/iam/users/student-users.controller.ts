@@ -1,4 +1,4 @@
-import { Controller, Get, Request, UseGuards } from '@nestjs/common';
+import { Controller, Get, Request, Query, UseGuards } from '@nestjs/common';
 import {
   ApiTags,
   ApiBearerAuth,
@@ -22,14 +22,16 @@ export class StudentUsersController {
     status: 200,
     description: 'User attempts retrieved successfully',
   })
-  async getMyAttempts(@Request() req: any) {
+  async getMyAttempts(
+    @Request() req: any,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
     const userId = req.user.userId;
-    const data = await this.usersService.getMyAttempts(userId);
-    return {
-      success: true,
-      message: 'User attempts retrieved successfully',
-      data,
-    };
+    const pageNum = page ? parseInt(page) : 1;
+    const limitNum = limit ? parseInt(limit) : 10;
+    // Return paginated response directly — client expects { data, total, page, limit }
+    return this.usersService.getMyAttempts(userId, pageNum, limitNum);
   }
 
   @Get('me/topic-stats')

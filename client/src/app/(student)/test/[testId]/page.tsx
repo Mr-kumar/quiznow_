@@ -56,13 +56,11 @@ async function getTestData(testId: string): Promise<{
   isSubscribed: boolean;
 } | null> {
   try {
-    console.log("[DEBUG] getTestData called for testId:", testId);
 
     // Read auth token from cookie (set by auth-store on login)
     const cookieStore = await cookies();
     const token = cookieStore.get("qn_token")?.value;
 
-    console.log("[DEBUG] Token found:", !!token);
 
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
@@ -70,7 +68,6 @@ async function getTestData(testId: string): Promise<{
     if (token) headers["Authorization"] = `Bearer ${token}`;
 
     const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-    console.log("[DEBUG] API URL:", apiUrl);
 
     const [testRes, sectionsRes, subRes] = await Promise.all([
       fetch(`${apiUrl}/student/tests/${testId}`, {
@@ -87,33 +84,17 @@ async function getTestData(testId: string): Promise<{
       }),
     ]);
 
-    console.log("[DEBUG] API responses:", {
-      testRes: testRes.status,
-      sectionsRes: sectionsRes.status,
-      subRes: subRes.status,
-    });
-
     if (!testRes.ok) {
-      console.log("[DEBUG] Test response not ok:", testRes.status);
       return null;
     }
 
     const testJson = await testRes.json();
     const sectionsJson = sectionsRes.ok ? await sectionsRes.json() : [];
     const subJson = subRes.ok ? await subRes.json() : null;
-
-    console.log("[DEBUG] Response data:", {
-      testJson,
-      sectionsJson,
-      subJson,
-    });
-
     // Student API returns { success: true, data: test } structure
     const test: ExamTest = testJson?.data ?? testJson;
     const sections: ExamSection[] = (sectionsJson?.data ?? sectionsJson) || [];
     const isSubscribed = subJson?.data?.plan !== "FREE";
-
-    console.log("[DEBUG] Parsed data:", { test, sections, isSubscribed });
 
     return {
       test,
@@ -121,7 +102,7 @@ async function getTestData(testId: string): Promise<{
       isSubscribed,
     };
   } catch (error) {
-    console.log("[DEBUG] Error in getTestData:", error);
+    console.error("Error in getTestData:", error);
     return null;
   }
 }

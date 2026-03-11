@@ -18,6 +18,7 @@
 import { useState } from "react";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
+import { useAuthStore } from "@/stores/auth-store";
 import Link from "next/link";
 import {
   TrophyIcon,
@@ -82,13 +83,12 @@ function PodiumSlot({
   return (
     <div className={cn("flex flex-col items-center gap-1.5", orders[position])}>
       <Avatar className="h-12 w-12">
-        {entry.userAvatar && <AvatarImage src={entry.userAvatar} />}
         <AvatarFallback className="bg-linear-to-br from-blue-400 to-indigo-600 text-white text-xs font-bold">
-          {getInitials(entry.userName)}
+          {getInitials(entry.user?.name || "User")}
         </AvatarFallback>
       </Avatar>
       <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 truncate max-w-[80px] text-center">
-        {entry.userName}
+        {entry.user?.name || "Anonymous"}
       </span>
       <span className="text-sm font-bold text-slate-900 dark:text-slate-100 tabular-nums">
         {entry.score}
@@ -112,8 +112,14 @@ function PodiumSlot({
 
 // ── Table row ─────────────────────────────────────────────────────────────────
 
-function LeaderboardRow({ entry }: { entry: LeaderboardEntry }) {
-  const isMe = entry.isCurrentUser;
+function LeaderboardRow({
+  entry,
+  currentUserId,
+}: {
+  entry: LeaderboardEntry;
+  currentUserId: string | null;
+}) {
+  const isMe = currentUserId === entry.userId;
 
   return (
     <tr
@@ -147,7 +153,6 @@ function LeaderboardRow({ entry }: { entry: LeaderboardEntry }) {
       <td className="px-4 py-3">
         <div className="flex items-center gap-2.5">
           <Avatar className="h-7 w-7">
-            {entry.userAvatar && <AvatarImage src={entry.userAvatar} />}
             <AvatarFallback
               className={cn(
                 "text-[10px] font-bold",
@@ -156,7 +161,7 @@ function LeaderboardRow({ entry }: { entry: LeaderboardEntry }) {
                   : "bg-linear-to-br from-slate-300 to-slate-400 dark:from-slate-600 dark:to-slate-700 text-slate-700 dark:text-slate-300",
               )}
             >
-              {getInitials(entry.userName)}
+              {getInitials(entry.user?.name || "User")}
             </AvatarFallback>
           </Avatar>
           <span
@@ -167,7 +172,7 @@ function LeaderboardRow({ entry }: { entry: LeaderboardEntry }) {
                 : "text-slate-800 dark:text-slate-200",
             )}
           >
-            {entry.userName}
+            {entry.user?.name || "Anonymous"}
             {isMe && (
               <span className="ml-1.5 text-[10px] font-bold bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded-full">
                 You
@@ -180,9 +185,6 @@ function LeaderboardRow({ entry }: { entry: LeaderboardEntry }) {
       {/* Score */}
       <td className="px-4 py-3 tabular-nums text-sm font-bold text-slate-900 dark:text-slate-100">
         {entry.score}
-        <span className="text-slate-400 font-normal text-xs">
-          /{entry.totalMarks}
-        </span>
       </td>
 
       {/* Accuracy */}
@@ -235,6 +237,7 @@ export default function LeaderboardPage() {
   const testId = params.testId;
   const [page, setPage] = useState(1);
   const LIMIT = 50;
+  const { user } = useAuthStore();
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: leaderboardKeys.test(testId, page),
@@ -306,12 +309,7 @@ export default function LeaderboardPage() {
           <div className="flex items-center gap-6 text-right">
             <div>
               <p className="text-xs text-blue-200">Score</p>
-              <p className="text-lg font-bold tabular-nums">
-                {myEntry.score}
-                <span className="text-xs text-blue-200 font-normal">
-                  /{myEntry.totalMarks}
-                </span>
-              </p>
+              <p className="text-lg font-bold tabular-nums">{myEntry.score}</p>
             </div>
             <div>
               <p className="text-xs text-blue-200">Accuracy</p>
@@ -399,7 +397,11 @@ export default function LeaderboardPage() {
                     </tr>
                   ) : (
                     entries.map((entry) => (
-                      <LeaderboardRow key={entry.userId} entry={entry} />
+                      <LeaderboardRow
+                        key={entry.userId}
+                        entry={entry}
+                        currentUserId={user?.id || null}
+                      />
                     ))
                   )}
                 </tbody>

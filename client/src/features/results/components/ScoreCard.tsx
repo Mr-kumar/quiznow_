@@ -48,19 +48,29 @@ function ScoreRing({
   totalMarks: number;
   passed: boolean;
 }) {
-  const radius = 54;
+  const radius = 62;
   const circumference = 2 * Math.PI * radius;
   const pct = totalMarks > 0 ? Math.min(score / totalMarks, 1) : 0;
   const dashOffset = circumference * (1 - pct);
-  const color = passed ? "#16a34a" : "#dc2626";
+  const gradientId = passed ? "scoreGradientPass" : "scoreGradientFail";
 
   return (
     <div className="relative inline-flex items-center justify-center">
-      <svg width="140" height="140" className="-rotate-90">
+      <svg width="160" height="160" className="-rotate-90">
+        <defs>
+          <linearGradient id="scoreGradientPass" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#22c55e" />
+            <stop offset="100%" stopColor="#16a34a" />
+          </linearGradient>
+          <linearGradient id="scoreGradientFail" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#ef4444" />
+            <stop offset="100%" stopColor="#dc2626" />
+          </linearGradient>
+        </defs>
         {/* Track */}
         <circle
-          cx="70"
-          cy="70"
+          cx="80"
+          cy="80"
           r={radius}
           fill="none"
           stroke="currentColor"
@@ -69,23 +79,23 @@ function ScoreRing({
         />
         {/* Progress */}
         <circle
-          cx="70"
-          cy="70"
+          cx="80"
+          cy="80"
           r={radius}
           fill="none"
-          stroke={color}
+          stroke={`url(#${gradientId})`}
           strokeWidth="10"
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={dashOffset}
-          className="transition-all duration-1000 ease-out"
+          className="transition-all duration-[1200ms] ease-out delay-100"
         />
       </svg>
       {/* Score text in center */}
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <span
           className={cn(
-            "text-2xl font-bold tabular-nums",
+            "text-3xl font-bold tabular-nums",
             passed
               ? "text-green-700 dark:text-green-400"
               : "text-red-600 dark:text-red-400",
@@ -93,7 +103,7 @@ function ScoreRing({
         >
           {score}
         </span>
-        <span className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">
+        <span className="text-xs text-slate-400 dark:text-slate-500 font-medium">
           / {totalMarks}
         </span>
       </div>

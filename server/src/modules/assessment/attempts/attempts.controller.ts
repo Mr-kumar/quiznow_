@@ -10,7 +10,9 @@ import {
 } from '@nestjs/common';
 import { AttemptsService } from './attempts.service';
 import { CreateAttemptDto } from './dto/create-attempt.dto';
-import { SubmitAttemptDto } from './dto/submit-attempt.dto';
+// SubmitAttemptDto removed — client sends no body on submit.
+// Answers are already saved via PATCH /attempts/:id/answers during the exam.
+
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../iam/auth/guards/jwt-auth.guard';
 import { Roles } from '../../iam/auth/decorators/roles.decorator';
@@ -42,8 +44,9 @@ export class AttemptsController {
 
   @Post(':id/submit')
   @ApiOperation({ summary: 'Student submits answers & gets score' })
-  submit(@Param('id') id: string, @Body() submitAttemptDto: SubmitAttemptDto) {
-    return this.attemptsService.submit(id, submitAttemptDto);
+  submit(@Param('id') id: string) {
+    // No body — answers are already saved in AttemptAnswer table during the exam
+    return this.attemptsService.submit(id);
   }
 
   @Get(':id/review')
@@ -66,7 +69,7 @@ export class AttemptsController {
     body: {
       questionId: string;
       optionId: string | null;
-      isMarkedForReview?: boolean;
+      isMarked?: boolean;
     },
     @Request() req: any,
   ) {
@@ -76,7 +79,7 @@ export class AttemptsController {
       body.questionId,
       body.optionId,
       userId,
-      body.isMarkedForReview,
+      body.isMarked,
     );
   }
 
@@ -89,7 +92,7 @@ export class AttemptsController {
       answers: Array<{
         questionId: string;
         optionId: string | null;
-        isMarkedForReview?: boolean;
+        isMarked?: boolean;
       }>;
     },
     @Request() req: any,

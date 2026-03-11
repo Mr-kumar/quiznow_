@@ -104,8 +104,8 @@ const createTestSchema = z.object({
   duration: z.number().int().min(1, "Duration must be at least 1 min"),
   totalMarks: z.number().int().min(1, "Total marks required"),
   passingMarks: z.number().int().min(0),
-  positiveMark: z.number().min(0), // ✅ CORRECT: positiveMark (without "ing")
-  negativeMarking: z.number().min(0),
+  positiveMark: z.number().min(0).optional(), // ✅ CORRECT: Optional field
+  negativeMarking: z.number().min(0).optional(), // ✅ CORRECT: Optional field
   startAt: z.string().optional(),
   endAt: z.string().optional(),
 });

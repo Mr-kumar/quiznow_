@@ -211,6 +211,12 @@ export default function StudentLayout({
 
   const initials = getInitials(user.name);
 
+  // ── Exam mode: hide layout chrome during active exam ───────────────────────
+  const isExamMode = /^\/test\/[^/]+\/attempt/.test(pathname);
+  if (isExamMode) {
+    return <>{children}</>;
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex">
       {/* ── Desktop sidebar ──────────────────────────────────────────────── */}

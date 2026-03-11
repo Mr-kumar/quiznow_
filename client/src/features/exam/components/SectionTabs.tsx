@@ -127,7 +127,7 @@ export function SectionTabs({
               {answeredCount}/{totalCount}
             </span>
 
-            {/* Progress bar — thin indicator below text */}
+            {/* Progress bar — width based on answered count */}
             <div
               className={cn(
                 "w-full h-0.5 rounded-full mt-0.5 overflow-hidden",
@@ -138,8 +138,16 @@ export function SectionTabs({
                 className={cn(
                   "h-full rounded-full transition-all duration-300",
                   isActive ? "bg-white" : "bg-green-500",
-                  totalCount > 0 ? "w-full" : "w-0",
                 )}
+                style={
+                  {
+                    "--progress-width":
+                      totalCount > 0
+                        ? `${Math.round((answeredCount / totalCount) * 100)}%`
+                        : "0%",
+                    width: "var(--progress-width)",
+                  } as React.CSSProperties
+                }
               />
             </div>
           </button>

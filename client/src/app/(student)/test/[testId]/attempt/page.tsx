@@ -189,11 +189,13 @@ export default function AttemptPage() {
   const navigation = useExamStore(selectNavigation);
   const examStore = useExamStore(); // Get the full store for methods
 
+
   // Use store methods directly
   const restoreFromSession = examStore.restoreFromSession;
   const storeNavigate = examStore.navigate;
   const storeSetAnswer = examStore.setAnswer;
   const submitExam = examStore.submitExam;
+  const startExam = examStore.startExam;
 
   // ── UI state ─────────────────────────────────────────────────────────────
   const uiStore = useUIStore(); // Get the full store for methods
@@ -220,11 +222,45 @@ export default function AttemptPage() {
   // Mount anticheat listeners (passive — no return value)
   useAnticheat();
 
+  // ── Navigate to a question ────────────────────────────────────────────────
+  const navigateTo = useCallback(
+    (sectionIdx: number, questionIdx: number) => {
+      const section = sections[sectionIdx];
+      const question = section?.questions[questionIdx];
+      if (!question) {
+        console.warn(
+          `Invalid navigation: section ${sectionIdx}, question ${questionIdx}`,
+        );
+        return;
+      }
+
+      // ✅ NEW: Calculate and pass layout for validation
+      const questionsPerSection = sections.map((s) => s.questions.length);
+      const success = storeNavigate(
+        sectionIdx,
+        questionIdx,
+        question.id,
+        sections.length, // ✅ Pass total sections
+        questionsPerSection, // ✅ Pass per-section counts
+      );
+
+      if (!success) {
+        console.error(
+          `Navigation rejected by store: section ${sectionIdx}, question ${questionIdx}`,
+        );
+        return;
+      }
+
+      closePalette(); // Close palette on mobile after navigation
+    },
+    [sections, storeNavigate, closePalette],
+  );
+
   // ── Initialise on mount ───────────────────────────────────────────────────
   // Three cases:
   //  1. examStatus === STARTED (normal flow — just came from instructions)
   //  2. sessionStorage has snapshot (page was refreshed mid-exam)
-  //  3. Neither — student navigated here directly, redirect to instructions
+  //  3. Neither — start new exam attempt
   useEffect(() => {
     if (examStatus === "STARTED") {
       setIsInitialised(true);
@@ -237,22 +273,40 @@ export default function AttemptPage() {
       return;
     }
 
-    // No active exam — redirect back to instructions
-    router.replace(`/test/${testId}`);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Run once on mount only
+    // No active exam — start a new attempt
+    const startNewAttempt = async () => {
+      if (!test || isLoading) return;
 
-  // ── Navigate to a question ────────────────────────────────────────────────
-  const navigateTo = useCallback(
-    (sectionIdx: number, questionIdx: number) => {
-      const section = sections[sectionIdx];
-      const question = section?.questions[questionIdx];
-      if (!question) return;
-      storeNavigate(sectionIdx, questionIdx, question.id);
-      closePalette(); // Close palette on mobile after navigation
-    },
-    [sections, storeNavigate, closePalette],
-  );
+      try {
+        const response = await attemptsApi.start(testId);
+        const { attemptId } = response.data;
+
+        // Start exam in store with the attemptId
+        examStore.startExam(attemptId, testId, test.durationMins);
+
+        // Navigate to first question
+        navigateTo(0, 0);
+
+        setIsInitialised(true);
+      } catch (error) {
+        console.error("Failed to start exam attempt:", error);
+        // Redirect back to instructions on failure
+        router.replace(`/test/${testId}`);
+      }
+    };
+
+    startNewAttempt();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    test,
+    testId,
+    isLoading,
+    examStatus,
+    restoreFromSession,
+    examStore,
+    navigateTo,
+    router,
+  ]);
 
   // ── Navigate to next question (Save & Next behaviour) ────────────────────
   const navigateNext = useCallback(() => {
@@ -291,30 +345,40 @@ export default function AttemptPage() {
     [storeSetAnswer, syncAnswer],
   );
 
-  // ── Handle submit ─────────────────────────────────────────────────────────
-  // ✅ FIXED: Better error handling and API response extraction
   const handleSubmitConfirm = useCallback(async () => {
-    if (hasSubmittedRef.current || !attemptId) return;
+    console.log("[SUBMIT] handleSubmitConfirm called", {
+      hasSubmittedRef: hasSubmittedRef.current,
+      attemptId,
+    });
+
+    if (hasSubmittedRef.current || !attemptId) {
+      console.log("[SUBMIT] Early return — guard failed", {
+        hasSubmittedRef: hasSubmittedRef.current,
+        attemptId,
+      });
+      return;
+    }
     hasSubmittedRef.current = true;
 
     setIsSubmitting(true);
     setSubmitError(null);
-    showOverlay("Submitting your exam...");
 
     try {
       // 1. Drain any failed answer syncs before submitting
+      console.log("[SUBMIT] Step 1: drainAll starting...");
       const allAnswersDrained = await drainAll();
+      console.log("[SUBMIT] Step 1: drainAll completed, result:", allAnswersDrained);
 
       if (!allAnswersDrained) {
         console.warn("Some answers failed to sync, proceeding with submit");
-        // Note: We proceed because at least some answers made it
       }
 
       // 2. Call submit API
+      console.log("[SUBMIT] Step 2: calling attemptsApi.submit...");
       const res = await attemptsApi.submit(attemptId);
+      console.log("[SUBMIT] Step 2: submit API response:", res.data);
 
-      // ✅ FIXED: Direct response extraction (no double wrapping)
-      // Backend returns AttemptResult directly, not wrapped in { data: ... }
+      // Direct response extraction — backend returns AttemptResult directly
       const result = res.data;
 
       // Validate we got a proper response
@@ -322,13 +386,17 @@ export default function AttemptPage() {
         throw new Error("Invalid response from server");
       }
 
-      // 3. Mark exam as submitted in store (clears sessionStorage)
+      // 3. Close dialog and show full-screen loading overlay
+      setIsSubmitDialogOpen(false);
+      showOverlay("Submitting your exam...");
+
+      // 4. Mark exam as submitted in store (clears sessionStorage)
       submitExam();
 
-      // 4. Exit fullscreen
+      // 5. Exit fullscreen
       await exitExamFullscreen();
 
-      // 5. Navigate to result page with attemptId
+      // 6. Navigate to result page with attemptId
       const resultAttemptId =
         (result as { attemptId?: string }).attemptId ?? attemptId;
 
@@ -336,7 +404,6 @@ export default function AttemptPage() {
     } catch (err: unknown) {
       hasSubmittedRef.current = false; // Allow retry
 
-      // ✅ IMPROVED: Better error message extraction
       let message = "Submit failed. Please try again.";
 
       if (err && typeof err === "object") {
@@ -353,6 +420,7 @@ export default function AttemptPage() {
         }
       }
 
+      // Keep dialog open and show error inline
       setSubmitError(message);
       setIsSubmitting(false);
       hideOverlay();
@@ -418,17 +486,11 @@ export default function AttemptPage() {
   // ── Derive current question ───────────────────────────────────────────────
   const { currentSectionIdx, currentQuestionIdx } = navigation;
 
-  console.log("[DEBUG] Navigation:", { currentSectionIdx, currentQuestionIdx });
-  console.log("[DEBUG] Sections:", sections);
-  console.log("[DEBUG] Sections length:", sections.length);
-
   const currentQuestion = getQuestion(
     sections,
     currentSectionIdx,
     currentQuestionIdx,
   );
-
-  console.log("[DEBUG] Current question:", currentQuestion);
 
   const totalQuestions = sections.reduce((n, s) => n + s.questions.length, 0);
   const isReadOnly = examStatus === "SUBMITTED" || examStatus === "EXPIRED";
@@ -480,7 +542,9 @@ export default function AttemptPage() {
           sections={sections}
           currentSectionIdx={currentSectionIdx}
           onSectionChange={handleSectionChange}
-          onSubmitClick={() => setIsSubmitDialogOpen(true)}
+          onSubmitClick={() => {
+            setIsSubmitDialogOpen(true);
+          }}
         />
 
         {/* ── Main body ─────────────────────────────────────────────────── */}
@@ -491,15 +555,16 @@ export default function AttemptPage() {
             id={`section-panel-${currentSectionIdx}`}
             className="flex-1 flex flex-col min-w-0 bg-white dark:bg-slate-900 overflow-hidden"
           >
-            {/* ✅ NEW: Pass onSyncAnswer callback to QuestionPanel */}
+            {/* Pass onSyncAnswer and onSubmit callbacks to QuestionPanel */}
             <QuestionPanel
               question={currentQuestion}
               sections={sections}
               currentSectionIdx={currentSectionIdx}
               currentQuestionIdx={currentQuestionIdx}
               onNext={navigateNext}
+              onSubmit={() => setIsSubmitDialogOpen(true)}
               isReadOnly={isReadOnly}
-              onSyncAnswer={syncAnswer} // ✅ CRITICAL: Pass sync callback
+              onSyncAnswer={syncAnswer}
             />
           </main>
 
@@ -542,9 +607,13 @@ export default function AttemptPage() {
       {/* ── Submit confirmation dialog ─────────────────────────────────────── */}
       <SubmitConfirmDialog
         open={isSubmitDialogOpen}
-        onOpenChange={setIsSubmitDialogOpen}
+        onOpenChange={(open) => {
+          setIsSubmitDialogOpen(open);
+          if (!open) setSubmitError(null); // Clear error when user closes dialog
+        }}
         onConfirm={handleSubmitConfirm}
         isSubmitting={isSubmitting}
+        submitError={submitError}
         totalQuestions={totalQuestions}
       />
 

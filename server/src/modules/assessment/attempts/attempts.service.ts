@@ -1,8 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../../services/prisma/prisma.service';
 import { CreateAttemptDto } from './dto/create-attempt.dto';
-import { SubmitAttemptDto } from './dto/submit-attempt.dto';
-import { AnswerValidator } from 'src/common/validators/answer.validator';
 import { SchedulerService } from 'src/common/services/scheduler.service';
 import {
   ResourceNotFoundException,
@@ -77,10 +75,13 @@ export class AttemptsService {
   }
 
   // ─── 2. Submit & Score ────────────────────────────────────────────────────
-  async submit(attemptId: string | number | bigint, dto: SubmitAttemptDto) {
-    const whereId: any = attemptId as any;
+  // Client saves answers individually via PATCH /attempts/:id/answers during the exam.
+  // On submit, we read the already-saved AttemptAnswer records and score them.
+  async submit(attemptId: string | number | bigint) {
+    const whereId =
+      typeof attemptId === 'string' ? BigInt(attemptId) : attemptId;
     const attempt: any = await this.prisma.attempt.findUnique({
-      where: { id: whereId },
+      where: { id: whereId as any },
       include: { test: true },
     });
 
@@ -103,19 +104,25 @@ export class AttemptsService {
     }
 
     // Check expiry via scheduler
-    const isExpired = await this.schedulerService.isAttemptExpired(
-      attemptId as any,
-    );
+    const isExpired = await this.schedulerService.isAttemptExpired(whereId);
     if (isExpired) {
-      await this.schedulerService.forceExpireAttempt(attemptId as any);
+      await this.schedulerService.forceExpireAttempt(whereId);
       throw new ValidationException(
         'Test time limit has exceeded',
         'TIME_LIMIT_EXCEEDED',
       );
     }
 
-    // Fetch questions with options (correct answer lives on QuestionOption.isCorrect)
-    // FIX #3 prerequisite: include topicId so we can write UserTopicStat below.
+    // ── Read already-saved answers from AttemptAnswer table ──────────────
+    const savedAnswers = await this.prisma.attemptAnswer.findMany({
+      where: { attemptId: whereId as any },
+      include: {
+        option: true, // includes QuestionOption with isCorrect
+        question: true, // includes topicId
+      },
+    });
+
+    // Fetch all questions linked to this test (for total count + topic stats)
     const questions = await this.prisma.question.findMany({
       where: {
         sectionLinks: {
@@ -124,107 +131,57 @@ export class AttemptsService {
           },
         },
       },
-      include: {
-        translations: true,
-        options: {
-          include: { translations: true },
-          orderBy: { order: 'asc' },
-        },
-      },
+      select: { id: true, topicId: true },
     });
 
-    // Build a map of questionId → { correctAnswer (0-based index), totalOptions, topicId, options }
-    // correctAnswer is the 0-based index of the option where isCorrect = true,
-    // falling back to the legacy correctAnswer field on the question if options
-    // haven't been migrated yet.
-    const questionMap = new Map(
-      questions.map((q) => {
-        const qAny: any = q as any;
+    const totalQuestions = questions.length;
 
-        // Primary: derive correctAnswer from QuestionOption.isCorrect
-        let correctAnswerIdx: number = qAny.correctAnswer ?? 0;
-        if (Array.isArray(qAny.options) && qAny.options.length > 0) {
-          const idx = qAny.options.findIndex((o: any) => o.isCorrect);
-          if (idx !== -1) correctAnswerIdx = idx;
-        }
-
-        const totalOptions =
-          Array.isArray(qAny.options) && qAny.options.length > 0
-            ? qAny.options.length
-            : 4;
-
-        return [
-          qAny.id,
-          {
-            correctAnswer: correctAnswerIdx,
-            totalOptions,
-            topicId: qAny.topicId as string | null, // FIX #3: needed for topic stats
-            options: qAny.options as any[], // ✅ ADD THIS — needed to resolve optionId
-          },
-        ];
-      }),
-    );
-
-    // Validate submitted answers
-    try {
-      AnswerValidator.validateAnswerSet(dto.answers, questionMap);
-    } catch (error) {
-      this.logger.warn(
-        `Answer validation failed for attempt ${attemptId}: ${error.message}`,
-      );
-      throw error;
-    }
-
+    // ── Score each saved answer ─────────────────────────────────────────
     let score = 0;
     let correctCount = 0;
     let wrongCount = 0;
-    let timeTaken: number | null = null;
 
-    if (attempt.startTime) {
-      timeTaken = Math.round(
-        (new Date().getTime() - attempt.startTime.getTime()) / 1000 / 60,
-      );
+    const scoredAnswers: Array<{
+      questionId: string;
+      isCorrect: boolean;
+      marksAwarded: number;
+    }> = [];
+
+    for (const ans of savedAnswers) {
+      if (!ans.optionId) {
+        // Unanswered (cleared) — no marks
+        scoredAnswers.push({
+          questionId: ans.questionId,
+          isCorrect: false,
+          marksAwarded: 0,
+        });
+        continue;
+      }
+
+      const isCorrect = ans.option?.isCorrect ?? false;
+      let marksAwarded = 0;
+
+      if (isCorrect) {
+        marksAwarded = attempt.test?.positiveMark ?? 1;
+        score += marksAwarded;
+        correctCount++;
+      } else {
+        marksAwarded = -(attempt.test?.negativeMark ?? 0);
+        score += marksAwarded; // subtracts
+        wrongCount++;
+      }
+
+      scoredAnswers.push({
+        questionId: ans.questionId,
+        isCorrect,
+        marksAwarded,
+      });
     }
 
-    const answerData = dto.answers
-      .map((answer) => {
-        const question = questionMap.get(answer.questionId);
-        if (!question) return null;
-
-        const isCorrect =
-          Number(answer.selectedOptionIndex) === Number(question.correctAnswer);
-
-        if (isCorrect) {
-          score += (attempt.test?.positiveMark as number) || 1;
-          correctCount++;
-        } else if (
-          answer.selectedOptionIndex !== null &&
-          answer.selectedOptionIndex !== undefined
-        ) {
-          score -= (attempt.test?.negativeMark as number) || 0;
-          wrongCount++;
-        }
-
-        // ✅ FIXED: resolve the actual QuestionOption CUID by index
-        const selectedOptionId: string | null =
-          answer.selectedOptionIndex !== null &&
-          answer.selectedOptionIndex !== undefined &&
-          question.options?.[answer.selectedOptionIndex]
-            ? question.options[answer.selectedOptionIndex].id
-            : null;
-
-        return {
-          attemptId: whereId,
-          questionId: answer.questionId,
-          optionId: selectedOptionId, // ✅ FIXED: correct field name, correct type
-          isCorrect,
-          isMarked: true,
-          answeredAt: new Date(),
-        };
-      })
-      .filter((a) => a !== null);
-
     score = Math.max(0, score);
+
+    const answeredCount = savedAnswers.filter((a) => a.optionId !== null).length;
+    const unattemptedCount = totalQuestions - answeredCount;
 
     const totalAttempted = correctCount + wrongCount;
     const accuracy =
@@ -232,48 +189,64 @@ export class AttemptsService {
         ? Math.round((correctCount / totalAttempted) * 100)
         : 0;
 
+    // Time taken in seconds (consistent with findOne)
+    let timeTaken: number | null = null;
+    if (attempt.startTime) {
+      timeTaken = Math.round(
+        (new Date().getTime() - attempt.startTime.getTime()) / 1000,
+      );
+    }
+
     try {
       await this.prisma.$transaction(async (tx) => {
-        // A. Save individual answers
-        await tx.attemptAnswer.createMany({
-          data: answerData as any,
-          skipDuplicates: true,
-        });
+        // A. Update each AttemptAnswer with scoring results
+        for (const scored of scoredAnswers) {
+          await tx.attemptAnswer.update({
+            where: {
+              attemptId_questionId: {
+                attemptId: whereId as any,
+                questionId: scored.questionId,
+              },
+            },
+            data: {
+              isCorrect: scored.isCorrect,
+              marksAwarded: scored.marksAwarded,
+            },
+          });
+        }
 
         // B. Update attempt record
         await tx.attempt.update({
-          where: { id: whereId },
+          where: { id: whereId as any },
           data: {
             status: 'SUBMITTED',
             endTime: new Date(),
             score,
             correctCount,
             wrongCount,
-            unattemptedCount: questions.length - answerData.length,
+            unattemptedCount,
             accuracy,
             timeTaken,
           },
         });
 
-        // FIX #3: Write UserTopicStat — previously this was never called, so the
-        // topic-performance dashboard always showed empty data for every user.
-        // Group this attempt's answers by topic, then upsert one row per topic.
+        // C. Write UserTopicStat per topic
         const topicGroups = new Map<
           string,
           { correct: number; wrong: number }
         >();
 
-        for (const answer of answerData as any[]) {
-          const question = questionMap.get(answer.questionId);
-          const topicId = question?.topicId;
-          if (!topicId) continue; // skip untagged questions
+        for (const scored of scoredAnswers) {
+          const q = questions.find((q) => q.id === scored.questionId);
+          const topicId = q?.topicId;
+          if (!topicId) continue;
 
           const existing = topicGroups.get(topicId) ?? {
             correct: 0,
             wrong: 0,
           };
-          if (answer.isCorrect) existing.correct++;
-          else existing.wrong++;
+          if (scored.isCorrect) existing.correct++;
+          else if (scored.marksAwarded < 0) existing.wrong++;
           topicGroups.set(topicId, existing);
         }
 
@@ -301,9 +274,6 @@ export class AttemptsService {
               attempts: { increment: 1 },
               correct: { increment: correct },
               wrong: { increment: wrong },
-              // Recalculate accuracy from cumulative totals after update
-              // (updated inline below via a second pass if needed, or left
-              // as an approximation — accurate enough for a leaderboard)
             },
           });
         }
@@ -323,7 +293,7 @@ export class AttemptsService {
     // Calculate section results
     const sectionResults = await this.calculateSectionResults(
       attempt.testId,
-      answerData,
+      scoredAnswers,
     );
 
     // Get rank from leaderboard
@@ -341,7 +311,7 @@ export class AttemptsService {
       passed: score >= (attempt.test.passMarks || 0),
       correctCount,
       wrongCount,
-      unattemptedCount: questions.length - answerData.length,
+      unattemptedCount,
       accuracy,
       timeTaken,
       sectionResults,
@@ -353,6 +323,7 @@ export class AttemptsService {
   }
 
   // Helper methods for AttemptResult calculation
+  // Field names match client's SectionResult type: attempted, correct, wrong, score, totalMarks
   private async calculateSectionResults(testId: string, answerData: any[]) {
     const sections = await this.prisma.section.findMany({
       where: { testId },
@@ -370,42 +341,40 @@ export class AttemptsService {
         section.questions.some((sq) => sq.question.id === a.questionId),
       );
 
-      const sectionCorrect = sectionAnswers.filter((a) => a.isCorrect).length;
-      const sectionWrong = sectionAnswers.filter((a) => !a.isCorrect).length;
-      const sectionTotal = section.questions.length;
-      const sectionScore = sectionAnswers.reduce((sum, a) => {
-        const sectionQuestion = section.questions.find(
-          (sq) => sq.question.id === a.questionId,
-        );
-        return sum + (a.isCorrect ? 1 : 0); // Assuming 1 mark per question
-      }, 0);
+      const correct = sectionAnswers.filter((a) => a.isCorrect).length;
+      const wrong = sectionAnswers.filter(
+        (a) => !a.isCorrect && a.marksAwarded < 0,
+      ).length;
+      const totalQuestions = section.questions.length;
+      const sectionScore = sectionAnswers.reduce(
+        (sum, a) => sum + (a.marksAwarded ?? 0),
+        0,
+      );
 
       return {
         sectionId: section.id,
         sectionName: section.name,
-        totalQuestions: sectionTotal,
-        correctAnswers: sectionCorrect,
-        wrongAnswers: sectionWrong,
-        unattemptedQuestions: sectionTotal - sectionAnswers.length,
-        score: sectionScore,
-        maxMarks: sectionTotal, // Assuming 1 mark per question
+        totalQuestions,
+        attempted: sectionAnswers.filter((a) => a.marksAwarded !== 0).length,
+        correct,
+        wrong,
+        score: Math.max(0, sectionScore),
+        totalMarks: totalQuestions, // per-section max
       };
     });
   }
 
   private async getAttemptRank(testId: string, score: number) {
-    const entries = await this.prisma.leaderboardEntry.findMany({
-      where: { testId },
-      orderBy: { score: 'desc' },
+    // Count how many entries scored strictly higher → rank = that count + 1
+    const higherCount = await this.prisma.leaderboardEntry.count({
+      where: { testId, score: { gt: score } },
     });
-
-    const rank = entries.findIndex((entry) => entry.score <= score) + 1;
-    return rank || null;
+    return higherCount + 1;
   }
 
   private async getTotalAttempts(testId: string) {
     return this.prisma.attempt.count({
-      where: { testId },
+      where: { testId, status: 'SUBMITTED' },
     });
   }
 
@@ -640,6 +609,7 @@ export class AttemptsService {
       testId: attempt.testId,
       testTitle: attempt.test.title,
       status: attempt.status,
+      attemptNumber: attempt.attemptNumber || 1,
       score: attempt.score || 0,
       totalMarks: attempt.test.totalMarks,
       passMarks: attempt.test.passMarks,
@@ -650,10 +620,18 @@ export class AttemptsService {
       accuracy: attempt.accuracy || 0,
       timeTaken,
       sectionResults,
-      rank: leaderboardEntry ? Number(leaderboardEntry.id) : null,
+      rank: await this.getAttemptRank(attempt.testId, attempt.score || 0),
       totalAttempts,
       startTime: attempt.createdAt,
       endTime: attempt.endTime,
+      // Student information
+      studentId: attempt.userId,
+      studentName: attempt.user?.name || 'Anonymous',
+      studentEmail: attempt.user?.email || null,
+      // Test configuration for analysis
+      testDuration: attempt.test.durationMins,
+      positiveMark: attempt.test.positiveMark,
+      negativeMark: attempt.test.negativeMark,
     };
   }
 
@@ -704,7 +682,7 @@ export class AttemptsService {
     questionId: string,
     optionId: string | null,
     userId: string,
-    isMarkedForReview?: boolean,
+    isMarked?: boolean,
   ) {
     const id = typeof attemptId === 'string' ? BigInt(attemptId) : attemptId;
 
@@ -717,8 +695,12 @@ export class AttemptsService {
       throw new Error('Attempt not found or access denied');
     }
 
-    // Upsert answer
-    return this.prisma.attemptAnswer.upsert({
+    this.logger.debug(
+      `Saving answer: attemptId=${attemptId}, questionId=${questionId}, optionId=${optionId}, isMarked=${isMarked}`,
+    );
+
+    // Upsert answer - Prisma handles null optionId correctly (sets to NULL in database)
+    const result = await this.prisma.attemptAnswer.upsert({
       where: {
         attemptId_questionId: {
           attemptId: id,
@@ -727,15 +709,21 @@ export class AttemptsService {
       },
       update: {
         optionId,
-        isMarked: isMarkedForReview || false,
+        isMarked: isMarked || false,
       },
       create: {
         attemptId: id,
         questionId,
         optionId,
-        isMarked: isMarkedForReview || false,
+        isMarked: isMarked || false,
       },
     });
+
+    this.logger.debug(
+      `Answer saved successfully: ${result.attemptId}-${result.questionId} optionId=${result.optionId}`,
+    );
+
+    return result;
   }
 
   async saveAnswersBatch(
@@ -743,7 +731,7 @@ export class AttemptsService {
     answers: Array<{
       questionId: string;
       optionId: string | null;
-      isMarkedForReview?: boolean;
+      isMarked?: boolean;
     }>,
     userId: string,
   ) {
@@ -758,29 +746,45 @@ export class AttemptsService {
       throw new Error('Attempt not found or access denied');
     }
 
-    // Batch upsert answers
-    const operations = answers.map(
-      ({ questionId, optionId, isMarkedForReview }) =>
-        this.prisma.attemptAnswer.upsert({
-          where: {
-            attemptId_questionId: {
-              attemptId: id,
-              questionId,
-            },
-          },
-          update: {
-            optionId,
-            isMarked: isMarkedForReview || false,
-          },
-          create: {
+    // ✅ ENHANCED: Log batch operation details
+    this.logger.debug(
+      `Saving batch answers: attemptId=${attemptId}, count=${answers.length}`,
+    );
+
+    // Log null answers for debugging
+    const nullAnswers = answers.filter((a) => a.optionId === null);
+    if (nullAnswers.length > 0) {
+      this.logger.debug(
+        `Clearing ${nullAnswers.length} answers: ${nullAnswers.map((a) => a.questionId).join(', ')}`,
+      );
+    }
+
+    const operations = answers.map(({ questionId, optionId, isMarked }) =>
+      this.prisma.attemptAnswer.upsert({
+        where: {
+          attemptId_questionId: {
             attemptId: id,
             questionId,
-            optionId,
-            isMarked: isMarkedForReview || false,
           },
+        },
+        update: {
+          optionId,
+          isMarked: isMarked || false,
+        },
+        create: {
+          attemptId: id,
+          questionId,
+          optionId,
+          isMarked: isMarked || false,
+        },
         }),
     );
 
-    return Promise.all(operations);
+    const results = await Promise.all(operations);
+    this.logger.debug(
+      `Batch save completed: ${results.length} answers processed`,
+    );
+
+    return results;
   }
 }

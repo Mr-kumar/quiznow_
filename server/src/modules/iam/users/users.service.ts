@@ -102,24 +102,50 @@ export class UsersService {
 
   // ─── User-specific methods ─────────────────────────────────────────────────────
 
-  async getMyAttempts(userId: string) {
-    return this.prisma.attempt.findMany({
-      where: { userId },
-      include: {
-        test: {
-          include: {
-            series: {
-              include: {
-                exam: {
-                  select: { name: true },
+  async getMyAttempts(userId: string, page = 1, limit = 10) {
+    const skip = (page - 1) * limit;
+
+    const [attempts, total] = await Promise.all([
+      this.prisma.attempt.findMany({
+        where: { userId },
+        include: {
+          test: {
+            include: {
+              series: {
+                include: {
+                  exam: {
+                    select: { name: true },
+                  },
                 },
               },
             },
           },
         },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.attempt.count({ where: { userId } }),
+    ]);
+
+    // Map to AttemptSummary shape expected by the client
+    const data = attempts.map((a: any) => ({
+      attemptId: String(a.id),
+      testId: a.testId,
+      testTitle: a.test?.title ?? 'Unknown Test',
+      seriesTitle: a.test?.series?.title ?? '',
+      examName: a.test?.series?.exam?.name ?? '',
+      attemptNumber: a.attemptNumber,
+      status: a.status,
+      score: a.score ?? 0,
+      totalMarks: a.test?.totalMarks ?? 0,
+      accuracy: a.accuracy,
+      timeTaken: a.timeTaken,
+      startTime: a.startTime?.toISOString() ?? a.createdAt?.toISOString(),
+      endTime: a.endTime?.toISOString() ?? null,
+    }));
+
+    return { data, total, page, limit };
   }
 
   async getMyTopicStats(userId: string) {

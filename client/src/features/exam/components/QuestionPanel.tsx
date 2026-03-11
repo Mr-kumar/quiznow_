@@ -31,8 +31,9 @@ interface QuestionPanelProps {
   currentSectionIdx: number;
   currentQuestionIdx: number;
   onNext: () => void;
+  onSubmit?: () => void; // Opens the submit confirmation dialog
   isReadOnly?: boolean;
-  // ✅ NEW: Accept syncAnswer from parent
+  // Accept syncAnswer from parent
   onSyncAnswer?: (
     questionId: string,
     optionId: string | null,
@@ -46,8 +47,9 @@ export function QuestionPanel({
   currentSectionIdx,
   currentQuestionIdx,
   onNext,
+  onSubmit,
   isReadOnly = false,
-  onSyncAnswer, // ✅ NEW
+  onSyncAnswer,
 }: QuestionPanelProps) {
   const lang = useLangStore((s) => s.lang);
   const answerEntry = useExamStore(selectAnswer(question.id));
@@ -68,17 +70,14 @@ export function QuestionPanel({
   const selectedOptionId = answerEntry?.optionId ?? null;
   const isMarked = answerEntry?.isMarked ?? false;
 
-  // ✅ FIXED: Now syncs answer to backend
   const handleOptionSelect = useCallback(
     (optionId: string) => {
       if (isReadOnly) return;
 
       const newOptionId = selectedOptionId === optionId ? null : optionId;
-
-      // Update store
       setAnswer(question.id, newOptionId);
 
-      // ✅ NEW: Sync to backend with current mark status
+      // Sync to backend with current mark status
       if (onSyncAnswer) {
         onSyncAnswer(question.id, newOptionId, isMarked);
       }
@@ -97,20 +96,15 @@ export function QuestionPanel({
     if (isReadOnly) return;
     setAnswer(question.id, null);
 
-    // ✅ NEW: Sync clear to backend
     if (onSyncAnswer) {
       onSyncAnswer(question.id, null, isMarked);
     }
   }, [question.id, setAnswer, isMarked, onSyncAnswer, isReadOnly]);
 
-  // ✅ FIXED: Now syncs mark status to backend
   const handleMark = useCallback(() => {
     if (isReadOnly) return;
-
-    // Update store
     toggleMark(question.id);
 
-    // ✅ NEW: Sync new mark status to backend
     if (onSyncAnswer) {
       const newIsMarked = !isMarked;
       onSyncAnswer(question.id, selectedOptionId, newIsMarked);
@@ -124,17 +118,21 @@ export function QuestionPanel({
     isReadOnly,
   ]);
 
-  // Sort options by order field
-  const sortedOptions = [...question.options]
-    .filter((opt) => opt.order != null && opt.order >= 0) // ✅ NEW: Validate order
-    .sort((a, b) => a.order - b.order);
+  // Sort options by order field with proper validation
+  const optionOrders = question.options
+    .map((o) => o.order)
+    .sort((a, b) => a - b);
+  const hasInvalidOrder =
+    optionOrders.length !== new Set(optionOrders).size ||
+    optionOrders.some((o) => o == null || o < 0);
 
-  if (sortedOptions.length !== question.options.length) {
-    console.error(
-      `Question ${question.id} has invalid option orders`,
-      question.options,
+  if (hasInvalidOrder) {
+    throw new Error(
+      `Question ${question.id} has duplicate/invalid option orders: ${JSON.stringify(optionOrders)}`,
     );
   }
+
+  const sortedOptions = [...question.options].sort((a, b) => a.order - b.order);
 
   return (
     <div className="flex flex-col h-full">
@@ -219,7 +217,7 @@ export function QuestionPanel({
         </div>
       </div>
 
-      {/* ── Action bar ───────────────────────────────────────────────────── */}
+      {/* ── Action bar ─────────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between gap-3 px-5 py-3 border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
         {/* Left: Clear response */}
         <Button
@@ -228,46 +226,50 @@ export function QuestionPanel({
           size="sm"
           onClick={handleClear}
           disabled={isReadOnly || selectedOptionId === null}
-          className="gap-1.5 text-slate-600 dark:text-slate-400"
+          className="gap-1.5 text-slate-600 dark:text-slate-400 hover:text-red-600 hover:border-red-300 dark:hover:text-red-400"
         >
           <RotateCcwIcon className="h-3.5 w-3.5" />
           Clear
         </Button>
 
         {/* Right: Save & Next / Submit */}
-        <Button
-          type="button"
-          size="sm"
-          onClick={() => {
-            console.log("Button clicked!", {
-              currentSectionIdx,
-              totalSections: sections.length,
-              currentQuestionIdx,
-              questionsInCurrentSection:
-                sections[currentSectionIdx]?.questions?.length,
-              isLastSection: currentSectionIdx === sections.length - 1,
-              isLastQuestion:
-                currentQuestionIdx ===
-                sections[currentSectionIdx]?.questions?.length - 1,
-            });
-            onNext();
-          }}
-          className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white min-w-[120px]"
-        >
-          {currentSectionIdx === sections.length - 1 &&
-          currentQuestionIdx ===
-            sections[currentSectionIdx].questions.length - 1 ? (
-            <>
-              Submit
-              <CheckIcon className="h-4 w-4" />
-            </>
-          ) : (
-            <>
-              Save & Next
-              <ChevronRightIcon className="h-4 w-4" />
-            </>
-          )}
-        </Button>
+        {(() => {
+          const isLast =
+            currentSectionIdx === sections.length - 1 &&
+            currentQuestionIdx ===
+              sections[currentSectionIdx]?.questions?.length - 1;
+          return (
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => {
+                if (isLast && onSubmit) {
+                  onSubmit();
+                } else {
+                  onNext();
+                }
+              }}
+              className={cn(
+                "gap-1.5 min-w-[120px] text-white shadow-sm",
+                isLast
+                  ? "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700"
+                  : "bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700",
+              )}
+            >
+              {isLast ? (
+                <>
+                  Submit
+                  <CheckIcon className="h-4 w-4" />
+                </>
+              ) : (
+                <>
+                  Save & Next
+                  <ChevronRightIcon className="h-4 w-4" />
+                </>
+              )}
+            </Button>
+          );
+        })()}
       </div>
     </div>
   );

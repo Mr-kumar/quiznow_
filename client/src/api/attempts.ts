@@ -33,10 +33,18 @@ export interface StartAttemptResponse {
 /** Payload for saving a single answer */
 export interface SaveAnswerRequest {
   questionId: string;
-  optionId: string | null; // null = clear the answer
+  optionId: string | null; // ✅ PROPERLY HANDLED: null = clear answer (unattempted)
   isMarked?: boolean; // mark for review flag
   answeredAt: string; // ISO datetime — client records when answer was given
 }
+
+/**
+ * Note on null handling:
+ * - optionId = null: Clears the answer (student unselected option)
+ * - optionId = string: Sets/updates the answer
+ * - Backend properly handles both cases via Prisma upsert
+ * - Database stores null as unattempted, string as answered
+ */
 
 /** Server response after saving an answer */
 export interface SaveAnswerResponse {
@@ -75,8 +83,19 @@ export interface AttemptResult {
   rank: number | null;
   totalAttempts: number | null;
 
+  // Timing
   startTime: string;
   endTime: string | null;
+
+  // ✅ NEW: Student information
+  studentId: string;
+  studentName: string;
+  studentEmail: string | null;
+
+  // ✅ NEW: Test configuration for analysis
+  testDuration: number; // minutes
+  positiveMark: number;
+  negativeMark: number;
 }
 
 export interface SectionResult {

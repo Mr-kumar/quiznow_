@@ -2,17 +2,7 @@
  * api/leaderboard.ts
  *
  * API client for leaderboard data.
- * Maps directly to the LeaderboardEntry model in the Prisma schema:
- *
- *   model LeaderboardEntry {
- *     id        BigInt   @id @default(autoincrement())
- *     testId    String
- *     userId    String
- *     score     Float
- *     createdAt DateTime @default(now())
- *     @@unique([testId, userId])
- *     @@index([testId, score(sort: Desc)])
- *   }
+ * Matches the actual backend response from leaderboard service.
  */
 
 import api from "@/lib/api";
@@ -22,14 +12,15 @@ import api from "@/lib/api";
 export interface LeaderboardEntry {
   rank: number;
   userId: string;
-  userName: string;
-  userAvatar: string | null;
+  user: {
+    id: string;
+    name: string | null;
+    email: string | null;
+  };
   score: number;
-  totalMarks: number;
-  accuracy: number | null;
   timeTaken: number | null; // seconds
-  attemptedAt: string; // ISO datetime
-  isCurrentUser: boolean; // Server flags the authenticated user's entry
+  createdAt: string; // ISO datetime (backend sends createdAt, not attemptedAt)
+  accuracy: number;
 }
 
 export interface LeaderboardResponse {
