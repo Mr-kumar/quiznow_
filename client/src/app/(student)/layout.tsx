@@ -183,7 +183,10 @@ export default function StudentLayout({
     if (isLoading) return;
 
     if (!isAuthenticated || !user) {
-      router.replace("/login?reason=session");
+      // Add small delay to ensure auth state is properly cleared
+      setTimeout(() => {
+        router.replace("/login?reason=session");
+      }, 100);
       return;
     }
 
@@ -203,7 +206,7 @@ export default function StudentLayout({
 
   const handleLogout = () => {
     logout();
-    router.push("/login");
+    router.push("/");
   };
 
   const initials = getInitials(user.name);

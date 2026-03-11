@@ -4,14 +4,14 @@ import { adminSettingsApi } from "@/api/settings";
 import { settingsKeys } from "@/api/query-keys";
 import { parseApiError } from "@/lib/errors";
 import { unwrap } from "@/lib/unwrap";
-import type { AppSettings } from "@/api/settings";
+import type { AppSetting } from "@/api/settings";
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
 export function useSettings() {
   return useQuery({
     queryKey: settingsKeys.all(),
-    queryFn: async () => unwrap<AppSettings[]>(await adminSettingsApi.getAll()),
+    queryFn: async () => unwrap<AppSetting[]>(await adminSettingsApi.getAll()),
     staleTime: 1000 * 60 * 10, // settings change rarely
   });
 }
@@ -20,7 +20,7 @@ export function useSettingsByCategory(category: string) {
   return useQuery({
     queryKey: [...settingsKeys.all(), "category", category] as const,
     queryFn: async () => {
-      const allSettings = unwrap<AppSettings>(await adminSettingsApi.getAll());
+      const allSettings = unwrap<AppSetting>(await adminSettingsApi.getAll());
       // Filter by category - since server returns key-value, we need to handle this client-side
       // For now, return all settings since category filtering isn't supported by server
       return allSettings;

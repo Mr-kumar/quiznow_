@@ -6,6 +6,7 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ExamsService } from './exams.service';
@@ -33,8 +34,8 @@ export class ExamsController {
 
   @Get()
   @ApiOperation({ summary: 'List all Exams' })
-  findAll() {
-    return this.examsService.findAll();
+  findAll(@Query('categoryId') categoryId?: string) {
+    return this.examsService.findAll(categoryId);
   }
 
   @Get(':id')

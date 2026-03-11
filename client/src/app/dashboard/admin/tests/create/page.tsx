@@ -194,6 +194,7 @@ export default function CreateTestPage() {
     duration: 60,
     totalMarks: 100,
     passingMarks: 40,
+    positiveMark: 4,
     negativeMark: 0.33,
   });
   const [testMode, setTestMode] = useState<"full" | "section">("full");
@@ -264,6 +265,7 @@ export default function CreateTestPage() {
         duration: form.duration, // server DTO: duration (not durationMins)
         totalMarks: form.totalMarks,
         passingMarks: form.passingMarks, // server DTO: passingMarks (not passMarks)
+        positiveMarking: form.positiveMark, // server DTO: positiveMarking
         negativeMarking: form.negativeMark, // server DTO: negativeMarking
         testSeriesId: form.seriesId, // server DTO: testSeriesId
       });

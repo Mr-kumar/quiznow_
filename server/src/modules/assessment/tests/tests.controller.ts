@@ -8,9 +8,14 @@ import {
   Delete,
   UseGuards,
   Res,
+  Request,
   Response,
+  Query,
+  SetMetadata,
 } from '@nestjs/common';
 import { TestsService } from './tests.service';
+import { LeaderboardService } from '../../analytics/leaderboard/leaderboard.service';
+import { AttemptsService } from '../attempts/attempts.service';
 import { CreateTestDto } from './dto/create-test.dto';
 import { UpdateTestDto } from './dto/update-test.dto';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
@@ -19,13 +24,20 @@ import { RolesGuard } from '../../iam/auth/guards/roles.guard';
 import { Roles } from '../../iam/auth/decorators/roles.decorator';
 import { Role } from '@prisma/client';
 
+// Custom decorator to mark public endpoints
+const Public = () => SetMetadata('isPublic', true);
+
 @ApiTags('Assessment (Tests)')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.ADMIN)
 @Controller('tests')
 export class TestsController {
-  constructor(private readonly testsService: TestsService) {}
+  constructor(
+    private readonly testsService: TestsService,
+    private readonly leaderboardService: LeaderboardService,
+    private readonly attemptsService: AttemptsService, // ← ADD THIS
+  ) {}
 
   @Post('wizard')
   @ApiOperation({ summary: 'Create Test and Section in single transaction' })
@@ -41,19 +53,13 @@ export class TestsController {
 
   @Get()
   @ApiOperation({ summary: 'List all Tests' })
-  findAll() {
-    return this.testsService.findAll();
-  }
-
-  @Get(':id')
-  @ApiOperation({ summary: 'Get Test Details (Duration, Marks)' })
-  findOne(@Param('id') id: string) {
-    return this.testsService.findOne(id);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateTestDto: UpdateTestDto) {
-    return this.testsService.update(id, updateTestDto);
+  async findAll(
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 10,
+    @Query('search') search?: string,
+    @Query('seriesId') seriesId?: string,
+  ) {
+    return this.testsService.findAll({ page, limit, search, seriesId });
   }
 
   @Patch(':id/publish')
@@ -77,6 +83,43 @@ export class TestsController {
   @ApiOperation({ summary: 'Export test to Excel' })
   async exportTest(@Param('id') id: string, @Res() res: any) {
     return this.testsService.exportTest(id, res);
+  }
+
+  @Get(':id/sections')
+  @ApiOperation({ summary: 'Get test sections with questions' })
+  getSections(@Param('id') id: string) {
+    return this.testsService.getSections(id);
+  }
+
+  @Post(':id/start')
+  @ApiOperation({ summary: 'Start a test attempt' })
+  async startTest(@Param('id') testId: string, @Request() req: any) {
+    // Extract userId from JWT token
+    const userId = req.user.userId;
+
+    // Call attempts service to start the exam
+    return this.attemptsService.start({
+      testId,
+      userId,
+    });
+  }
+
+  @Get(':id/leaderboard')
+  @ApiOperation({ summary: 'Get leaderboard for this test' })
+  getLeaderboard(@Param('id') testId: string) {
+    // Delegate to the leaderboard service
+    return this.leaderboardService.getTestLeaderboard(testId);
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Get Test Details (Duration, Marks)' })
+  findOne(@Param('id') id: string) {
+    return this.testsService.findOne(id);
+  }
+
+  @Patch(':id')
+  update(@Param('id') id: string, @Body() updateTestDto: UpdateTestDto) {
+    return this.testsService.update(id, updateTestDto);
   }
 
   @Delete(':id')

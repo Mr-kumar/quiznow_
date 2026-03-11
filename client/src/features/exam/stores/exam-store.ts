@@ -15,6 +15,7 @@
  */
 
 import { create } from "zustand";
+import { shallow } from "zustand/shallow";
 import { attemptsApi } from "@/api/attempts";
 import type { ExamStatus, AnswerEntry, SessionSnapshot } from "@/types/exam";
 
@@ -308,10 +309,30 @@ export const selectIsVisited =
   (state: ExamState): boolean =>
     state.visitedQuestions.has(questionId);
 
-export const selectNavigation = (state: ExamState) => ({
-  currentSectionIdx: state.currentSectionIdx,
-  currentQuestionIdx: state.currentQuestionIdx,
-});
+// Create a stable navigation object that only updates when values actually change
+let cachedNavigation: {
+  currentSectionIdx: number;
+  currentQuestionIdx: number;
+} | null = null;
+
+export const selectNavigation = (state: ExamState) => {
+  const current = {
+    currentSectionIdx: state.currentSectionIdx,
+    currentQuestionIdx: state.currentQuestionIdx,
+  };
+
+  // Only return new object if values actually changed
+  if (
+    !cachedNavigation ||
+    cachedNavigation.currentSectionIdx !== current.currentSectionIdx ||
+    cachedNavigation.currentQuestionIdx !== current.currentQuestionIdx
+  ) {
+    cachedNavigation = current;
+    return current;
+  }
+
+  return cachedNavigation;
+};
 
 export const selectTimestamp = (state: ExamState) => state.endTimestamp;
 export const selectStatus = (state: ExamState) => state.status;

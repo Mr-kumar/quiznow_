@@ -55,6 +55,9 @@ export function QuestionPanel({
   // Resolve the correct translation (with EN fallback)
   const translation = resolveTranslation(question.translations, lang);
 
+  // Fallback to question text if no translation available
+  const questionText = translation?.content || "Question text not available";
+
   // Question numbering — "Q.14 of 75"
   const flatIdx = getFlatQuestionIndex(
     sections,
@@ -112,7 +115,7 @@ export function QuestionPanel({
           type="button"
           onClick={handleMark}
           disabled={isReadOnly}
-          aria-pressed={isMarked ? "true" : "false"}
+          aria-pressed={isMarked}
           aria-label={isMarked ? "Remove review mark" : "Mark for review"}
           className={cn(
             "flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border transition-colors",
@@ -134,11 +137,7 @@ export function QuestionPanel({
       <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5">
         {/* Question text */}
         <div className="text-base leading-relaxed text-slate-800 dark:text-slate-200 font-medium">
-          {translation?.content ?? (
-            <span className="text-slate-400 italic">
-              Translation not available for this language.
-            </span>
-          )}
+          {questionText}
         </div>
 
         {/* Question image (if present) */}

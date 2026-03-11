@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   UseGuards,
+  Request,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -42,6 +43,59 @@ export class UsersController {
     };
   }
 
+  @Get('stats/overview')
+  @ApiOperation({ summary: 'Get user statistics' })
+  @ApiResponse({
+    status: 200,
+    description: 'User statistics retrieved successfully',
+  })
+  async getStats() {
+    const data = await this.usersService.getStats();
+    return {
+      success: true,
+      message: 'User statistics retrieved successfully',
+      data,
+    };
+  }
+
+  // ✅ MOVED THESE 3 METHODS HERE (from lines 136-170):
+  @Get('me/attempts')
+  @ApiOperation({ summary: 'Get current user attempts' })
+  async getMyAttempts(@Request() req: any) {
+    const userId = req.user.userId;
+    const data = await this.usersService.getMyAttempts(userId);
+    return {
+      success: true,
+      message: 'User attempts retrieved successfully',
+      data,
+    };
+  }
+
+  @Get('me/topic-stats')
+  @ApiOperation({ summary: 'Get current user topic statistics' })
+  async getMyTopicStats(@Request() req: any) {
+    const userId = req.user.userId;
+    const data = await this.usersService.getMyTopicStats(userId);
+    return {
+      success: true,
+      message: 'User topic statistics retrieved successfully',
+      data,
+    };
+  }
+
+  @Get('me/subscription')
+  @ApiOperation({ summary: 'Get current user subscription' })
+  async getMySubscription(@Request() req: any) {
+    const userId = req.user.userId;
+    const data = await this.usersService.getMySubscription(userId);
+    return {
+      success: true,
+      message: 'User subscription retrieved successfully',
+      data,
+    };
+  }
+
+  // ← /me methods go ABOVE this line
   @Get(':id')
   @ApiOperation({ summary: 'Get user by ID' })
   @ApiResponse({ status: 200, description: 'User retrieved successfully' })
@@ -115,20 +169,5 @@ export class UsersController {
         message: error.message || 'Failed to delete user',
       };
     }
-  }
-
-  @Get('stats/overview')
-  @ApiOperation({ summary: 'Get user statistics' })
-  @ApiResponse({
-    status: 200,
-    description: 'User statistics retrieved successfully',
-  })
-  async getStats() {
-    const data = await this.usersService.getStats();
-    return {
-      success: true,
-      message: 'User statistics retrieved successfully',
-      data,
-    };
   }
 }

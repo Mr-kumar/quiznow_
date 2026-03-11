@@ -99,4 +99,62 @@ export class UsersService {
       newThisMonth,
     };
   }
+
+  // ─── User-specific methods ─────────────────────────────────────────────────────
+
+  async getMyAttempts(userId: string) {
+    return this.prisma.attempt.findMany({
+      where: { userId },
+      include: {
+        test: {
+          include: {
+            series: {
+              include: {
+                exam: {
+                  select: { name: true },
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async getMyTopicStats(userId: string) {
+    return this.prisma.userTopicStat.findMany({
+      where: { userId },
+      include: {
+        topic: {
+          select: {
+            id: true,
+            name: true,
+            subject: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { correct: 'desc' },
+    });
+  }
+
+  async getMySubscription(userId: string) {
+    return this.prisma.subscription.findFirst({
+      where: {
+        userId,
+        expiresAt: {
+          gte: new Date(),
+        },
+      },
+      include: {
+        plan: true,
+      },
+      orderBy: { expiresAt: 'desc' },
+    });
+  }
 }

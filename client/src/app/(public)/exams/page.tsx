@@ -48,7 +48,7 @@ interface TestSeries {
   category: string;
   testCount: number;
   freeTestCount: number;
-  level: "BEGINNER" | "INTERMEDIATE" | "ADVANCED";
+  level?: "BEGINNER" | "INTERMEDIATE" | "ADVANCED";
   isPremium: boolean;
   thumbnail?: string;
   latestYear?: string;
@@ -66,7 +66,7 @@ async function getExamSeries(
     if (q) params.set("q", q);
 
     const res = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/test-series?${params.toString()}&limit=24`,
+      `${process.env.NEXT_PUBLIC_API_URL}/public/test-series?${params.toString()}&limit=24`,
       { next: { revalidate: 300 } }, // 5 min cache
     );
 
@@ -143,10 +143,12 @@ function SeriesCard({ series }: { series: TestSeries }) {
             </span>
           )}
           <Badge
-            className={`text-[10px] h-4 px-1.5 ${LEVEL_BADGE[series.level]}`}
+            className={`text-[10px] h-4 px-1.5 ${LEVEL_BADGE[series.level || "BEGINNER"]}`}
             variant="secondary"
           >
-            {series.level.charAt(0) + series.level.slice(1).toLowerCase()}
+            {series.level
+              ? series.level.charAt(0) + series.level.slice(1).toLowerCase()
+              : "Beginner"}
           </Badge>
         </div>
 

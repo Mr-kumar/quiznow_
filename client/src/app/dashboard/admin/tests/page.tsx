@@ -104,6 +104,7 @@ const createTestSchema = z.object({
   duration: z.number().int().min(1, "Duration must be at least 1 min"),
   totalMarks: z.number().int().min(1, "Total marks required"),
   passingMarks: z.number().int().min(0),
+  positiveMarking: z.number().min(0),
   negativeMarking: z.number().min(0),
   startAt: z.string().optional(),
   endAt: z.string().optional(),
@@ -624,6 +625,7 @@ export default function TestsPage() {
       duration: 60,
       totalMarks: 100,
       passingMarks: 33,
+      positiveMarking: 4,
       negativeMarking: 0,
     },
   });
@@ -663,6 +665,7 @@ export default function TestsPage() {
         duration: editTestTarget.durationMins,
         totalMarks: editTestTarget.totalMarks,
         passingMarks: editTestTarget.passMarks,
+        positiveMarking: editTestTarget.positiveMark,
         negativeMarking: editTestTarget.negativeMark,
         testSeriesId: editTestTarget.seriesId,
         startAt: editTestTarget.startAt?.slice(0, 16),
@@ -767,6 +770,7 @@ export default function TestsPage() {
         duration: values.duration,
         totalMarks: values.totalMarks,
         passingMarks: values.passingMarks,
+        positiveMarking: values.positiveMarking,
         negativeMarking: values.negativeMarking,
         startAt: values.startAt || undefined,
         endAt: values.endAt || undefined,
@@ -1290,6 +1294,26 @@ export default function TestsPage() {
               <div className="grid grid-cols-2 gap-3">
                 <FormField
                   control={createTestForm.control}
+                  name="positiveMarking"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs font-semibold text-slate-600 uppercase tracking-wide">
+                        Positive Marking
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="number"
+                          min={0}
+                          className="h-9 text-sm"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={createTestForm.control}
                   name="passingMarks"
                   render={({ field }) => (
                     <FormItem>
@@ -1485,11 +1509,11 @@ export default function TestsPage() {
               <div className="grid grid-cols-2 gap-3">
                 <FormField
                   control={editTestForm.control}
-                  name="passingMarks"
+                  name="positiveMarking"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-xs font-semibold text-slate-600 uppercase tracking-wide">
-                        Passing Marks
+                        Positive Marking
                       </FormLabel>
                       <FormControl>
                         <Input

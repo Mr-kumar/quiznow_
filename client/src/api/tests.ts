@@ -39,6 +39,7 @@ export interface Test {
   durationMins: number;
   totalMarks: number;
   passMarks: number;
+  positiveMark: number;
   negativeMark: number;
   startAt?: string;
   endAt?: string;
@@ -58,6 +59,7 @@ export interface CreateTestRequest {
   duration: number; // server DTO field name (stored as durationMins in DB)
   totalMarks: number;
   passingMarks: number; // server DTO field name (stored as passMarks in DB)
+  positiveMarking: number; // server DTO field name (stored as positiveMark in DB)
   negativeMarking: number; // server DTO field name (stored as negativeMark in DB)
   startAt?: string;
   endAt?: string;
@@ -82,6 +84,7 @@ export interface UpdateTestRequest {
   duration?: number;
   totalMarks?: number;
   passingMarks?: number;
+  positiveMarking?: number;
   negativeMarking?: number;
   startAt?: string;
   endAt?: string;
@@ -143,4 +146,18 @@ export const adminTestSeriesApi = {
   update: (id: string, data: Partial<TestSeries>) =>
     api.patch<TestSeries>(`/test-series/${id}`, data),
   delete: (id: string) => api.delete(`/test-series/${id}`),
+};
+
+// Student Tests API (for students, not admins)
+export const studentTestsApi = {
+  getAll: (page?: number, limit?: number, search?: string, seriesId?: string) =>
+    api.get("/student/tests", {
+      params: { page, limit, search, seriesId },
+    }),
+
+  getById: (id: string) => api.get(`/student/tests/${id}`),
+
+  getSections: (id: string) => api.get(`/student/tests/${id}/sections`),
+
+  start: (id: string) => api.post(`/student/tests/${id}/start`),
 };

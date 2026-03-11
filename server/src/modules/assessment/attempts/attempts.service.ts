@@ -9,6 +9,11 @@ import {
   ValidationException,
 } from 'src/common/exceptions/app.exception';
 
+interface StartAttemptRequest {
+  testId: string;
+  userId: string;
+}
+
 @Injectable()
 export class AttemptsService {
   private readonly logger = new Logger(AttemptsService.name);
@@ -19,7 +24,7 @@ export class AttemptsService {
   ) {}
 
   // ─── 1. Start a Test ──────────────────────────────────────────────────────
-  async start(dto: CreateAttemptDto) {
+  async start(dto: StartAttemptRequest) {
     const test = await this.prisma.test.findUnique({
       where: { id: dto.testId },
     });
@@ -315,14 +320,93 @@ export class AttemptsService {
       `Attempt ${attemptId} submitted — Score=${score}, Correct=${correctCount}, Wrong=${wrongCount}`,
     );
 
+    // Calculate section results
+    const sectionResults = await this.calculateSectionResults(
+      attempt.testId,
+      answerData,
+    );
+
+    // Get rank from leaderboard
+    const rank = await this.getAttemptRank(attempt.testId, score);
+    const totalAttempts = await this.getTotalAttempts(attempt.testId);
+
     return {
+      attemptId: String(attemptId),
+      testId: attempt.testId,
+      testTitle: attempt.test.title,
       status: 'SUBMITTED',
       score,
+      totalMarks: attempt.test.totalMarks,
+      passMarks: attempt.test.passMarks,
+      passed: score >= (attempt.test.passMarks || 0),
       correctCount,
       wrongCount,
+      unattemptedCount: questions.length - answerData.length,
       accuracy,
       timeTaken,
+      sectionResults,
+      rank,
+      totalAttempts,
+      startTime: attempt.createdAt,
+      endTime: new Date(),
     };
+  }
+
+  // Helper methods for AttemptResult calculation
+  private async calculateSectionResults(testId: string, answerData: any[]) {
+    const sections = await this.prisma.section.findMany({
+      where: { testId },
+      include: {
+        questions: {
+          include: {
+            question: true,
+          },
+        },
+      },
+    });
+
+    return sections.map((section) => {
+      const sectionAnswers = answerData.filter((a) =>
+        section.questions.some((sq) => sq.question.id === a.questionId),
+      );
+
+      const sectionCorrect = sectionAnswers.filter((a) => a.isCorrect).length;
+      const sectionWrong = sectionAnswers.filter((a) => !a.isCorrect).length;
+      const sectionTotal = section.questions.length;
+      const sectionScore = sectionAnswers.reduce((sum, a) => {
+        const sectionQuestion = section.questions.find(
+          (sq) => sq.question.id === a.questionId,
+        );
+        return sum + (a.isCorrect ? 1 : 0); // Assuming 1 mark per question
+      }, 0);
+
+      return {
+        sectionId: section.id,
+        sectionName: section.name,
+        totalQuestions: sectionTotal,
+        correctAnswers: sectionCorrect,
+        wrongAnswers: sectionWrong,
+        unattemptedQuestions: sectionTotal - sectionAnswers.length,
+        score: sectionScore,
+        maxMarks: sectionTotal, // Assuming 1 mark per question
+      };
+    });
+  }
+
+  private async getAttemptRank(testId: string, score: number) {
+    const entries = await this.prisma.leaderboardEntry.findMany({
+      where: { testId },
+      orderBy: { score: 'desc' },
+    });
+
+    const rank = entries.findIndex((entry) => entry.score <= score) + 1;
+    return rank || null;
+  }
+
+  private async getTotalAttempts(testId: string) {
+    return this.prisma.attempt.count({
+      where: { testId },
+    });
   }
 
   // ─── 3. Get Review / Solutions ────────────────────────────────────────────
@@ -348,7 +432,7 @@ export class AttemptsService {
       );
     }
 
-    // Fetch questions with their QuestionOption rows (correct model)
+    // Fetch questions with their QuestionOption rows and topic/subject info
     const questions = await this.prisma.question.findMany({
       where: {
         sectionLinks: {
@@ -359,8 +443,16 @@ export class AttemptsService {
       },
       include: {
         translations: true,
-        // FIX: read options from QuestionOption + OptionTranslation rows,
-        // not from translation.options (which was the legacy JSON field).
+        topic: {
+          include: {
+            subject: true,
+          },
+        },
+        sectionLinks: {
+          include: {
+            section: true,
+          },
+        },
         options: {
           orderBy: { order: 'asc' },
           include: {
@@ -377,31 +469,44 @@ export class AttemptsService {
       );
       const translation: any = qAny.translations?.[0];
 
-      // Derive the correct option index from QuestionOption.isCorrect
+      // Derive correct option index from QuestionOption.isCorrect
       const correctOptionIndex = (qAny.options ?? []).findIndex(
         (o: any) => o.isCorrect,
       );
 
       // Build option list using OptionTranslation text (EN fallback)
-      const optionTexts = (qAny.options ?? []).map((opt: any) => {
+      const reviewOptions = (qAny.options ?? []).map((opt: any) => {
         const tr =
           opt.translations?.find((t: any) => t.lang === 'EN') ??
           opt.translations?.[0];
-        return tr?.text ?? '';
+        return {
+          optionId: opt.id,
+          text: tr?.text ?? '',
+          isCorrect: opt.isCorrect,
+          order: opt.order,
+        };
       });
+
+      // Get section info from sectionLinks
+      const sectionLink = qAny.sectionLinks?.[0];
+      const sectionName = sectionLink?.section?.name || '';
 
       return {
         questionId: qAny.id,
-        questionText: translation?.content ?? 'Content missing',
-        options: optionTexts,
+        sectionId: sectionLink?.sectionId || '',
+        sectionName: sectionName, // Now properly fetched
+        order: sectionLink?.order || 0,
+        selectedOptionId: userAnswer?.optionId || null,
+        isCorrect: userAnswer?.isCorrect || false,
+        isMarked: userAnswer?.isMarked || false,
+        marksAwarded: userAnswer?.marksAwarded || 0,
+        content: translation?.content ?? 'Content missing',
+        imageUrl: translation?.imageUrl || null,
         explanation: translation?.explanation ?? 'No explanation provided',
-        correctOptionIndex,
-        userSelectedOption: userAnswer?.optionId ?? null, // ✅ FIXED: read optionId, not selectedOption
-        status: userAnswer
-          ? userAnswer.isCorrect
-            ? 'CORRECT'
-            : 'WRONG'
-          : 'SKIPPED',
+        options: reviewOptions,
+        topicId: qAny.topicId,
+        topicName: qAny.topic?.name || null,
+        subjectName: qAny.topic?.subject?.name || null,
       };
     });
 
@@ -426,25 +531,130 @@ export class AttemptsService {
 
   // ─── 4. Basic result / CRUD ───────────────────────────────────────────────
 
-  findOne(id: string | number | bigint) {
-    // Convert string id to BigInt if needed
+  async findOne(id: string | number | bigint) {
+    // Convert string id to BigInt
     if (!id || id === 'null' || id === 'undefined') {
       throw new Error('Invalid attempt ID');
     }
 
     const attemptId = typeof id === 'string' ? BigInt(id) : id;
 
-    if (!attemptId) {
-      throw new Error('Invalid attempt ID');
-    }
-
-    return this.prisma.attempt.findUnique({
+    const attempt = await this.prisma.attempt.findUnique({
       where: { id: attemptId },
       include: {
-        test: true,
+        test: {
+          include: {
+            sections: {
+              include: {
+                questions: true,
+              },
+            },
+          },
+        },
         user: true,
+        answers: {
+          include: {
+            question: {
+              include: {
+                sectionLinks: true,
+                topic: {
+                  include: {
+                    subject: true,
+                  },
+                },
+              },
+            },
+            option: true,
+          },
+        },
       },
     });
+
+    if (!attempt) {
+      return null;
+    }
+
+    // Calculate total questions in test
+    const totalQuestions = attempt.test.sections.reduce(
+      (sum, section) => sum + section.questions.length,
+      0,
+    );
+
+    // Calculate section results
+    const sectionResults = attempt.test.sections.map((section) => {
+      const sectionAnswers = attempt.answers.filter(
+        (a) =>
+          a.question.sectionLinks &&
+          a.question.sectionLinks.some((sl) => sl.sectionId === section.id),
+      );
+
+      return {
+        sectionId: section.id,
+        sectionName: section.name, // Changed from sectionTitle
+        totalQuestions: section.questions.length,
+        attempted: sectionAnswers.length, // Changed from attemptedQuestions
+        correct: sectionAnswers.filter((a) => a.isCorrect).length, // Changed from correctAnswers
+        wrong: sectionAnswers.filter((a) => !a.isCorrect && a.optionId).length, // Changed from wrongAnswers
+        score: sectionAnswers.reduce(
+          (sum, a) => sum + (a.marksAwarded || 0),
+          0,
+        ),
+        totalMarks: section.questions.reduce((sum, q) => sum + 1, 0), // Assuming 1 mark per question
+      };
+    });
+
+    // Get leaderboard rank
+    const leaderboardEntry = await this.prisma.leaderboardEntry.findFirst({
+      where: {
+        testId: attempt.testId,
+        userId: attempt.userId,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    // Count total attempts for this test
+    const totalAttempts = await this.prisma.attempt.count({
+      where: {
+        testId: attempt.testId,
+        status: 'SUBMITTED',
+      },
+    });
+
+    // Calculate time taken in seconds
+    const timeTaken = attempt.endTime
+      ? Math.floor(
+          (attempt.endTime.getTime() - attempt.startTime.getTime()) / 1000,
+        )
+      : 0;
+
+    const correctCount = attempt.answers.filter((a) => a.isCorrect).length;
+    const wrongCount = attempt.answers.filter(
+      (a) => !a.isCorrect && a.optionId,
+    ).length;
+    const unattemptedCount = totalQuestions - attempt.answers.length;
+
+    return {
+      attemptId: String(attempt.id),
+      testId: attempt.testId,
+      testTitle: attempt.test.title,
+      status: attempt.status,
+      score: attempt.score || 0,
+      totalMarks: attempt.test.totalMarks,
+      passMarks: attempt.test.passMarks,
+      passed: (attempt.score || 0) >= (attempt.test.passMarks || 0),
+      correctCount,
+      wrongCount,
+      unattemptedCount,
+      accuracy: attempt.accuracy || 0,
+      timeTaken,
+      sectionResults,
+      rank: leaderboardEntry ? Number(leaderboardEntry.id) : null,
+      totalAttempts,
+      startTime: attempt.createdAt,
+      endTime: attempt.endTime,
+    };
   }
 
   async findAll(page = 1, limit = 20) {
@@ -470,5 +680,107 @@ export class AttemptsService {
 
   remove(id: string | number | bigint) {
     return this.prisma.attempt.delete({ where: { id: id as any } });
+  }
+
+  // ─── 5. Anti-cheating ───────────────────────────────────────────────────────
+
+  async incrementSuspicious(attemptId: string | number | bigint) {
+    const id = typeof attemptId === 'string' ? BigInt(attemptId) : attemptId;
+
+    return this.prisma.attempt.update({
+      where: { id },
+      data: {
+        suspiciousScore: {
+          increment: 1,
+        },
+      },
+    });
+  }
+
+  // ─── 6. Answer Management ─────────────────────────────────────────────────────
+
+  async saveAnswer(
+    attemptId: string,
+    questionId: string,
+    optionId: string,
+    userId: string,
+    isMarkedForReview?: boolean,
+  ) {
+    const id = typeof attemptId === 'string' ? BigInt(attemptId) : attemptId;
+
+    // Verify attempt belongs to user
+    const attempt = await this.prisma.attempt.findFirst({
+      where: { id, userId },
+    });
+
+    if (!attempt) {
+      throw new Error('Attempt not found or access denied');
+    }
+
+    // Upsert answer
+    return this.prisma.attemptAnswer.upsert({
+      where: {
+        attemptId_questionId: {
+          attemptId: id,
+          questionId,
+        },
+      },
+      update: {
+        optionId,
+        isMarked: isMarkedForReview || false,
+      },
+      create: {
+        attemptId: id,
+        questionId,
+        optionId,
+        isMarked: isMarkedForReview || false,
+      },
+    });
+  }
+
+  async saveAnswersBatch(
+    attemptId: string,
+    answers: Array<{
+      questionId: string;
+      optionId: string;
+      isMarkedForReview?: boolean;
+    }>,
+    userId: string,
+  ) {
+    const id = typeof attemptId === 'string' ? BigInt(attemptId) : attemptId;
+
+    // Verify attempt belongs to user
+    const attempt = await this.prisma.attempt.findFirst({
+      where: { id, userId },
+    });
+
+    if (!attempt) {
+      throw new Error('Attempt not found or access denied');
+    }
+
+    // Batch upsert answers
+    const operations = answers.map(
+      ({ questionId, optionId, isMarkedForReview }) =>
+        this.prisma.attemptAnswer.upsert({
+          where: {
+            attemptId_questionId: {
+              attemptId: id,
+              questionId,
+            },
+          },
+          update: {
+            optionId,
+            isMarked: isMarkedForReview || false,
+          },
+          create: {
+            attemptId: id,
+            questionId,
+            optionId,
+            isMarked: isMarkedForReview || false,
+          },
+        }),
+    );
+
+    return Promise.all(operations);
   }
 }

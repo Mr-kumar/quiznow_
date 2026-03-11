@@ -124,8 +124,26 @@ export class TestsService {
   }
 
   // 2. Find All (Include Series Title)
-  findAll() {
+  findAll(params: {
+    page: number;
+    limit: number;
+    search?: string;
+    seriesId?: string;
+  }) {
+    const { page, limit, search, seriesId } = params;
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+    if (seriesId) where.seriesId = seriesId;
+    if (search) {
+      where.OR = [
+        { title: { contains: search, mode: 'insensitive' } },
+        { series: { title: { contains: search, mode: 'insensitive' } } },
+      ];
+    }
+
     return this.prisma.test.findMany({
+      where,
       include: {
         series: { select: { title: true } },
         sections: {
@@ -134,6 +152,9 @@ export class TestsService {
           },
         },
       },
+      skip,
+      take: limit,
+      orderBy: { createdAt: 'desc' },
     });
   }
 
@@ -375,5 +396,128 @@ export class TestsService {
     await this.validateTestNotLive(id, 'delete');
 
     return this.prisma.test.delete({ where: { id } });
+  }
+
+  // 6. Get Test Sections
+  async getSections(testId: string) {
+    const sections = await this.prisma.section.findMany({
+      where: { testId },
+      include: {
+        questions: {
+          include: {
+            question: {
+              include: {
+                translations: true,
+                options: {
+                  include: {
+                    translations: true,
+                  },
+                  select: {
+                    id: true,
+                    isCorrect: true,
+                    order: true,
+                    translations: true,
+                  },
+                },
+              },
+            },
+          },
+          orderBy: { order: 'asc' },
+        },
+      },
+      orderBy: { order: 'asc' },
+    });
+
+    // Transform the data to match expected structure
+    return sections.map((section) => ({
+      ...section,
+      questions: section.questions.map((sq) => sq.question),
+    }));
+  }
+
+  // Public/Student methods
+  async findAvailableForStudents(
+    page: number = 1,
+    limit: number = 10,
+    search?: string,
+    seriesId?: string,
+    userId?: string,
+  ) {
+    const skip = (page - 1) * limit;
+
+    const where: any = {
+      isActive: true,
+    };
+
+    if (search) {
+      where.title = { contains: search, mode: 'insensitive' };
+    }
+
+    if (seriesId) {
+      where.seriesId = seriesId;
+    }
+
+    const [tests, total] = await Promise.all([
+      this.prisma.test.findMany({
+        where,
+        include: {
+          series: {
+            select: { id: true, title: true, exam: { select: { name: true } } },
+          },
+          _count: { select: { sections: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.test.count({ where }),
+    ]);
+
+    return {
+      data: tests,
+      total,
+      page,
+      limit,
+    };
+  }
+
+  async findOneForStudents(testId: string, userId?: string) {
+    const test = await this.prisma.test.findUnique({
+      where: { id: testId, isActive: true },
+      include: {
+        series: {
+          select: { id: true, title: true, exam: { select: { name: true } } },
+        },
+        _count: { select: { sections: true } },
+      },
+    });
+
+    if (!test) {
+      return null;
+    }
+
+    // Check if user has access (based on subscription, attempts, etc.)
+    if (userId) {
+      const userAttempts = await this.prisma.attempt.count({
+        where: { testId, userId },
+      });
+
+      // Check max attempts limit
+      if (test.maxAttempts && userAttempts >= test.maxAttempts) {
+        return null;
+      }
+    }
+
+    return test;
+  }
+
+  async getSectionsForStudents(testId: string, userId?: string) {
+    const test = await this.findOneForStudents(testId, userId);
+
+    if (!test) {
+      return [];
+    }
+
+    return this.getSections(testId);
   }
 }

@@ -6,7 +6,9 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
   UseGuards,
+  SetMetadata,
 } from '@nestjs/common';
 import { TestSeriesService } from './test-series.service';
 import { CreateTestSeryDto } from './dto/create-test-sery.dto';
@@ -16,6 +18,9 @@ import { JwtAuthGuard } from '../../iam/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../iam/auth/guards/roles.guard';
 import { Roles } from '../../iam/auth/decorators/roles.decorator';
 import { Role } from '@prisma/client';
+
+// Custom decorator to mark public endpoints
+const Public = () => SetMetadata('isPublic', true);
 
 @ApiTags('Assessment (Test Series)')
 @ApiBearerAuth()
@@ -33,8 +38,8 @@ export class TestSeriesController {
 
   @Get()
   @ApiOperation({ summary: 'List all Test Series' })
-  findAll() {
-    return this.testSeriesService.findAll();
+  findAll(@Query('examId') examId?: string) {
+    return this.testSeriesService.findAll(examId);
   }
 
   @Get(':id')

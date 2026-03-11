@@ -172,16 +172,7 @@ export default function HistoryPage() {
       status: filter !== "ALL" ? filter : undefined,
     }),
     queryFn: () =>
-      attemptsApi
-        .getMyHistory(page, PAGE_SIZE)
-        .then(
-          unwrap<{
-            data: AttemptSummary[];
-            total: number;
-            page: number;
-            limit: number;
-          }>,
-        ),
+      attemptsApi.getMyHistory(page, PAGE_SIZE).then((res) => res.data),
     staleTime: 1000 * 60 * 2,
     placeholderData: (prev) => prev,
   });
@@ -318,13 +309,13 @@ export default function HistoryPage() {
           </div>
         ) : (
           <div className="divide-y divide-slate-100 dark:divide-slate-800">
-            {attempts.map((attempt) => {
+            {attempts.map((attempt, index) => {
               const isSubmitted = attempt.status === "SUBMITTED";
               const isStarted = attempt.status === "STARTED";
 
               return (
                 <div
-                  key={attempt.attemptId}
+                  key={`${attempt.attemptId}-${index}`}
                   className="flex flex-col sm:grid sm:grid-cols-[1fr_auto_auto_auto_auto_auto] gap-2 sm:gap-4 sm:items-center px-5 py-3.5 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors"
                 >
                   {/* Test name */}

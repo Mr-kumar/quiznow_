@@ -212,10 +212,7 @@ export default function ProfilePage() {
   // All attempts for stats
   const attemptsQuery = useQuery({
     queryKey: attemptKeys.history({ page: 1, limit: 100 }),
-    queryFn: () =>
-      attemptsApi
-        .getMyHistory(1, 100)
-        .then(unwrap<{ data: AttemptSummary[]; total: number }>),
+    queryFn: () => attemptsApi.getMyHistory(1, 100).then((res) => res.data),
     staleTime: 1000 * 60 * 5,
   });
 

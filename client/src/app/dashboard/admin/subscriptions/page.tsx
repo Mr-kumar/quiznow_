@@ -290,7 +290,7 @@ export default function SubscriptionsPage() {
                               <SelectValue placeholder="Select user" />
                             </SelectTrigger>
                             <SelectContent>
-                              {users.map((user) => (
+                              {users.map((user: User) => (
                                 <SelectItem key={user.id} value={user.id}>
                                   {user.name} ({user.email})
                                 </SelectItem>
@@ -317,7 +317,7 @@ export default function SubscriptionsPage() {
                               <SelectValue placeholder="Select plan" />
                             </SelectTrigger>
                             <SelectContent>
-                              {plans.map((plan) => (
+                              {plans.map((plan: Plan) => (
                                 <SelectItem key={plan.id} value={plan.id}>
                                   {plan.name} (₹{plan.price})
                                 </SelectItem>

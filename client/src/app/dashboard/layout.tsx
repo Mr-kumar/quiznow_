@@ -73,7 +73,7 @@ export default function DashboardLayout({
       label: "Admin Overview",
       icon: LayoutDashboard,
     },
-  
+
     {
       href: "/dashboard/admin/tests",
       label: "Manage Tests",
@@ -84,7 +84,7 @@ export default function DashboardLayout({
       label: "Global Question Vault",
       icon: BookOpen,
     },
-    
+
     {
       href: "/dashboard/admin/plans",
       label: "Plans",
@@ -215,7 +215,7 @@ export default function DashboardLayout({
               className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 border-red-200 dark:border-red-800 transition-all duration-200 group"
               onClick={() => {
                 logout();
-                router.push("/login");
+                router.push("/");
               }}
             >
               <LogOut className="mr-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />

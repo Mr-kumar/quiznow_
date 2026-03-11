@@ -206,10 +206,7 @@ export default function DashboardPage() {
   // Recent attempts (last 10, we'll show 5)
   const attemptsQuery = useQuery({
     queryKey: attemptKeys.history({ page: 1, limit: 10 }),
-    queryFn: () =>
-      attemptsApi
-        .getMyHistory(1, 10)
-        .then(unwrap<{ data: AttemptSummary[]; total: number }>),
+    queryFn: () => attemptsApi.getMyHistory(1, 10).then((res) => res.data),
     staleTime: 1000 * 60 * 2, // 2 min
   });
 
@@ -360,8 +357,11 @@ export default function DashboardPage() {
           </div>
         ) : (
           <div className="px-4 divide-y divide-slate-100 dark:divide-slate-800">
-            {recentFive.map((attempt) => (
-              <AttemptRow key={attempt.attemptId} attempt={attempt} />
+            {recentFive.map((attempt, index) => (
+              <AttemptRow
+                key={`${attempt.attemptId}-${index}`}
+                attempt={attempt}
+              />
             ))}
           </div>
         )}

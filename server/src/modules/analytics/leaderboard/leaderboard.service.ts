@@ -5,34 +5,60 @@ import { PrismaService } from 'src/services/prisma/prisma.service';
 export class LeaderboardService {
   constructor(private prisma: PrismaService) {}
 
-  async getTestLeaderboard(testId: string) {
-    // 1. Fetch all COMPLETED attempts for this test
-    const attempts = await this.prisma.attempt.findMany({
-      where: {
-        testId: testId,
-        status: 'SUBMITTED', // Only count finished tests
-      },
-      select: {
-        score: true,
-        timeTaken: true, // We will use this for tie-breaking later
-        user: {
-          select: { id: true, name: true, email: true }, // Get student details
-        },
-      },
-      orderBy: [
-        { score: 'desc' }, // Highest Score First
-        { timeTaken: 'asc' }, // If tie, fastest time wins
-      ],
-      take: 10, // Top 10 Only (Toppers List)
-    });
+  async getTestLeaderboard(
+    testId: string,
+    page: number = 1,
+    limit: number = 10,
+  ) {
+    const skip = (page - 1) * limit;
 
-    // 2. Add "Rank" number to each
-    return attempts.map((attempt, index) => ({
-      rank: index + 1,
-      name: attempt.user.name || attempt.user.email, // Fallback if name is empty
+    // 1. Fetch all COMPLETED attempts for this test with pagination
+    const [attempts, total] = await Promise.all([
+      this.prisma.attempt.findMany({
+        where: {
+          testId: testId,
+          status: 'SUBMITTED', // Only count finished tests
+        },
+        select: {
+          id: true,
+          score: true,
+          timeTaken: true,
+          userId: true,
+          createdAt: true,
+          user: {
+            select: { id: true, name: true, email: true },
+          },
+        },
+        orderBy: [
+          { score: 'desc' }, // Highest Score First
+          { timeTaken: 'asc' }, // If tie, fastest time wins
+        ],
+        skip,
+        take: limit,
+      }),
+      this.prisma.attempt.count({
+        where: {
+          testId: testId,
+          status: 'SUBMITTED',
+        },
+      }),
+    ]);
+
+    // Calculate ranks for the current page
+    const rankedAttempts = attempts.map((attempt, index) => ({
+      rank: skip + index + 1,
+      userId: attempt.userId,
+      user: attempt.user,
       score: attempt.score,
       timeTaken: attempt.timeTaken,
+      createdAt: attempt.createdAt,
+      accuracy: 0, // Would need to calculate from answers
     }));
+
+    return {
+      entries: rankedAttempts,
+      total,
+    };
   }
 
   // Additional method to get user's specific rank
@@ -69,6 +95,7 @@ export class LeaderboardService {
       percentile: Math.round(
         ((totalParticipants - userIndex) / totalParticipants) * 100,
       ),
+      accuracy: 0, // Would need to calculate from answers
     };
   }
 }

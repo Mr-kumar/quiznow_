@@ -29,7 +29,7 @@
  * This page must remain fully client-side.
  */
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useRouter, useParams } from "next/navigation";
 import {
   AlertCircleIcon,
@@ -55,6 +55,7 @@ import {
   selectAttemptId,
   selectNavigation,
 } from "@/features/exam/stores/exam-store";
+import { shallow } from "zustand/shallow";
 import {
   useExamLoader,
   getQuestion,
@@ -204,16 +205,22 @@ export default function AttemptPage() {
   const examStatus = useExamStore(selectStatus);
   const attemptId = useExamStore(selectAttemptId);
   const navigation = useExamStore(selectNavigation);
-  const restoreFromSession = useExamStore((s) => s.restoreFromSession);
-  const storeNavigate = useExamStore((s) => s.navigate);
-  const storeSetAnswer = useExamStore((s) => s.setAnswer);
-  const submitExam = useExamStore((s) => s.submitExam);
+  const examStore = useExamStore(); // Get the full store for methods
+
+  // Use store methods directly
+  const restoreFromSession = examStore.restoreFromSession;
+  const storeNavigate = examStore.navigate;
+  const storeSetAnswer = examStore.setAnswer;
+  const submitExam = examStore.submitExam;
 
   // ── UI state ─────────────────────────────────────────────────────────────
-  const isPaletteOpen = useUIStore((s) => s.isPaletteOpen);
-  const closePalette = useUIStore((s) => s.closePalette);
-  const showOverlay = useUIStore((s) => s.showLoadingOverlay);
-  const hideOverlay = useUIStore((s) => s.hideLoadingOverlay);
+  const uiStore = useUIStore(); // Get the full store for methods
+
+  // Use store methods directly
+  const isPaletteOpen = uiStore.isPaletteOpen;
+  const closePalette = uiStore.closePalette;
+  const showOverlay = uiStore.showLoadingOverlay;
+  const hideOverlay = uiStore.hideLoadingOverlay;
 
   // ── Local UI state ────────────────────────────────────────────────────────
   const [isSubmitDialogOpen, setIsSubmitDialogOpen] = useState(false);
@@ -390,11 +397,19 @@ export default function AttemptPage() {
 
   // ── Derive current question ───────────────────────────────────────────────
   const { currentSectionIdx, currentQuestionIdx } = navigation;
+
+  console.log("[DEBUG] Navigation:", { currentSectionIdx, currentQuestionIdx });
+  console.log("[DEBUG] Sections:", sections);
+  console.log("[DEBUG] Sections length:", sections.length);
+
   const currentQuestion = getQuestion(
     sections,
     currentSectionIdx,
     currentQuestionIdx,
   );
+
+  console.log("[DEBUG] Current question:", currentQuestion);
+
   const totalQuestions = sections.reduce((n, s) => n + s.questions.length, 0);
   const isReadOnly = examStatus === "SUBMITTED" || examStatus === "EXPIRED";
 

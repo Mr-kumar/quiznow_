@@ -22,7 +22,7 @@ import type { ExamTest, ExamSection, ExamQuestion } from "@/types/exam";
 // Scoped under "exam" so invalidation never touches admin test cache
 
 export const examKeys = {
-  test:     (id: string) => ["exam", "test", id]     as const,
+  test: (id: string) => ["exam", "test", id] as const,
   sections: (id: string) => ["exam", "sections", id] as const,
 };
 
@@ -30,16 +30,24 @@ export const examKeys = {
 // These are student-facing endpoints (different from admin /tests)
 
 async function fetchExamTest(testId: string): Promise<ExamTest> {
-  const res = await api.get<ExamTest>(`/tests/${testId}`);
-  // unwrap both { data: ExamTest } and plain ExamTest
-  return (res.data as { data?: ExamTest }).data ?? (res.data as ExamTest);
+  console.log("[DEBUG] Fetching exam test for:", testId);
+  const res = await api.get<ExamTest>(`/student/tests/${testId}`);
+  console.log("[DEBUG] Exam test response:", res);
+  // Student API returns { success: true, data: ExamTest } structure
+  const test = (res.data as { data?: ExamTest }).data ?? (res.data as ExamTest);
+  console.log("[DEBUG] Parsed exam test:", test);
+  return test;
 }
 
 async function fetchExamSections(testId: string): Promise<ExamSection[]> {
-  // GET /tests/:id/sections returns sections[] with nested questions[]
+  console.log("[DEBUG] Fetching exam sections for:", testId);
+  // GET /student/tests/:id/sections returns sections[] with nested questions[]
   // Questions are pre-sorted by SectionQuestion.order on the server
-  const res = await api.get<ExamSection[]>(`/tests/${testId}/sections`);
-  const data = (res.data as { data?: ExamSection[] }).data ?? (res.data as ExamSection[]);
+  const res = await api.get<ExamSection[]>(`/student/tests/${testId}/sections`);
+  console.log("[DEBUG] Exam sections response:", res);
+  const data =
+    (res.data as { data?: ExamSection[] }).data ?? (res.data as ExamSection[]);
+  console.log("[DEBUG] Parsed exam sections:", data);
 
   // Sort sections by order (defensive — server should already sort)
   return [...data].sort((a, b) => a.order - b.order);
@@ -69,7 +77,7 @@ export function useExamLoader(testId: string | null): ExamLoaderResult {
         queryKey: examKeys.test(testId ?? ""),
         queryFn: () => fetchExamTest(testId!),
         enabled,
-        staleTime: Infinity,   // Never refetch — test config is immutable mid-exam
+        staleTime: Infinity, // Never refetch — test config is immutable mid-exam
         gcTime: 1000 * 60 * 120, // Keep in cache for 2 hours
         retry: 2,
       },

@@ -150,7 +150,7 @@ export const attemptsApi = {
    * Call this when the student clicks "Start Test" on the instructions page.
    */
   start: (testId: string) =>
-    api.post<StartAttemptResponse>(`/tests/${testId}/start`),
+    api.post<StartAttemptResponse>(`/student/tests/${testId}/start`),
 
   /**
    * Save a single answer. Called on every option click — fire and forget.

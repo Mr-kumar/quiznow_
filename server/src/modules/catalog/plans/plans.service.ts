@@ -87,4 +87,19 @@ export class PlansService {
       where: { id },
     });
   }
+
+  async findPublicPlans() {
+    return this.prisma.plan.findMany({
+      where: {
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        name: true,
+        price: true,
+        durationDays: true,
+      },
+      orderBy: { price: 'asc' },
+    });
+  }
 }

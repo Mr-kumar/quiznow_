@@ -90,6 +90,7 @@ export const useAuthStore = create<AuthState>()(
         // Clear the Edge-readable cookie
         deleteCookie("qn_token");
 
+        // Clear ALL auth state immediately
         set({
           user: null,
           token: null,

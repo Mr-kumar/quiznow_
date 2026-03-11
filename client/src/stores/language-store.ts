@@ -68,6 +68,15 @@ export function resolveTranslation<T extends { lang: string }>(
   translations: T[],
   lang: Lang,
 ): T | undefined {
+  // Safety check: if translations is undefined or empty, return undefined
+  if (
+    !translations ||
+    !Array.isArray(translations) ||
+    translations.length === 0
+  ) {
+    return undefined;
+  }
+
   // Try requested language first, fall back to EN
   return (
     translations.find((t) => t.lang === lang) ??

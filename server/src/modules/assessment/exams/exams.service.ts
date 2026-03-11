@@ -30,8 +30,11 @@ export class ExamsService {
   }
 
   // 2. Find All (With Category Name)
-  findAll() {
+  findAll(categoryId?: string) {
+    const where = categoryId ? { categoryId } : {};
+
     return this.prisma.exam.findMany({
+      where,
       include: {
         category: { select: { name: true } }, // Show "Civil Engineering" instead of just UUID
         _count: { select: { testSeries: true } }, // Count how many test series are inside

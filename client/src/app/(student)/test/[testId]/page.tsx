@@ -23,7 +23,6 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { cookies } from "next/headers";
-import { useQuery } from "@tanstack/react-query";
 import {
   ClockIcon,
   BookOpenIcon,
@@ -41,8 +40,6 @@ import { Badge } from "@/components/ui/badge";
 import { StartExamButton } from "@/app/(student)/test/[testId]/StartExamButton";
 import { CountdownBanner } from "@/components/shared/CountdownBanner";
 import { SubscriptionGate } from "@/components/shared/SubscriptionGate";
-import api from "@/lib/api";
-import { studentUsersApi } from "@/api/student-users";
 import type { ExamTest, ExamSection } from "@/types/exam";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -53,40 +50,78 @@ interface PageProps {
 
 // ── Data fetching ─────────────────────────────────────────────────────────────
 
-async function getTestData(
-  testId: string,
-): Promise<{ test: ExamTest; sections: ExamSection[] } | null> {
+async function getTestData(testId: string): Promise<{
+  test: ExamTest;
+  sections: ExamSection[];
+  isSubscribed: boolean;
+} | null> {
   try {
+    console.log("[DEBUG] getTestData called for testId:", testId);
+
     // Read auth token from cookie (set by auth-store on login)
     const cookieStore = await cookies();
     const token = cookieStore.get("qn_token")?.value;
+
+    console.log("[DEBUG] Token found:", !!token);
 
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
     };
     if (token) headers["Authorization"] = `Bearer ${token}`;
 
-    const [testRes, sectionsRes] = await Promise.all([
-      fetch(`${process.env.NEXT_PUBLIC_API_URL}/tests/${testId}`, {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+    console.log("[DEBUG] API URL:", apiUrl);
+
+    const [testRes, sectionsRes, subRes] = await Promise.all([
+      fetch(`${apiUrl}/student/tests/${testId}`, {
         headers,
         next: { revalidate: 60 }, // cache for 60s — test config rarely changes
       }),
-      fetch(`${process.env.NEXT_PUBLIC_API_URL}/tests/${testId}/sections`, {
+      fetch(`${apiUrl}/student/tests/${testId}/sections`, {
+        headers,
+        next: { revalidate: 60 },
+      }),
+      fetch(`${apiUrl}/users/me/subscription`, {
         headers,
         next: { revalidate: 60 },
       }),
     ]);
 
-    if (!testRes.ok) return null;
+    console.log("[DEBUG] API responses:", {
+      testRes: testRes.status,
+      sectionsRes: sectionsRes.status,
+      subRes: subRes.status,
+    });
+
+    if (!testRes.ok) {
+      console.log("[DEBUG] Test response not ok:", testRes.status);
+      return null;
+    }
 
     const testJson = await testRes.json();
     const sectionsJson = sectionsRes.ok ? await sectionsRes.json() : [];
+    const subJson = subRes.ok ? await subRes.json() : null;
 
+    console.log("[DEBUG] Response data:", {
+      testJson,
+      sectionsJson,
+      subJson,
+    });
+
+    // Student API returns { success: true, data: test } structure
     const test: ExamTest = testJson?.data ?? testJson;
     const sections: ExamSection[] = (sectionsJson?.data ?? sectionsJson) || [];
+    const isSubscribed = subJson?.data?.plan !== "FREE";
 
-    return { test, sections: sections.sort((a, b) => a.order - b.order) };
-  } catch {
+    console.log("[DEBUG] Parsed data:", { test, sections, isSubscribed });
+
+    return {
+      test,
+      sections: sections.sort((a, b) => a.order - b.order),
+      isSubscribed,
+    };
+  } catch (error) {
+    console.log("[DEBUG] Error in getTestData:", error);
     return null;
   }
 }
@@ -166,22 +201,11 @@ export default async function TestInstructionsPage({ params }: PageProps) {
 
   if (!data) notFound();
 
-  const { test, sections } = data;
+  const { test, sections, isSubscribed } = data;
 
   const totalQuestions = sections.reduce((n, s) => n + s.questions.length, 0);
   const isUpcoming = test.startAt ? new Date(test.startAt) > new Date() : false;
   const isExpired = test.endAt ? new Date(test.endAt) < new Date() : false;
-
-  const { data: subscription } = useQuery({
-    queryKey: ["subscription"],
-    queryFn: async () => {
-      const res = await studentUsersApi.getMySubscription();
-      return res.data;
-    },
-    staleTime: 1000 * 60 * 5, // 5 minutes
-  });
-
-  const isSubscribed = subscription?.data?.plan !== "FREE";
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">

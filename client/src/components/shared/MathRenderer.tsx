@@ -33,7 +33,7 @@ let katex: typeof import("katex") | null = null;
 // Try to load katex — silent fail if not installed
 if (typeof window !== "undefined") {
   import("katex")
-    .then((mod) => {
+    .then((mod: any) => {
       katex = mod.default ?? mod;
     })
     .catch(() => {
@@ -66,9 +66,9 @@ function parseFragments(content: string): MathFragment[] {
 
   // Ordered from most-specific to least-specific
   const PATTERNS: { regex: RegExp; type: "inline" | "block" }[] = [
-    { regex: /\\\[(.+?)\\\]/s, type: "block" }, // \[ ... \]
-    { regex: /\$\$(.+?)\$\$/s, type: "block" }, // $$ ... $$
-    { regex: /\\\((.+?)\\\)/s, type: "inline" }, // \( ... \)
+    { regex: /\\\[(.*?)\\\]/, type: "block" }, // \[ ... \]
+    { regex: /\$\$(.*?)\$\$/, type: "block" }, // $$ ... $$
+    { regex: /\\\((.*?)\\\)/, type: "inline" }, // \( ... \)
     { regex: /\$([^$\n]+?)\$/, type: "inline" }, // $ ... $ (single line only)
   ];
 

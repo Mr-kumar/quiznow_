@@ -37,7 +37,7 @@ const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
 
 async function getSeries(seriesId: string): Promise<TestSeries | null> {
   try {
-    const res = await fetch(`${API}/test-series/${seriesId}`, {
+    const res = await fetch(`${API}/public/test-series/${seriesId}`, {
       next: { revalidate: 300 },
     });
     if (res.status === 404) return null;
@@ -46,19 +46,6 @@ async function getSeries(seriesId: string): Promise<TestSeries | null> {
     return (json?.data ?? json) as TestSeries;
   } catch {
     return null;
-  }
-}
-
-async function getTestsForSeries(seriesId: string): Promise<Test[]> {
-  try {
-    const res = await fetch(`${API}/tests?seriesId=${seriesId}&limit=50`, {
-      next: { revalidate: 300 },
-    });
-    if (!res.ok) throw new Error();
-    const json = await res.json();
-    return ((json?.data ?? json) as Test[]) ?? [];
-  } catch {
-    return [];
   }
 }
 
@@ -238,15 +225,18 @@ export default async function SeriesPage({
   params: Promise<{ seriesId: string }>;
 }) {
   const { seriesId } = await params;
-  const [series, tests] = await Promise.all([
-    getSeries(seriesId),
-    getTestsForSeries(seriesId),
-  ]);
+  const series = await getSeries(seriesId);
+
   if (!series) notFound();
+
+  // Use tests from the series response instead of separate API call
+  const tests = (series as any).tests || [];
 
   const liveTests = tests.filter(isLiveNow);
   const upcomingTests = tests.filter(isUpcoming);
-  const regularTests = tests.filter((t) => !isLiveNow(t) && !isUpcoming(t));
+  const regularTests = tests.filter(
+    (t: Test) => !isLiveNow(t) && !isUpcoming(t),
+  );
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
@@ -328,7 +318,7 @@ export default async function SeriesPage({
                   Live Now
                 </h2>
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {liveTests.map((t) => (
+                  {liveTests.map((t: Test) => (
                     <TestCard key={t.id} test={t} />
                   ))}
                 </div>
@@ -341,7 +331,7 @@ export default async function SeriesPage({
                   Upcoming
                 </h2>
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {upcomingTests.map((t) => (
+                  {upcomingTests.map((t: Test) => (
                     <TestCard key={t.id} test={t} />
                   ))}
                 </div>
@@ -356,7 +346,7 @@ export default async function SeriesPage({
                   </h2>
                 )}
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {regularTests.map((t) => (
+                  {regularTests.map((t: Test) => (
                     <TestCard key={t.id} test={t} />
                   ))}
                 </div>

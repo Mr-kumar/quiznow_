@@ -37,6 +37,13 @@ export class CategoriesController {
     return this.categoriesService.findAll();
   }
 
+  // 🚀 NEW: Get Full Tree for Enterprise Syllabus Manager
+  @Get('tree')
+  @ApiOperation({ summary: 'Get Full Recursive Tree (Enterprise Feature)' })
+  async getFullTree() {
+    return this.categoriesService.getFullTree();
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get details of one Category' })
   findOne(@Param('id') id: string) {
@@ -54,12 +61,5 @@ export class CategoriesController {
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.categoriesService.remove(id);
-  }
-
-  // 🚀 NEW: Get Full Tree for Enterprise Syllabus Manager
-  @Get('tree')
-  @ApiOperation({ summary: 'Get Full Recursive Tree (Enterprise Feature)' })
-  async getFullTree() {
-    return this.categoriesService.getFullTree();
   }
 }

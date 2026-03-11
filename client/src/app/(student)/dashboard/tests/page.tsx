@@ -47,7 +47,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { adminTestsApi, adminCategoriesApi } from "@/api/tests";
+import { studentTestsApi, adminCategoriesApi } from "@/api/tests";
 import { attemptsApi } from "@/api/attempts";
 import { testKeys, attemptKeys } from "@/api/query-keys";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -331,16 +331,18 @@ export default function DashboardTestsPage() {
       categoryId: activeCategoryId,
     }),
     queryFn: async () => {
-      const res = await adminTestsApi.getAll(
+      const res = await studentTestsApi.getAll(
         page,
         LIMIT,
         debouncedSearch || undefined,
       );
-      return (
-        (res.data as unknown as { data?: Test[] }).data ??
-        (res.data as unknown as Test[]) ??
-        []
-      );
+      // Student API returns { success: true, data: tests } structure
+      const response = res.data as any;
+      console.log("[DEBUG] Student tests API response:", response);
+      console.log("[DEBUG] Response data:", response?.data);
+      const tests = response?.data ?? [];
+      console.log("[DEBUG] Final tests array:", tests);
+      return tests;
     },
     staleTime: 1000 * 60 * 2,
   });
@@ -363,13 +365,25 @@ export default function DashboardTestsPage() {
 
   // Client-side category filter (API doesn't support categoryId filter on /tests)
   const filteredTests = useMemo(() => {
-    if (!activeCategoryId) return tests;
-    return tests.filter(
-      (t) =>
-        t.series?.exam?.categoryId === activeCategoryId ||
-        t.series?.exam?.category?.id === activeCategoryId,
+    console.log("[DEBUG] tests variable:", tests);
+    console.log("[DEBUG] tests type:", typeof tests);
+    console.log("[DEBUG] tests isArray:", Array.isArray(tests));
+
+    // Safety check: ensure tests is always an array
+    const safeTests = Array.isArray(tests) ? tests : [];
+
+    if (!activeCategoryId) return safeTests;
+    return safeTests.filter(
+      (t: Test) => t.series?.exam?.categoryId === activeCategoryId,
     );
   }, [tests, activeCategoryId]);
+
+  // Final safety check: ensure filteredTests is always an array
+  const safeFilteredTests = Array.isArray(filteredTests) ? filteredTests : [];
+
+  console.log("[DEBUG] filteredTests:", filteredTests);
+  console.log("[DEBUG] filteredTests isArray:", Array.isArray(filteredTests));
+  console.log("[DEBUG] safeFilteredTests:", safeFilteredTests);
 
   const handleClearSearch = useCallback(() => {
     setSearchInput("");
@@ -469,7 +483,7 @@ export default function DashboardTestsPage() {
               Check your connection and refresh.
             </p>
           </div>
-        ) : filteredTests.length === 0 ? (
+        ) : safeFilteredTests.length === 0 ? (
           <div className="flex flex-col items-center py-16 text-center">
             <BookOpenIcon className="h-10 w-10 text-slate-300 dark:text-slate-600 mb-3" />
             <h3 className="text-base font-semibold text-slate-700 dark:text-slate-300 mb-1">
@@ -495,17 +509,17 @@ export default function DashboardTestsPage() {
         ) : (
           <>
             <p className="text-xs text-slate-400 dark:text-slate-500">
-              {filteredTests.length} test{filteredTests.length !== 1 ? "s" : ""}{" "}
-              found
+              {safeFilteredTests.length} test
+              {safeFilteredTests.length !== 1 ? "s" : ""} found
             </p>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredTests.map((test) => (
+              {safeFilteredTests.map((test: Test) => (
                 <TestCard key={test.id} test={test} attempts={attempts} />
               ))}
             </div>
 
             {/* Pagination */}
-            {(filteredTests.length === LIMIT || page > 1) && (
+            {(safeFilteredTests.length === LIMIT || page > 1) && (
               <div className="flex items-center justify-center gap-3 pt-2">
                 <Button
                   variant="outline"
