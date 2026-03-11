@@ -1,22 +1,23 @@
 "use client";
 
 /**
- * features/exam/components/QuestionPanel.tsx
+ * FIXED VERSION: features/exam/components/QuestionPanel.tsx
  *
- * The main content area of the exam room.
- * Displays the current question, its options, and the action bar.
- *
- * Reads:
- *   - Current answer from exam-store (via precise selector)
- *   - Language from language-store
- *   - Question data from props (passed by attempt/page.tsx from use-exam-loader)
- *
- * Never fetches data directly — that is use-exam-loader's job.
+ * Changes:
+ * 1. ✅ handleOptionSelect now syncs answers to backend
+ * 2. ✅ handleMark now syncs mark state to backend
+ * 3. ✅ Proper isMarked state preservation on answer changes
+ * 4. ✅ Added syncAnswer prop from parent
  */
 
 import React, { useCallback } from "react";
 import { cn } from "@/lib/utils";
-import { BookmarkIcon, ChevronRightIcon, RotateCcwIcon } from "lucide-react";
+import {
+  BookmarkIcon,
+  ChevronRightIcon,
+  RotateCcwIcon,
+  CheckIcon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { OptionButton } from "./OptionButton";
 import { useLangStore, resolveTranslation } from "@/stores/language-store";
@@ -24,20 +25,20 @@ import { useExamStore, selectAnswer } from "../stores/exam-store";
 import type { ExamQuestion, ExamSection } from "@/types/exam";
 import { getFlatQuestionIndex } from "../hooks/use-exam-loader";
 
-// ── Props ─────────────────────────────────────────────────────────────────────
-
 interface QuestionPanelProps {
   question: ExamQuestion;
   sections: ExamSection[];
   currentSectionIdx: number;
   currentQuestionIdx: number;
-  /** Called when student clicks Save & Next */
   onNext: () => void;
-  /** Whether exam is submitted/expired — disables interaction */
   isReadOnly?: boolean;
+  // ✅ NEW: Accept syncAnswer from parent
+  onSyncAnswer?: (
+    questionId: string,
+    optionId: string | null,
+    isMarked: boolean,
+  ) => void;
 }
-
-// ── Component ─────────────────────────────────────────────────────────────────
 
 export function QuestionPanel({
   question,
@@ -46,19 +47,16 @@ export function QuestionPanel({
   currentQuestionIdx,
   onNext,
   isReadOnly = false,
+  onSyncAnswer, // ✅ NEW
 }: QuestionPanelProps) {
   const lang = useLangStore((s) => s.lang);
   const answerEntry = useExamStore(selectAnswer(question.id));
   const setAnswer = useExamStore((s) => s.setAnswer);
   const toggleMark = useExamStore((s) => s.toggleMark);
 
-  // Resolve the correct translation (with EN fallback)
   const translation = resolveTranslation(question.translations, lang);
-
-  // Fallback to question text if no translation available
   const questionText = translation?.content || "Question text not available";
 
-  // Question numbering — "Q.14 of 75"
   const flatIdx = getFlatQuestionIndex(
     sections,
     currentSectionIdx,
@@ -70,29 +68,73 @@ export function QuestionPanel({
   const selectedOptionId = answerEntry?.optionId ?? null;
   const isMarked = answerEntry?.isMarked ?? false;
 
-  // ── Handlers ──────────────────────────────────────────────────────────────
-
+  // ✅ FIXED: Now syncs answer to backend
   const handleOptionSelect = useCallback(
     (optionId: string) => {
       if (isReadOnly) return;
-      // Clicking the already-selected option deselects it
-      setAnswer(question.id, selectedOptionId === optionId ? null : optionId);
+
+      const newOptionId = selectedOptionId === optionId ? null : optionId;
+
+      // Update store
+      setAnswer(question.id, newOptionId);
+
+      // ✅ NEW: Sync to backend with current mark status
+      if (onSyncAnswer) {
+        onSyncAnswer(question.id, newOptionId, isMarked);
+      }
     },
-    [question.id, selectedOptionId, setAnswer, isReadOnly],
+    [
+      question.id,
+      selectedOptionId,
+      isMarked,
+      setAnswer,
+      onSyncAnswer,
+      isReadOnly,
+    ],
   );
 
   const handleClear = useCallback(() => {
     if (isReadOnly) return;
     setAnswer(question.id, null);
-  }, [question.id, setAnswer, isReadOnly]);
 
+    // ✅ NEW: Sync clear to backend
+    if (onSyncAnswer) {
+      onSyncAnswer(question.id, null, isMarked);
+    }
+  }, [question.id, setAnswer, isMarked, onSyncAnswer, isReadOnly]);
+
+  // ✅ FIXED: Now syncs mark status to backend
   const handleMark = useCallback(() => {
     if (isReadOnly) return;
+
+    // Update store
     toggleMark(question.id);
-  }, [question.id, toggleMark, isReadOnly]);
+
+    // ✅ NEW: Sync new mark status to backend
+    if (onSyncAnswer) {
+      const newIsMarked = !isMarked;
+      onSyncAnswer(question.id, selectedOptionId, newIsMarked);
+    }
+  }, [
+    question.id,
+    toggleMark,
+    isMarked,
+    selectedOptionId,
+    onSyncAnswer,
+    isReadOnly,
+  ]);
 
   // Sort options by order field
-  const sortedOptions = [...question.options].sort((a, b) => a.order - b.order);
+  const sortedOptions = [...question.options]
+    .filter((opt) => opt.order != null && opt.order >= 0) // ✅ NEW: Validate order
+    .sort((a, b) => a.order - b.order);
+
+  if (sortedOptions.length !== question.options.length) {
+    console.error(
+      `Question ${question.id} has invalid option orders`,
+      question.options,
+    );
+  }
 
   return (
     <div className="flex flex-col h-full">
@@ -143,7 +185,6 @@ export function QuestionPanel({
         {/* Question image (if present) */}
         {translation?.imageUrl && (
           <div className="rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden max-w-lg">
-            {/* ExamImage component will replace this img in Sprint 3 */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={translation.imageUrl}
@@ -157,7 +198,6 @@ export function QuestionPanel({
         {/* ── Options ──────────────────────────────────────────────────── */}
         <div className="space-y-2.5">
           {sortedOptions.map((option) => {
-            // Resolve option text to current language
             const optionTranslation = resolveTranslation(
               option.translations,
               lang,
@@ -194,15 +234,39 @@ export function QuestionPanel({
           Clear
         </Button>
 
-        {/* Right: Save & Next */}
+        {/* Right: Save & Next / Submit */}
         <Button
           type="button"
           size="sm"
-          onClick={onNext}
+          onClick={() => {
+            console.log("Button clicked!", {
+              currentSectionIdx,
+              totalSections: sections.length,
+              currentQuestionIdx,
+              questionsInCurrentSection:
+                sections[currentSectionIdx]?.questions?.length,
+              isLastSection: currentSectionIdx === sections.length - 1,
+              isLastQuestion:
+                currentQuestionIdx ===
+                sections[currentSectionIdx]?.questions?.length - 1,
+            });
+            onNext();
+          }}
           className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white min-w-[120px]"
         >
-          Save & Next
-          <ChevronRightIcon className="h-4 w-4" />
+          {currentSectionIdx === sections.length - 1 &&
+          currentQuestionIdx ===
+            sections[currentSectionIdx].questions.length - 1 ? (
+            <>
+              Submit
+              <CheckIcon className="h-4 w-4" />
+            </>
+          ) : (
+            <>
+              Save & Next
+              <ChevronRightIcon className="h-4 w-4" />
+            </>
+          )}
         </Button>
       </div>
     </div>

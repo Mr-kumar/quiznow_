@@ -30,5 +30,7 @@ export const adminAuditLogsApi = {
       params: { page, limit },
     }),
   cleanup: (daysOld = 90) =>
-    api.post<ApiResponse<void>>("/admin/audit-logs/cleanup", { daysOld }),
+    api.delete<ApiResponse<{ deleted: number }>>("/admin/audit-logs/cleanup", {
+      data: { daysOld },
+    }),
 };

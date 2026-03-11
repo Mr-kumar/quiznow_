@@ -63,7 +63,11 @@ export class AttemptsController {
   saveAnswer(
     @Param('id') id: string,
     @Body()
-    body: { questionId: string; optionId: string; isMarkedForReview?: boolean },
+    body: {
+      questionId: string;
+      optionId: string | null;
+      isMarkedForReview?: boolean;
+    },
     @Request() req: any,
   ) {
     const userId = req.user.userId;
@@ -84,7 +88,7 @@ export class AttemptsController {
     body: {
       answers: Array<{
         questionId: string;
-        optionId: string;
+        optionId: string | null;
         isMarkedForReview?: boolean;
       }>;
     },

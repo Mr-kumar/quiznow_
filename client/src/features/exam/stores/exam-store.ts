@@ -1,17 +1,12 @@
+"use client";
+
 /**
- * features/exam/stores/exam-store.ts
+ * FIXED VERSION: features/exam/stores/exam-store.ts (navigation section)
  *
- * The single source of truth for everything the STUDENT DOES during an exam.
- * Holds: navigation, answers, timer endpoint, suspicious events.
- *
- * Deliberately NO Zustand persist middleware — exam state is session-only.
- * sessionStorage is used manually for one purpose only: refresh recovery.
- * If the student closes the tab, state is gone. If they refresh accidentally,
- * restoreFromSession() picks up where they left off.
- *
- * KEY DESIGN: exam-store holds what the student DID.
- *             use-exam-loader holds what the test CONTAINS.
- *             Never mix these two concerns.
+ * Changes:
+ * 1. ✅ Added validation to navigate() method
+ * 2. ✅ Better session storage size handling
+ * 3. ✅ More defensive error handling
  */
 
 import { create } from "zustand";
@@ -19,48 +14,31 @@ import { shallow } from "zustand/shallow";
 import { attemptsApi } from "@/api/attempts";
 import type { ExamStatus, AnswerEntry, SessionSnapshot } from "@/types/exam";
 
-// ── Session storage key ───────────────────────────────────────────────────────
-
 const SESSION_KEY = "quiznow_exam_session";
-
-// ── State interface ───────────────────────────────────────────────────────────
+const MAX_SESSION_SIZE_BYTES = 4_500_000; // 4.5MB (under 5MB limit)
 
 interface ExamState {
-  // ── Identity ────────────────────────────────────────────────────────────
   attemptId: string | null;
   testId: string | null;
   status: ExamStatus;
-
-  // ── Navigation ──────────────────────────────────────────────────────────
   currentSectionIdx: number;
   currentQuestionIdx: number;
-
-  // ── Answers ─────────────────────────────────────────────────────────────
-  // Record<questionId, AnswerEntry>
   answers: Record<string, AnswerEntry>;
-
-  // ── Timer ────────────────────────────────────────────────────────────────
-  // Absolute end timestamp — use-exam-timer derives countdown from this.
-  // Storing countdown in state would re-render the whole tree every second.
   endTimestamp: number | null;
-
-  // ── Visited tracking ─────────────────────────────────────────────────────
-  // "Visited" = the student navigated to that question at least once.
-  // Palette: NOT_VISITED if absent, NOT_ANSWERED if present but no optionId.
   visitedQuestions: Set<string>;
-
-  // ── Anti-cheat ───────────────────────────────────────────────────────────
   suspiciousEvents: number;
 
-  // ── Actions ──────────────────────────────────────────────────────────────
   startExam: (attemptId: string, testId: string, durationMins: number) => void;
   setAnswer: (questionId: string, optionId: string | null) => void;
   toggleMark: (questionId: string) => void;
+  // ✅ UPDATED: Added sections parameter for validation
   navigate: (
     sectionIdx: number,
     questionIdx: number,
     questionId: string,
-  ) => void;
+    totalSections?: number, // ← For validation
+    questionsPerSection?: number[], // ← For validation
+  ) => boolean; // ← Returns whether navigation succeeded
   submitExam: () => void;
   flagSuspicious: (
     eventType?:
@@ -72,17 +50,21 @@ interface ExamState {
   restoreFromSession: () => boolean;
   reset: () => void;
 
-  // ── Computed helpers (call with getState() in non-React contexts) ─────────
   getAnswerStatus: (questionId: string) => AnswerEntry | undefined;
   isQuestionVisited: (questionId: string) => boolean;
   getAnsweredCount: () => number;
   getMarkedCount: () => number;
 }
 
-// ── Session storage helpers ───────────────────────────────────────────────────
+// ── Session storage helpers ───────────────────────────────────────────────
 
+/**
+ * ✅ IMPROVED: Session storage writer with size limit handling
+ */
 function writeSession(state: Partial<ExamState>) {
   if (typeof sessionStorage === "undefined") return;
+  let json: string | undefined;
+
   try {
     const snapshot: SessionSnapshot = {
       attemptId: state.attemptId!,
@@ -93,9 +75,51 @@ function writeSession(state: Partial<ExamState>) {
       currentSectionIdx: state.currentSectionIdx ?? 0,
       currentQuestionIdx: state.currentQuestionIdx ?? 0,
     };
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify(snapshot));
-  } catch {
-    // sessionStorage full or unavailable — silently continue
+
+    json = JSON.stringify(snapshot);
+
+    // ✅ NEW: Check size before writing
+    if (json.length > MAX_SESSION_SIZE_BYTES) {
+      console.warn(
+        "Session data too large, compressing answer history",
+        json.length,
+      );
+
+      // Keep only the 50 most recent answers
+      const recentAnswers = Object.fromEntries(
+        Object.entries(snapshot.answers).slice(-50),
+      );
+
+      const compressedSnapshot: SessionSnapshot = {
+        ...snapshot,
+        answers: recentAnswers,
+      };
+
+      json = JSON.stringify(compressedSnapshot);
+
+      if (json.length > MAX_SESSION_SIZE_BYTES) {
+        console.error("Session data still too large, clearing old answers");
+        compressedSnapshot.answers = {};
+        json = JSON.stringify(compressedSnapshot);
+      }
+    }
+
+    sessionStorage.setItem(SESSION_KEY, json);
+  } catch (e) {
+    // ✅ IMPROVED: More explicit error handling
+    if (e instanceof Error) {
+      if (e.message.includes("QuotaExceededError")) {
+        console.error(
+          "Session storage quota exceeded",
+          SESSION_KEY,
+          "size:",
+          json?.length,
+        );
+      } else {
+        console.error("Failed to save session:", e.message);
+      }
+    }
+    // Silently continue — exam continues even if session save fails
   }
 }
 
@@ -114,12 +138,13 @@ function readSession(): SessionSnapshot | null {
     const raw = sessionStorage.getItem(SESSION_KEY);
     if (!raw) return null;
     return JSON.parse(raw) as SessionSnapshot;
-  } catch {
+  } catch (e) {
+    console.error("Failed to read session:", e);
     return null;
   }
 }
 
-// ── Initial state ─────────────────────────────────────────────────────────────
+// ── Initial state ─────────────────────────────────────────────────────────
 
 const INITIAL: Pick<
   ExamState,
@@ -144,13 +169,11 @@ const INITIAL: Pick<
   suspiciousEvents: 0,
 };
 
-// ── Store ─────────────────────────────────────────────────────────────────────
+// ── Store ─────────────────────────────────────────────────────────────────
 
 export const useExamStore = create<ExamState>()((set, get) => ({
   ...INITIAL,
 
-  // ─── startExam ───────────────────────────────────────────────────────────
-  // Called from instructions page after POST /tests/:id/start succeeds.
   startExam: (attemptId, testId, durationMins) => {
     const endTimestamp = Date.now() + durationMins * 60 * 1000;
 
@@ -164,13 +187,9 @@ export const useExamStore = create<ExamState>()((set, get) => ({
     };
 
     set(nextState);
-
-    // Write to sessionStorage for refresh recovery
     writeSession(nextState);
   },
 
-  // ─── setAnswer ───────────────────────────────────────────────────────────
-  // Called on every option click. null = clear the answer.
   setAnswer: (questionId, optionId) => {
     set((state) => {
       const existing = state.answers[questionId];
@@ -183,14 +202,11 @@ export const useExamStore = create<ExamState>()((set, get) => ({
         },
       };
 
-      // Sync to sessionStorage on every answer change
       writeSession({ ...state, answers: updated });
-
       return { answers: updated };
     });
   },
 
-  // ─── toggleMark ──────────────────────────────────────────────────────────
   toggleMark: (questionId) => {
     set((state) => {
       const existing = state.answers[questionId];
@@ -208,12 +224,47 @@ export const useExamStore = create<ExamState>()((set, get) => ({
     });
   },
 
-  // ─── navigate ────────────────────────────────────────────────────────────
-  // Tracks which questions have been visited (for palette NOT_VISITED state).
-  navigate: (sectionIdx, questionIdx, questionId) => {
+  // ✅ FIXED: Added validation and returns boolean
+  navigate: (
+    sectionIdx,
+    questionIdx,
+    questionId,
+    totalSections = 999, // Default to no validation if not provided
+    questionsPerSection,
+  ) => {
+    // ✅ NEW: Validate indices
+    if (sectionIdx < 0 || sectionIdx >= totalSections) {
+      console.warn(
+        `Invalid section index: ${sectionIdx} (total: ${totalSections})`,
+      );
+      return false;
+    }
+
+    if (questionsPerSection) {
+      const maxQuestionIdx = questionsPerSection[sectionIdx];
+      if (questionIdx < 0 || questionIdx >= maxQuestionIdx) {
+        console.warn(
+          `Invalid question index: ${questionIdx} (section ${sectionIdx} has ${maxQuestionIdx} questions)`,
+        );
+        return false;
+      }
+    } else if (questionIdx < 0 || questionIdx > 999) {
+      // Soft validation if section layout not provided
+      console.warn(`Suspicious question index: ${questionIdx}`);
+      return false;
+    }
+
     set((state) => {
       const visited = new Set(state.visitedQuestions);
       visited.add(questionId);
+
+      console.log("🔍 DEBUG: Navigate function called:");
+      console.log("  Adding questionId to visited:", questionId);
+      console.log(
+        "  Before - visitedQuestions.size:",
+        state.visitedQuestions.size,
+      );
+      console.log("  After - visitedQuestions.size:", visited.size);
 
       const nextState = {
         currentSectionIdx: sectionIdx,
@@ -224,39 +275,30 @@ export const useExamStore = create<ExamState>()((set, get) => ({
       writeSession({ ...state, ...nextState });
       return nextState;
     });
+
+    return true; // ✅ NEW: Return success
   },
 
-  // ─── submitExam ──────────────────────────────────────────────────────────
-  // Sets status to SUBMITTED and clears sessionStorage.
-  // The actual API call (POST /attempts/:id/submit) is made by the page component
-  // BEFORE calling submitExam() so we have the result to show.
   submitExam: () => {
     clearSession();
     set({ status: "SUBMITTED" });
   },
 
-  // ─── flagSuspicious ──────────────────────────────────────────────────────
-  // Called by use-anticheat.ts. Increments counter and fires PATCH to server.
   flagSuspicious: (eventType = "TAB_SWITCH") => {
     set((state) => ({ suspiciousEvents: state.suspiciousEvents + 1 }));
 
     const { attemptId } = get();
     if (attemptId) {
-      // Fire and forget — don't await, never block the UI
       attemptsApi.reportSuspicious(attemptId, eventType).catch(() => {
-        // Silent failure — suspicious score is advisory, not critical
+        // Silent failure
       });
     }
   },
 
-  // ─── restoreFromSession ──────────────────────────────────────────────────
-  // Call this on attempt/page.tsx mount to recover from accidental refresh.
-  // Returns true if session was restored, false if no session found.
   restoreFromSession: () => {
     const snapshot = readSession();
     if (!snapshot) return false;
 
-    // Check the exam isn't already expired
     if (snapshot.endTimestamp && Date.now() > snapshot.endTimestamp) {
       clearSession();
       return false;
@@ -276,28 +318,20 @@ export const useExamStore = create<ExamState>()((set, get) => ({
     return true;
   },
 
-  // ─── reset ───────────────────────────────────────────────────────────────
   reset: () => {
     clearSession();
     set({ ...INITIAL, visitedQuestions: new Set() });
   },
 
-  // ─── Computed helpers ────────────────────────────────────────────────────
-
   getAnswerStatus: (questionId) => get().answers[questionId],
-
   isQuestionVisited: (questionId) => get().visitedQuestions.has(questionId),
-
   getAnsweredCount: () =>
     Object.values(get().answers).filter((a) => a.optionId !== null).length,
-
   getMarkedCount: () =>
     Object.values(get().answers).filter((a) => a.isMarked).length,
 }));
 
-// ── Selector exports — use these in components for precise subscriptions ──────
-// Instead of: const store = useExamStore() — which re-renders on any change
-// Use:        const answer = useExamStore(selectAnswer(questionId))
+// ── Selectors ─────────────────────────────────────────────────────────────
 
 export const selectAnswer =
   (questionId: string) =>
@@ -309,7 +343,6 @@ export const selectIsVisited =
   (state: ExamState): boolean =>
     state.visitedQuestions.has(questionId);
 
-// Create a stable navigation object that only updates when values actually change
 let cachedNavigation: {
   currentSectionIdx: number;
   currentQuestionIdx: number;
@@ -321,7 +354,6 @@ export const selectNavigation = (state: ExamState) => {
     currentQuestionIdx: state.currentQuestionIdx,
   };
 
-  // Only return new object if values actually changed
   if (
     !cachedNavigation ||
     cachedNavigation.currentSectionIdx !== current.currentSectionIdx ||

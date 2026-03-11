@@ -809,8 +809,8 @@ export class QuestionsService {
 
         let correctIndex = 0;
         if (['A', 'B', 'C', 'D'].includes(correct))
-          correctIndex = ['A', 'B', 'C', 'D'].indexOf(correct) + 1;
-        else correctIndex = parseInt(correct, 10);
+          correctIndex = ['A', 'B', 'C', 'D'].indexOf(correct);
+        else correctIndex = parseInt(correct, 10) - 1;
 
         const hash = QuestionsService.computeQuestionHash(qEn, qHi);
 
@@ -947,7 +947,7 @@ export class QuestionsService {
           (optText: string, idx: number) => ({
             questionId: createdQ.id,
             order: idx + 1,
-            isCorrect: idx + 1 === q.correctIndex,
+            isCorrect: idx === q.correctIndex,
           }),
         );
 

@@ -42,8 +42,8 @@ export class TestsService {
     TestValidator.validateMarks(
       dto.totalMarks,
       dto.passingMarks,
-      dto.negativeMarking || 1,
-      dto.negativeMarking || 0,
+      dto.positiveMark || 1.0, // ← CHANGED
+      dto.negativeMarking || 0.33, // ← FIXED: Use correct DTO field name
     );
 
     return this.prisma.$transaction(async (tx) => {
@@ -62,7 +62,8 @@ export class TestsService {
           durationMins: dto.duration,
           totalMarks: dto.totalMarks,
           passMarks: dto.passingMarks,
-          negativeMark: dto.negativeMarking,
+          positiveMark: dto.positiveMark || 1.0, // ← ADD THIS
+          negativeMark: dto.negativeMarking || 0.33, // ← UPDATE THIS: Map to schema field
           startAt: dto.startAt,
           endAt: dto.endAt,
           isActive: true,
@@ -94,8 +95,8 @@ export class TestsService {
     TestValidator.validateMarks(
       dto.totalMarks,
       dto.passingMarks,
-      dto.negativeMarking || 1,
-      dto.negativeMarking || 0,
+      dto.positiveMark || 1.0, // ← FIXED
+      dto.negativeMarking || 0.33, // ← FIXED: Use correct DTO field name
     );
 
     // Validate Series exists
@@ -112,7 +113,8 @@ export class TestsService {
         durationMins: dto.duration,
         totalMarks: dto.totalMarks,
         passMarks: dto.passingMarks,
-        negativeMark: dto.negativeMarking,
+        positiveMark: dto.positiveMark || 1.0, // ← FIXED: Use correct DTO field
+        negativeMark: dto.negativeMarking || 0.33, // ← FIXED: Map to schema field
         startAt: dto.startAt,
         endAt: dto.endAt,
         isActive: true,
@@ -400,6 +402,8 @@ export class TestsService {
 
   // 6. Get Test Sections
   async getSections(testId: string) {
+    console.log(`🔍 DEBUG: getSections called for testId: ${testId}`);
+
     const sections = await this.prisma.section.findMany({
       where: { testId },
       include: {
@@ -412,12 +416,6 @@ export class TestsService {
                   include: {
                     translations: true,
                   },
-                  select: {
-                    id: true,
-                    isCorrect: true,
-                    order: true,
-                    translations: true,
-                  },
                 },
               },
             },
@@ -428,11 +426,32 @@ export class TestsService {
       orderBy: { order: 'asc' },
     });
 
+    console.log(`🔍 DEBUG: Raw sections from DB: ${sections.length}`);
+    sections.forEach((section, idx) => {
+      console.log(
+        `  Section ${idx + 1}: ${section.name}, Questions: ${section.questions.length}`,
+      );
+      section.questions.forEach((sq, qIdx) => {
+        console.log(
+          `    Q${qIdx + 1}: ${sq.question.id} - Has translations: ${sq.question.translations.length > 0}`,
+        );
+      });
+    });
+
     // Transform the data to match expected structure
-    return sections.map((section) => ({
+    const transformed = sections.map((section) => ({
       ...section,
       questions: section.questions.map((sq) => sq.question),
     }));
+
+    console.log(`🔍 DEBUG: Transformed sections: ${transformed.length}`);
+    transformed.forEach((section, idx) => {
+      console.log(
+        `  Section ${idx + 1}: ${section.name}, Questions: ${section.questions.length}`,
+      );
+    });
+
+    return transformed;
   }
 
   // Public/Student methods

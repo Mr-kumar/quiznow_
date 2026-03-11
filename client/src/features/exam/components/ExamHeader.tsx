@@ -109,7 +109,10 @@ function ExamHeaderInner({
           <Button
             type="button"
             size="sm"
-            onClick={onSubmitClick}
+            onClick={() => {
+              console.log("🔍 DEBUG: ExamHeader submit button clicked!");
+              onSubmitClick();
+            }}
             className="gap-1.5 bg-red-600 hover:bg-red-700 text-white hidden sm:flex"
           >
             <LogOutIcon className="h-3.5 w-3.5" />
@@ -121,7 +124,10 @@ function ExamHeaderInner({
             type="button"
             variant="destructive"
             size="icon"
-            onClick={onSubmitClick}
+            onClick={() => {
+              console.log("🔍 DEBUG: ExamHeader mobile submit button clicked!");
+              onSubmitClick();
+            }}
             aria-label="Submit exam"
             className="sm:hidden h-8 w-8"
           >

@@ -53,6 +53,16 @@ export class CreateTestDto {
   negativeMarking: number;
 
   @ApiProperty({
+    example: 1.0,
+    description: 'Positive Marking (e.g., 1.0 for standard, 2.5 for bonus)',
+    required: false,
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0.1)
+  positiveMark?: number;
+
+  @ApiProperty({
     example: '2024-01-01T10:00:00Z',
     description: 'Test Start Time (Optional)',
     required: false,

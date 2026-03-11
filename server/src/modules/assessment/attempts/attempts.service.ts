@@ -702,7 +702,7 @@ export class AttemptsService {
   async saveAnswer(
     attemptId: string,
     questionId: string,
-    optionId: string,
+    optionId: string | null,
     userId: string,
     isMarkedForReview?: boolean,
   ) {
@@ -742,7 +742,7 @@ export class AttemptsService {
     attemptId: string,
     answers: Array<{
       questionId: string;
-      optionId: string;
+      optionId: string | null;
       isMarkedForReview?: boolean;
     }>,
     userId: string,

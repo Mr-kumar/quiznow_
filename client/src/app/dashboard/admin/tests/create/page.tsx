@@ -265,7 +265,7 @@ export default function CreateTestPage() {
         duration: form.duration, // server DTO: duration (not durationMins)
         totalMarks: form.totalMarks,
         passingMarks: form.passingMarks, // server DTO: passingMarks (not passMarks)
-        positiveMarking: form.positiveMark, // server DTO: positiveMarking
+        positiveMark: form.positiveMark, // Fixed: use correct DTO field name
         negativeMarking: form.negativeMark, // server DTO: negativeMarking
         testSeriesId: form.seriesId, // server DTO: testSeriesId
       });
@@ -536,7 +536,7 @@ export default function CreateTestPage() {
                   className="h-9 text-sm"
                 />
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 <NumberField
                   label="Duration (min)"
                   value={form.duration}
@@ -555,6 +555,13 @@ export default function CreateTestPage() {
                   value={form.passingMarks}
                   onChange={(v) => upd("passingMarks", v)}
                   hint="Minimum"
+                />
+                <NumberField
+                  label="Positive Mark"
+                  value={form.positiveMark}
+                  onChange={(v) => upd("positiveMark", v)}
+                  icon={Award}
+                  hint="Per correct ans"
                 />
                 <NumberField
                   label="Negative Mark"

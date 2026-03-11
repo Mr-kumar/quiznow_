@@ -5,6 +5,27 @@ import { PrismaService } from 'src/services/prisma/prisma.service';
 export class LeaderboardService {
   constructor(private prisma: PrismaService) {}
 
+  private calculateAccuracy(
+    answers: Array<{
+      optionId: string | null;
+      option: { isCorrect: boolean } | null;
+    }>,
+  ): number {
+    if (!answers || answers.length === 0) return 0;
+
+    const validAnswers = answers.filter(
+      (answer) => answer.option && answer.optionId,
+    );
+    if (validAnswers.length === 0) return 0;
+
+    const correctCount = validAnswers.filter(
+      (answer) => answer.option!.isCorrect,
+    ).length;
+    const accuracy = (correctCount / validAnswers.length) * 100;
+
+    return Math.round(accuracy * 100) / 100; // Round to 2 decimal places
+  }
+
   async getTestLeaderboard(
     testId: string,
     page: number = 1,
@@ -28,6 +49,16 @@ export class LeaderboardService {
           user: {
             select: { id: true, name: true, email: true },
           },
+          answers: {
+            select: {
+              optionId: true,
+              option: {
+                select: {
+                  isCorrect: true,
+                },
+              },
+            },
+          },
         },
         orderBy: [
           { score: 'desc' }, // Highest Score First
@@ -44,16 +75,85 @@ export class LeaderboardService {
       }),
     ]);
 
-    // Calculate ranks for the current page
-    const rankedAttempts = attempts.map((attempt, index) => ({
-      rank: skip + index + 1,
-      userId: attempt.userId,
-      user: attempt.user,
-      score: attempt.score,
-      timeTaken: attempt.timeTaken,
-      createdAt: attempt.createdAt,
-      accuracy: 0, // Would need to calculate from answers
-    }));
+    // 2. Calculate actual ranks based on scores
+    const rankedAttempts: Array<{
+      rank: number;
+      userId: string;
+      user: { id: string; name: string | null; email: string | null };
+      score: number;
+      timeTaken: number | null;
+      createdAt: Date;
+      accuracy: number;
+    }> = [];
+    let currentRank = skip + 1; // Starting rank for this page
+
+    for (let i = 0; i < attempts.length; i++) {
+      const attempt = attempts[i];
+
+      if (i === 0) {
+        // First item in page - need to check previous page for ties
+        if (skip > 0) {
+          const previousAttempt = await this.prisma.attempt.findFirst({
+            where: {
+              testId: testId,
+              status: 'SUBMITTED',
+            },
+            orderBy: [{ score: 'desc' }, { timeTaken: 'asc' }],
+            skip: skip - 1,
+            select: { score: true, timeTaken: true },
+          });
+
+          // If previous attempt has same score and time, they share the same rank
+          if (
+            previousAttempt &&
+            previousAttempt.score === attempt.score &&
+            previousAttempt.timeTaken === attempt.timeTaken
+          ) {
+            // Need to find the actual rank of this score
+            const higherOrEqualCount = await this.prisma.attempt.count({
+              where: {
+                testId: testId,
+                status: 'SUBMITTED',
+                OR: [
+                  { score: { gt: attempt.score } },
+                  {
+                    AND: [
+                      { score: attempt.score },
+                      {
+                        timeTaken: attempt.timeTaken
+                          ? { lt: attempt.timeTaken }
+                          : undefined,
+                      },
+                    ],
+                  },
+                ],
+              },
+            });
+            currentRank = higherOrEqualCount + 1;
+          }
+        }
+      } else {
+        // Check for ties with previous attempt in current page
+        const prevAttempt = attempts[i - 1];
+        if (
+          prevAttempt.score !== attempt.score ||
+          prevAttempt.timeTaken !== attempt.timeTaken
+        ) {
+          currentRank = skip + i + 1; // New score/time, update rank
+        }
+        // If tie, keep the same rank as previous
+      }
+
+      rankedAttempts.push({
+        rank: currentRank,
+        userId: attempt.userId,
+        user: attempt.user,
+        score: attempt.score,
+        timeTaken: attempt.timeTaken,
+        createdAt: attempt.createdAt,
+        accuracy: this.calculateAccuracy(attempt.answers),
+      });
+    }
 
     return {
       entries: rankedAttempts,
@@ -73,6 +173,16 @@ export class LeaderboardService {
         score: true,
         timeTaken: true,
         userId: true,
+        answers: {
+          select: {
+            optionId: true,
+            option: {
+              select: {
+                isCorrect: true,
+              },
+            },
+          },
+        },
       },
       orderBy: [{ score: 'desc' }, { timeTaken: 'asc' }],
     });
@@ -95,7 +205,7 @@ export class LeaderboardService {
       percentile: Math.round(
         ((totalParticipants - userIndex) / totalParticipants) * 100,
       ),
-      accuracy: 0, // Would need to calculate from answers
+      accuracy: this.calculateAccuracy(userAttempt.answers),
     };
   }
 }

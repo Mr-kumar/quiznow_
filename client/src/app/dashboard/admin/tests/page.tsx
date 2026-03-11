@@ -104,7 +104,7 @@ const createTestSchema = z.object({
   duration: z.number().int().min(1, "Duration must be at least 1 min"),
   totalMarks: z.number().int().min(1, "Total marks required"),
   passingMarks: z.number().int().min(0),
-  positiveMarking: z.number().min(0),
+  positiveMark: z.number().min(0), // ✅ CORRECT: positiveMark (without "ing")
   negativeMarking: z.number().min(0),
   startAt: z.string().optional(),
   endAt: z.string().optional(),
@@ -625,7 +625,7 @@ export default function TestsPage() {
       duration: 60,
       totalMarks: 100,
       passingMarks: 33,
-      positiveMarking: 4,
+      positiveMark: 4, // ✅ CORRECT: positiveMark
       negativeMarking: 0,
     },
   });
@@ -658,16 +658,17 @@ export default function TestsPage() {
   }, [createTestOpen, selected, createTestForm]);
 
   // Pre-fill edit form
+  // ✅ FIXED: All field names now match the schema exactly
   useEffect(() => {
     if (editTestTarget) {
       editTestForm.reset({
         title: editTestTarget.title,
+        testSeriesId: editTestTarget.seriesId, // ✅ FIXED: was seriesId, now testSeriesId
         duration: editTestTarget.durationMins,
         totalMarks: editTestTarget.totalMarks,
         passingMarks: editTestTarget.passMarks,
-        positiveMarking: editTestTarget.positiveMark,
+        positiveMark: editTestTarget.positiveMark, // ✅ FIXED: was positiveMarking, now positiveMark
         negativeMarking: editTestTarget.negativeMark,
-        testSeriesId: editTestTarget.seriesId,
         startAt: editTestTarget.startAt?.slice(0, 16),
         endAt: editTestTarget.endAt?.slice(0, 16),
       });
@@ -765,12 +766,13 @@ export default function TestsPage() {
     if (!editTestTarget) return;
     setSubmitting(true);
     try {
+      // ✅ FIXED: Send positiveMark (not positiveMarking)
       await adminTestsApi.update(editTestTarget.id, {
         title: values.title,
         duration: values.duration,
         totalMarks: values.totalMarks,
         passingMarks: values.passingMarks,
-        positiveMarking: values.positiveMarking,
+        positiveMark: values.positiveMark, // ✅ FIXED: correct field name
         negativeMarking: values.negativeMarking,
         startAt: values.startAt || undefined,
         endAt: values.endAt || undefined,
@@ -1292,9 +1294,10 @@ export default function TestsPage() {
               </div>
 
               <div className="grid grid-cols-2 gap-3">
+                {/* ✅ FIXED: Changed from positiveMarking to positiveMark */}
                 <FormField
                   control={createTestForm.control}
-                  name="positiveMarking"
+                  name="positiveMark"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-xs font-semibold text-slate-600 uppercase tracking-wide">
@@ -1507,9 +1510,10 @@ export default function TestsPage() {
               </div>
 
               <div className="grid grid-cols-2 gap-3">
+                {/* ✅ FIXED: Changed from positiveMarking to positiveMark */}
                 <FormField
                   control={editTestForm.control}
-                  name="positiveMarking"
+                  name="positiveMark"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-xs font-semibold text-slate-600 uppercase tracking-wide">

@@ -68,6 +68,11 @@ export function SubmitConfirmDialog({
   const answers = useExamStore((s) => s.answers);
   const visitedQuestions = useExamStore((s) => s.visitedQuestions);
 
+  // Debug dialog state
+  React.useEffect(() => {
+    console.log("🔍 DEBUG: SubmitConfirmDialog open state changed:", open);
+  }, [open]);
+
   // Compute counts live from store
   const answered = Object.values(answers).filter(
     (a) => a.optionId !== null,
@@ -78,9 +83,25 @@ export function SubmitConfirmDialog({
   const markedOnly = Object.values(answers).filter(
     (a) => a.isMarked && a.optionId === null,
   ).length;
-  const notAnswered = visitedQuestions.size - answered;
-  const notVisited = totalQuestions - visitedQuestions.size;
-  const unattempted = notAnswered + notVisited;
+
+  // ✅ FIXED: Calculate notAnswered correctly - only count visited questions that weren't answered
+  const visitedButNotAnswered = Array.from(visitedQuestions).filter(
+    (questionId) => !answers[questionId]?.optionId,
+  ).length;
+  const notVisited = Math.max(0, totalQuestions - visitedQuestions.size);
+  const unattempted = visitedButNotAnswered + notVisited;
+
+  // Debug the counts
+  console.log("🔍 DEBUG: Submit Dialog Counts:");
+  console.log("  totalQuestions (prop):", totalQuestions);
+  console.log("  visitedQuestions.size:", visitedQuestions.size);
+  console.log("  answers keys:", Object.keys(answers).length);
+  console.log("  answered:", answered);
+  console.log("  visitedButNotAnswered:", visitedButNotAnswered);
+  console.log("  notVisited:", notVisited);
+  console.log("  unattempted:", unattempted);
+  console.log("  visitedQuestions array:", Array.from(visitedQuestions));
+  console.log("  answer keys:", Object.keys(answers));
 
   const hasUnattempted = unattempted > 0;
 
@@ -117,7 +138,7 @@ export function SubmitConfirmDialog({
           />
           <StatRow
             label="Not Answered (visited)"
-            value={Math.max(notAnswered, 0)}
+            value={visitedButNotAnswered}
             color="text-red-500 dark:text-red-400"
           />
           <StatRow
@@ -153,7 +174,10 @@ export function SubmitConfirmDialog({
           </Button>
           <Button
             type="button"
-            onClick={onConfirm}
+            onClick={() => {
+              console.log("🔍 DEBUG: SubmitFinal button clicked in dialog!");
+              onConfirm();
+            }}
             disabled={isSubmitting}
             className={cn(
               "flex-1 sm:flex-none gap-2",

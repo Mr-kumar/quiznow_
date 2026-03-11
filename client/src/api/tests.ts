@@ -59,8 +59,8 @@ export interface CreateTestRequest {
   duration: number; // server DTO field name (stored as durationMins in DB)
   totalMarks: number;
   passingMarks: number; // server DTO field name (stored as passMarks in DB)
-  positiveMarking: number; // server DTO field name (stored as positiveMark in DB)
-  negativeMarking: number; // server DTO field name (stored as negativeMark in DB)
+  positiveMark?: number; // server DTO field name (stored as positiveMark in DB)
+  negativeMarking?: number; // server DTO field name (stored as negativeMark in DB)
   startAt?: string;
   endAt?: string;
 }
@@ -84,8 +84,8 @@ export interface UpdateTestRequest {
   duration?: number;
   totalMarks?: number;
   passingMarks?: number;
-  positiveMarking?: number;
-  negativeMarking?: number;
+  positiveMark?: number; // Fixed: use correct DTO field name
+  negativeMarking?: number; // Keep: matches DTO field name
   startAt?: string;
   endAt?: string;
 }
