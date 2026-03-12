@@ -43,21 +43,33 @@ export default function DashboardLayout({
 
   // Protect the route
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.push("/login");
+    if (isLoading) return;
+    
+    if (!isAuthenticated || !user) {
+      router.replace("/login");
+      return;
     }
-  }, [isAuthenticated, isLoading, router]);
 
-  // Show loading spinner while auth state is loading
-  if (isLoading) {
+    if (user.status === "SUSPENDED" || user.status === "BANNED") {
+      router.replace("/login?reason=suspended");
+      return;
+    }
+  }, [isAuthenticated, isLoading, user, router]);
+
+  // Show loading spinner while auth state is loading or redirecting
+  if (
+    isLoading ||
+    !isAuthenticated ||
+    !user ||
+    user.status === "SUSPENDED" ||
+    user.status === "BANNED"
+  ) {
     return (
       <div className="min-h-screen w-full flex items-center justify-center bg-zinc-50 dark:bg-zinc-950">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
       </div>
     );
   }
-
-  if (!user) return null; // Don't render until check is done
 
   // 🎯 ROLE-BASED NAVIGATION LINKS
   const studentLinks = [
@@ -126,7 +138,7 @@ export default function DashboardLayout({
   const links = user.role === "ADMIN" ? adminLinks : studentLinks;
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-slate-50 via-white to-zinc-50 dark:from-zinc-900 dark:via-zinc-900 dark:to-slate-900 flex">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-zinc-50 dark:from-zinc-900 dark:via-zinc-900 dark:to-slate-900 flex">
       {/* 1. Sidebar (Desktop) */}
       <aside
         className={`fixed inset-y-0 left-0 z-50 w-64 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border-r border-zinc-200/60 dark:border-zinc-800/60 transform transition-all duration-300 ease-in-out ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:relative lg:translate-x-0 shadow-xl lg:shadow-none`}
@@ -136,7 +148,7 @@ export default function DashboardLayout({
           <div className="h-16 flex items-center px-6 border-b border-zinc-200/60 dark:border-zinc-800/60 bg-linear-to-r from-blue-500/10 to-purple-500/10 dark:from-blue-500/5 dark:to-purple-500/5">
             <div className="flex items-center gap-3">
               <div
-                className={`h-8 w-8 rounded-xl ${user.role === "ADMIN" ? "bg-linear-to-br from-red-500 to-orange-600" : "bg-linear-to-br from-blue-500 to-purple-600"} flex items-center justify-center text-white font-bold text-lg shadow-lg`}
+                className={`h-8 w-8 rounded-xl ${user.role === "ADMIN" ? "bg-gradient-to-br from-red-500 to-orange-600" : "bg-gradient-to-br from-blue-500 to-purple-600"} flex items-center justify-center text-white font-bold text-lg shadow-lg`}
               >
                 {user.role === "ADMIN" ? <Shield className="h-4 w-4" /> : "Q"}
               </div>
@@ -188,7 +200,7 @@ export default function DashboardLayout({
           <div className="p-4 border-t border-zinc-200/60 dark:border-zinc-800/60 bg-linear-to-t from-zinc-50/50 to-white/50 dark:from-zinc-800/50 dark:to-zinc-900/50">
             <div className="flex items-center gap-3 mb-4 px-2">
               <div
-                className={`h-10 w-10 rounded-full ${user.role === "ADMIN" ? "bg-linear-to-br from-red-400 to-orange-600" : "bg-linear-to-br from-blue-400 to-purple-600"} flex items-center justify-center shadow-lg`}
+                className={`h-10 w-10 rounded-full ${user.role === "ADMIN" ? "bg-gradient-to-br from-red-400 to-orange-600" : "bg-gradient-to-br from-blue-400 to-purple-600"} flex items-center justify-center shadow-lg`}
               >
                 {user.role === "ADMIN" ? (
                   <Shield className="h-5 w-5 text-white" />
@@ -230,7 +242,7 @@ export default function DashboardLayout({
         {/* Mobile Header */}
         <header className="lg:hidden h-16 flex items-center justify-between px-4 border-b border-zinc-200/60 dark:border-zinc-800/60 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl">
           <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-xl bg-linear-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg shadow-lg">
+            <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg shadow-lg">
               Q
             </div>
             <span className="font-bold bg-linear-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
@@ -268,7 +280,7 @@ export default function DashboardLayout({
               <Bell className="h-5 w-5" />
               <span className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full animate-pulse"></span>
             </Button>
-            <div className="h-8 w-8 rounded-full bg-linear-to-br from-blue-400 to-purple-600 flex items-center justify-center shadow-lg">
+            <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-400 to-purple-600 flex items-center justify-center shadow-lg">
               <User className="h-4 w-4 text-white" />
             </div>
           </div>

@@ -88,7 +88,7 @@ export function StartExamButton({
         size="lg"
         onClick={handleStart}
         disabled={isDisabled || isStarting}
-        className="w-full h-13 gap-2.5 bg-blue-600 hover:bg-blue-700 text-white text-base font-semibold shadow-lg hover:shadow-xl transition-all"
+        className="w-full h-14 gap-2.5 bg-blue-600 hover:bg-blue-700 text-white text-base font-semibold shadow-lg hover:shadow-xl transition-all"
       >
         {isStarting ? (
           <>

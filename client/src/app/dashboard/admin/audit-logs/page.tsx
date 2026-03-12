@@ -245,7 +245,7 @@ export default function AuditLogsPage() {
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <div className="h-8 w-8 rounded-lg bg-linear-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-sm">
+            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-sm">
               <Shield className="h-4 w-4 text-white" />
             </div>
             <h1 className="text-lg font-bold text-slate-900 dark:text-slate-50">

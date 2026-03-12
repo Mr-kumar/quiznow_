@@ -94,19 +94,21 @@ function SeriesCard({ series, index }: { series: TestSeries; index: number }) {
   const accent = accents[index % accents.length];
 
   return (
-    <div className="group relative rounded-2xl border border-white/[0.06] bg-white/[0.02] overflow-hidden hover:border-amber-500/20 hover:bg-white/[0.04] transition-all duration-300 flex flex-col">
+    <div className="group relative rounded-2xl border border-white/6 bg-white/2 overflow-hidden hover:border-amber-500/20 hover:bg-white/4 transition-all duration-300 flex flex-col">
       {/* Top color bar */}
       <div
-        className={`h-1 w-full bg-gradient-to-r ${accent} opacity-0 group-hover:opacity-100 transition-opacity duration-500`}
+        className={`h-1 w-full bg-linear-to-r ${accent} opacity-0 group-hover:opacity-100 transition-opacity duration-500`}
       />
 
       {/* Thumbnail */}
-      <div className="h-24 relative overflow-hidden bg-white/[0.02] flex items-center justify-center">
+      <div className="h-24 relative overflow-hidden bg-white/2 flex items-center justify-center">
         <div className="absolute inset-0 opacity-10">
-          <div className={`absolute top-0 right-0 h-20 w-20 rounded-full bg-gradient-to-br ${accent} blur-xl`} />
+          <div
+            className={`absolute top-0 right-0 h-20 w-20 rounded-full bg-linear-to-br ${accent} blur-xl`}
+          />
         </div>
         <div
-          className={`relative h-12 w-12 rounded-xl bg-gradient-to-br ${accent} flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300`}
+          className={`relative h-12 w-12 rounded-xl bg-linear-to-br ${accent} flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300`}
         >
           <LayersIcon className="h-6 w-6 text-white" />
         </div>
@@ -153,7 +155,7 @@ function StatPill({
   label: string;
 }) {
   return (
-    <div className="flex items-center gap-2.5 bg-white/[0.04] border border-white/[0.06] rounded-xl px-4 py-3">
+    <div className="flex items-center gap-2.5 bg-white/4 border border-white/6 rounded-xl px-4 py-3">
       <div className="h-8 w-8 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0">
         <Icon className="h-4 w-4 text-amber-400" />
       </div>
@@ -194,30 +196,34 @@ export default async function ExamDetailPage({
   return (
     <>
       <JsonLd data={courseSchema} />
-      <div
-        className="min-h-screen bg-[#080c18] text-white"
-        style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }}
-      >
+      <div className="min-h-screen bg-[#080c18] text-white font-dm">
         <style>{`
           @import url('https://fonts.googleapis.com/css2?family=Sora:wght@700;800;900&family=DM+Sans:wght@400;500;600;700&display=swap');
           .font-sora { font-family: 'Sora', sans-serif; }
-          .grid-bg {
-            background-image: 
-              linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
-            background-size: 40px 40px;
-          }
+          .font-dm { font-family: 'DM Sans', sans-serif; }
+          @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
+          @keyframes pulse-slow { 0%,100%{opacity:0.4} 50%{opacity:0.7} }
+          @keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+          .float-1 { animation: float 6s ease-in-out infinite; }
+          .float-2 { animation: float 8s ease-in-out infinite 1s; }
+          .float-3 { animation: float 7s ease-in-out infinite 2s; }
           .glow-text {
             background: linear-gradient(135deg, #fbbf24 0%, #f97316 100%);
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
             background-clip: text;
           }
+          .grid-bg {
+            background-image: 
+              linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+          }
         `}</style>
 
         {/* ── Hero ──────────────────────────────────────────────────────────── */}
-        <div className="relative overflow-hidden border-b border-white/[0.05]">
+        <div className="relative overflow-hidden border-b border-white/5">
           <div className="absolute inset-0 grid-bg" />
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[#080c18]" />
+          <div className="absolute inset-0 bg-linear-to-b from-transparent to-[#080c18]" />
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-48 bg-amber-600/8 rounded-full blur-[80px]" />
 
           <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -241,7 +247,7 @@ export default async function ExamDetailPage({
               <div className="space-y-4 flex-1">
                 {/* Icon + Title */}
                 <div className="flex items-center gap-4">
-                  <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-xl shadow-amber-900/30 shrink-0">
+                  <div className="h-14 w-14 rounded-2xl bg-linear-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-xl shadow-amber-900/30 shrink-0">
                     <BookOpenIcon className="h-7 w-7 text-white" />
                   </div>
                   <div>
@@ -250,10 +256,7 @@ export default async function ExamDetailPage({
                         {exam.category.name}
                       </span>
                     )}
-                    <h1
-                      className="font-sora text-2xl sm:text-3xl font-black text-white leading-tight"
-                      style={{ fontFamily: "'Sora', sans-serif" }}
-                    >
+                    <h1 className="font-sora text-2xl sm:text-3xl font-black text-white leading-tight">
                       {exam.name}
                     </h1>
                   </div>
@@ -266,7 +269,11 @@ export default async function ExamDetailPage({
                     value={`${seriesList.length}`}
                     label="Test Series"
                   />
-                  <StatPill icon={BarChart3Icon} value="NTA-Style" label="Interface" />
+                  <StatPill
+                    icon={BarChart3Icon}
+                    value="NTA-Style"
+                    label="Interface"
+                  />
                   <StatPill icon={UsersIcon} value="2M+" label="Aspirants" />
                 </div>
               </div>
@@ -291,17 +298,14 @@ export default async function ExamDetailPage({
             /* Empty state */
             <div className="flex flex-col items-center py-24 text-center">
               <div className="relative h-20 w-20 mb-6">
-                <div className="h-20 w-20 rounded-2xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center">
+                <div className="h-20 w-20 rounded-2xl bg-white/3 border border-white/6 flex items-center justify-center">
                   <BookOpenIcon className="h-9 w-9 text-slate-600" />
                 </div>
                 <div className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-amber-500/20 border border-amber-500/30 flex items-center justify-center">
                   <span className="text-[10px]">🔜</span>
                 </div>
               </div>
-              <h2
-                className="font-sora text-xl font-black text-white mb-3"
-                style={{ fontFamily: "'Sora', sans-serif" }}
-              >
+              <h2 className="font-sora text-xl font-black text-white mb-3">
                 No test series yet
               </h2>
               <p className="text-sm text-slate-500 max-w-xs leading-relaxed mb-6">
@@ -344,8 +348,8 @@ export default async function ExamDetailPage({
 
           {/* ── Premium CTA ───────────────────────────────────────────────── */}
           <div className="mt-12 relative rounded-2xl overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-r from-amber-950/50 to-orange-950/30" />
-            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-500/50 to-transparent" />
+            <div className="absolute inset-0 bg-linear-to-r from-amber-950/50 to-orange-950/30" />
+            <div className="absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-amber-500/50 to-transparent" />
             <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/5 rounded-full blur-[60px]" />
 
             <div className="relative z-10 p-8 sm:p-10 flex flex-col sm:flex-row items-center justify-between gap-6">
@@ -354,19 +358,16 @@ export default async function ExamDetailPage({
                   <LockIcon className="h-3 w-3" />
                   Premium Access
                 </div>
-                <h3
-                  className="font-sora text-xl font-black text-white mb-2"
-                  style={{ fontFamily: "'Sora', sans-serif" }}
-                >
+                <h3 className="font-sora text-xl font-black text-white mb-2">
                   Unlock all premium {exam.name} series
                 </h3>
                 <p className="text-sm text-slate-500 max-w-sm">
-                  Unlimited access to {exam.name} and 30+ exam categories.
-                  PDF solutions, video explanations included.
+                  Unlimited access to {exam.name} and 30+ exam categories. PDF
+                  solutions, video explanations included.
                 </p>
               </div>
               <Link href="/plans" className="shrink-0">
-                <Button className="bg-gradient-to-r from-amber-500 to-orange-500 text-[#080c18] font-black gap-2 h-12 px-8 rounded-xl hover:from-amber-400 hover:to-orange-400 shadow-lg shadow-amber-900/30 border-0 whitespace-nowrap">
+                <Button className="bg-linear-to-r from-amber-500 to-orange-500 text-[#080c18] font-black gap-2 h-12 px-8 rounded-xl hover:from-amber-400 hover:to-orange-400 shadow-lg shadow-amber-900/30 border-0 whitespace-nowrap">
                   View Plans
                   <ArrowRightIcon className="h-4 w-4" />
                 </Button>

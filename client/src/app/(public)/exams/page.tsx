@@ -2,7 +2,7 @@
  * app/(public)/exams/page.tsx
  *
  * Browse all available exam series / test series.
- * Dark-first · Amber accent · Sora + DM Sans typography
+ * Modern clean design with shadcn components
  *
  * URL: /exams?category=upsc&q=mock
  */
@@ -19,9 +19,23 @@ import {
   PlayCircleIcon,
   SparklesIcon,
   FilterIcon,
+  TrendingUpIcon,
+  UsersIcon,
+  ClockIcon,
+  TargetIcon,
+  StarIcon,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import { ExamSearchBar } from "@/app/(public)/exams/ExamSearchBar";
 
 // ── Metadata ──────────────────────────────────────────────────────────────────
@@ -52,7 +66,7 @@ interface TestSeries {
 
 async function getExamSeries(
   category?: string,
-  q?: string
+  q?: string,
 ): Promise<TestSeries[]> {
   try {
     const params = new URLSearchParams();
@@ -61,7 +75,7 @@ async function getExamSeries(
 
     const res = await fetch(
       `${process.env.NEXT_PUBLIC_API_URL}/public/test-series?${params.toString()}&limit=24`,
-      { next: { revalidate: 300 } }
+      { next: { revalidate: 300 } },
     );
 
     if (!res.ok) throw new Error("API error");
@@ -91,15 +105,18 @@ const CATEGORIES = [
 const LEVEL_CONFIG = {
   BEGINNER: {
     label: "Beginner",
-    className: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+    variant: "default" as const,
+    className: "bg-green-100 text-green-800 border-green-200",
   },
   INTERMEDIATE: {
     label: "Intermediate",
-    className: "bg-amber-500/10 text-amber-400 border-amber-500/20",
+    variant: "secondary" as const,
+    className: "bg-amber-100 text-amber-800 border-amber-200",
   },
   ADVANCED: {
     label: "Advanced",
-    className: "bg-rose-500/10 text-rose-400 border-rose-500/20",
+    variant: "destructive" as const,
+    className: "bg-red-100 text-red-800 border-red-200",
   },
 };
 
@@ -109,85 +126,77 @@ function SeriesCard({ series }: { series: TestSeries }) {
   const level = LEVEL_CONFIG[series.level ?? "BEGINNER"];
 
   return (
-    <div className="group relative rounded-2xl border border-white/[0.06] bg-white/[0.02] overflow-hidden hover:border-amber-500/20 hover:bg-white/[0.04] transition-all duration-300 flex flex-col">
-      {/* Top color bar */}
-      <div className="h-1 w-full bg-gradient-to-r from-amber-500/0 via-amber-500/0 to-amber-500/0 group-hover:from-amber-500/60 group-hover:via-orange-500/60 group-hover:to-amber-500/60 transition-all duration-500" />
-
-      {/* Thumbnail area */}
-      <div className="h-28 relative overflow-hidden bg-gradient-to-br from-white/[0.03] to-white/[0.01] flex items-center justify-center">
-        {/* Abstract background pattern */}
-        <div className="absolute inset-0 opacity-20">
-          <div className="absolute top-2 right-2 h-20 w-20 rounded-full bg-amber-500/20 blur-xl" />
-          <div className="absolute bottom-0 left-4 h-16 w-16 rounded-full bg-orange-500/20 blur-xl" />
-        </div>
-        <div className="relative h-14 w-14 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-xl shadow-amber-900/30 group-hover:scale-110 transition-transform duration-300">
-          <BookOpenIcon className="h-7 w-7 text-white" />
-        </div>
-        {series.isPremium && (
-          <div className="absolute top-3 right-3 flex items-center gap-1 bg-amber-500/15 border border-amber-500/20 rounded-full px-2 py-0.5">
-            <LockIcon className="h-2.5 w-2.5 text-amber-400" />
-            <span className="text-[9px] font-bold text-amber-400 uppercase tracking-wider">
-              Premium
-            </span>
+    <Card className="group hover:shadow-lg transition-all duration-300 cursor-pointer hover:-translate-y-1">
+      {/* Header */}
+      <CardHeader className="pb-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="h-12 w-12 rounded-xl bg-linear-to-br from-primary to-primary/80 flex items-center justify-center text-white group-hover:scale-110 transition-transform duration-300">
+            <BookOpenIcon className="h-6 w-6" />
           </div>
-        )}
-      </div>
+          {series.isPremium && (
+            <Badge variant="secondary" className="gap-1">
+              <LockIcon className="h-3 w-3" />
+              Premium
+            </Badge>
+          )}
+        </div>
+      </CardHeader>
 
-      <div className="p-4 flex-1 flex flex-col gap-3">
+      <CardContent className="space-y-4">
         {/* Title */}
         <div>
-          <h3 className="text-sm font-bold text-white leading-tight mb-1">
+          <CardTitle className="text-lg leading-tight mb-2">
             {series.title}
-          </h3>
-          <p className="text-[11px] text-slate-500 font-medium">
+          </CardTitle>
+          <CardDescription className="text-sm">
             {series.examName}
-          </p>
+          </CardDescription>
         </div>
 
-        {/* Meta row */}
+        {/* Meta */}
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="flex items-center gap-1 text-[11px] text-slate-500">
-            <BookOpenIcon className="h-3 w-3" />
+          <div className="flex items-center gap-1 text-sm text-muted-foreground">
+            <BookOpenIcon className="h-4 w-4" />
             <span>{series.testCount} tests</span>
-          </span>
+          </div>
           {series.freeTestCount > 0 && (
-            <span className="text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-md">
+            <Badge
+              variant="outline"
+              className="text-green-600 border-green-200"
+            >
               {series.freeTestCount} free
-            </span>
+            </Badge>
           )}
-          <span
-            className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${level.className}`}
-          >
+          <Badge variant={level.variant} className={level.className}>
             {level.label}
-          </span>
+          </Badge>
         </div>
 
         {/* Description */}
-        <p className="text-[11px] text-slate-600 line-clamp-2 leading-relaxed flex-1">
+        <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
           {series.description}
         </p>
+      </CardContent>
 
-        {/* CTA */}
-        <Link href={`/series/${series.id}`} className="mt-auto">
-          <Button
-            size="sm"
-            className={`w-full gap-1.5 h-9 text-xs font-bold rounded-xl transition-all ${
-              series.isPremium
-                ? "bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500 hover:text-[#080c18] hover:border-amber-500"
-                : "bg-white/5 text-white border border-white/10 hover:bg-amber-500 hover:text-[#080c18] hover:border-amber-500"
-            }`}
-          >
+      <CardFooter className="pt-0">
+        <Link href={`/series/${series.id}`} className="w-full">
+          <Button className="w-full gap-2">
             {series.isPremium ? (
-              <LockIcon className="h-3 w-3" />
+              <>
+                <LockIcon className="h-4 w-4" />
+                Unlock Series
+              </>
             ) : (
-              <PlayCircleIcon className="h-3 w-3" />
+              <>
+                <PlayCircleIcon className="h-4 w-4" />
+                Start Practicing
+              </>
             )}
-            {series.isPremium ? "Unlock Series" : "Start Practicing"}
-            <ArrowRightIcon className="h-3 w-3 ml-auto" />
+            <ArrowRightIcon className="h-4 w-4" />
           </Button>
         </Link>
-      </div>
-    </div>
+      </CardFooter>
+    </Card>
   );
 }
 
@@ -196,24 +205,24 @@ function SeriesCard({ series }: { series: TestSeries }) {
 function EmptyState({ query }: { query?: string }) {
   return (
     <div className="col-span-full flex flex-col items-center py-24 text-center">
-      <div className="h-16 w-16 rounded-2xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center mb-5">
-        <SearchIcon className="h-7 w-7 text-slate-600" />
-      </div>
-      <h3 className="text-base font-bold text-slate-300 mb-2">
-        {query ? `No results for "${query}"` : "No exam series found"}
-      </h3>
-      <p className="text-sm text-slate-600 max-w-xs leading-relaxed">
-        Try a different search term or browse all exam categories above.
-      </p>
-      <Link href="/exams" className="mt-6">
-        <Button
-          variant="outline"
-          size="sm"
-          className="border-white/10 text-slate-400 hover:text-white hover:border-amber-500/30"
-        >
-          Clear filters
-        </Button>
-      </Link>
+      <Card className="max-w-md w-full">
+        <CardContent className="p-8">
+          <div className="h-16 w-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
+            <SearchIcon className="h-8 w-8 text-muted-foreground" />
+          </div>
+          <CardTitle className="text-xl mb-2">
+            {query ? `No results for "${query}"` : "No exam series found"}
+          </CardTitle>
+          <CardDescription className="mb-6">
+            Try a different search term or browse all exam categories above.
+          </CardDescription>
+          <Link href="/exams">
+            <Button variant="outline" className="w-full">
+              Clear filters
+            </Button>
+          </Link>
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -231,48 +240,31 @@ export default async function ExamsPage({ searchParams }: PageProps) {
   const activeCategory = CATEGORIES.find((c) => c.value === (category ?? ""));
 
   return (
-    <div
-      className="bg-[#080c18] min-h-screen text-white"
-      style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }}
-    >
+    <div className="min-h-screen bg-background">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Sora:wght@700;800;900&family=DM+Sans:wght@400;500;600;700&display=swap');
-        .font-sora { font-family: 'Sora', sans-serif; }
-        .grid-bg {
-          background-image: 
-            linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
-          background-size: 40px 40px;
-        }
-        .glow-text {
-          background: linear-gradient(135deg, #fbbf24 0%, #f97316 100%);
-          -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+        .font-inter { font-family: 'Inter', sans-serif; }
+        .hero-gradient {
+          background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.8) 50%, hsl(var(--accent)) 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
           background-clip: text;
         }
-        .scrollbar-hide::-webkit-scrollbar { display: none; }
-        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>
 
-      {/* ── Hero banner ───────────────────────────────────────────────────── */}
-      <div className="relative overflow-hidden border-b border-white/[0.05]">
-        <div className="absolute inset-0 grid-bg" />
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[#080c18]" />
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-40 bg-amber-600/8 rounded-full blur-[80px]" />
-
-        <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center space-y-5">
-          <div className="inline-flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs font-semibold px-4 py-2 rounded-full">
-            <SparklesIcon className="h-3.5 w-3.5 text-amber-400" />
+      {/* ── Hero Banner ───────────────────────────────────────────────────── */}
+      <section className="relative py-16 bg-muted/30">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <Badge className="mb-4 bg-primary text-primary-foreground">
+            <SparklesIcon className="h-4 w-4 mr-2" />
             1000+ Tests · NTA-Style · Bilingual · Instant Results
-          </div>
+          </Badge>
 
-          <h1
-            className="font-sora text-3xl sm:text-5xl font-black text-white"
-            style={{ fontFamily: "'Sora', sans-serif" }}
-          >
-            Browse <span className="glow-text">Exam Test Series</span>
+          <h1 className="text-4xl md:text-6xl font-bold text-foreground mb-4">
+            Browse <span className="hero-gradient">Exam Test Series</span>
           </h1>
 
-          <p className="text-slate-500 text-base max-w-lg mx-auto">
+          <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
             Find the perfect test series for your preparation. Filter by exam
             category or search directly.
           </p>
@@ -280,70 +272,77 @@ export default async function ExamsPage({ searchParams }: PageProps) {
           {/* Search bar */}
           <Suspense
             fallback={
-              <div className="max-w-xl mx-auto h-11 bg-white/[0.04] border border-white/[0.06] rounded-xl animate-pulse" />
+              <div className="max-w-xl mx-auto h-12 bg-muted rounded-xl animate-pulse" />
             }
           >
             <ExamSearchBar defaultValue={q} defaultCategory={category} />
           </Suspense>
         </div>
-      </div>
+      </section>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* ── Category pills ───────────────────────────────────────────────── */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-8 scrollbar-hide">
-          {CATEGORIES.map(({ value, label, emoji }) => {
-            const isActive =
-              (value === "" && !category) || category === value;
-            return (
-              <Link
-                key={value}
-                href={value ? `/exams?category=${value}` : "/exams"}
-                className={`shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 ${
-                  isActive
-                    ? "bg-amber-500 text-[#080c18] shadow-lg shadow-amber-900/30"
-                    : "bg-white/[0.04] border border-white/[0.06] text-slate-400 hover:text-white hover:border-amber-500/20 hover:bg-white/[0.07]"
-                }`}
-              >
-                <span>{emoji}</span>
-                {label}
-              </Link>
-            );
-          })}
+        {/* ── Category Filters ─────────────────────────────────────────────── */}
+        <div className="mb-8">
+          <div className="flex items-center gap-2 mb-4">
+            <FilterIcon className="h-5 w-5 text-muted-foreground" />
+            <h2 className="text-lg font-semibold text-foreground">
+              Filter by Category
+            </h2>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {CATEGORIES.map(({ value, label, emoji }) => {
+              const isActive =
+                (value === "" && !category) || category === value;
+              return (
+                <Button
+                  key={value}
+                  variant={isActive ? "default" : "outline"}
+                  size="sm"
+                  asChild
+                >
+                  <Link href={value ? `/exams?category=${value}` : "/exams"}>
+                    <span className="mr-2">{emoji}</span>
+                    {label}
+                  </Link>
+                </Button>
+              );
+            })}
+          </div>
         </div>
 
-        {/* ── Results info bar ──────────────────────────────────────────────── */}
+        {/* ── Results Info ─────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <p className="text-sm text-slate-500">
+          <div className="space-y-1">
+            <p className="text-sm text-muted-foreground">
               {seriesList.length > 0 ? (
                 <>
-                  <span className="text-white font-bold">
+                  <span className="font-semibold text-foreground">
                     {seriesList.length}
                   </span>{" "}
-                  series found
+                  test series found
                   {category && (
-                    <span className="text-amber-400 font-semibold">
+                    <span className="text-primary">
                       {" "}
                       in {activeCategory?.label ?? category.toUpperCase()}
                     </span>
                   )}
                   {q && (
-                    <span className="text-slate-400"> for "{q}"</span>
+                    <span className="text-muted-foreground"> for "{q}"</span>
                   )}
                 </>
               ) : (
                 "No series found"
               )}
             </p>
-          </div>
-          <div className="flex items-center gap-2 text-xs text-slate-600">
-            <BarChart3Icon className="h-3.5 w-3.5" />
-            Sorted by popularity
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <BarChart3Icon className="h-3 w-3" />
+              Sorted by popularity
+            </div>
           </div>
         </div>
 
-        {/* ── Series grid ──────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {/* ── Series Grid ─────────────────────────────────────────────────── */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {seriesList.length === 0 ? (
             <EmptyState query={q} />
           ) : (
@@ -353,36 +352,31 @@ export default async function ExamsPage({ searchParams }: PageProps) {
           )}
         </div>
 
-        {/* ── Bottom upgrade CTA ───────────────────────────────────────────── */}
+        {/* ── Premium CTA ─────────────────────────────────────────────────── */}
         {seriesList.length > 0 && (
-          <div className="mt-16 relative rounded-2xl overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-r from-amber-950/40 via-orange-950/30 to-amber-950/40" />
-            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-500/40 to-transparent" />
-            <div className="absolute inset-0 grid-bg opacity-20" />
-
-            <div className="relative z-10 p-8 sm:p-10 text-center">
-              <div className="inline-flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs font-semibold px-4 py-2 rounded-full mb-5">
-                <LockIcon className="h-3.5 w-3.5 text-amber-400" />
-                Premium Access
+          <Card className="mt-16 bg-linear-to-br from-primary/5 to-primary/10 border-primary/20">
+            <CardContent className="p-8 text-center">
+              <div className="space-y-6">
+                <Badge variant="secondary" className="gap-2">
+                  <LockIcon className="h-4 w-4" />
+                  Premium Access
+                </Badge>
+                <h3 className="text-2xl font-bold text-foreground">
+                  Want unlimited access to all test series?
+                </h3>
+                <p className="text-muted-foreground max-w-md mx-auto">
+                  Get unlimited tests, PDF solutions, video explanations, and
+                  priority support with a premium plan.
+                </p>
+                <Link href="/plans">
+                  <Button size="lg" className="gap-2">
+                    View Pricing Plans
+                    <ArrowRightIcon className="h-4 w-4" />
+                  </Button>
+                </Link>
               </div>
-              <h3
-                className="font-sora text-xl sm:text-2xl font-black text-white mb-3"
-                style={{ fontFamily: "'Sora', sans-serif" }}
-              >
-                Want unlimited access to all test series?
-              </h3>
-              <p className="text-sm text-slate-500 mb-6 max-w-md mx-auto">
-                Get unlimited tests, PDF solutions, video explanations, and
-                priority support with a premium plan.
-              </p>
-              <Link href="/plans">
-                <Button className="bg-gradient-to-r from-amber-500 to-orange-500 text-[#080c18] font-black gap-2 h-11 px-8 rounded-xl hover:from-amber-400 hover:to-orange-400 shadow-lg shadow-amber-900/30 border-0">
-                  View Pricing Plans
-                  <ArrowRightIcon className="h-4 w-4" />
-                </Button>
-              </Link>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         )}
       </div>
     </div>

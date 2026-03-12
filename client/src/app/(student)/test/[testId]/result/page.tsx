@@ -27,6 +27,7 @@
 
 import { useSearchParams, useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { format } from "date-fns";
 import {
   ArrowLeftIcon,
   BookOpenIcon,
@@ -39,6 +40,17 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { ScoreCard } from "@/features/results/components/ScoreCard";
 import { SectionBreakdown } from "@/features/results/components/SectionBreakdown";
 import { useResult } from "@/features/results/hooks/use-result";
@@ -48,38 +60,57 @@ import { cn } from "@/lib/utils";
 
 function ResultSkeleton() {
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8 space-y-5">
+    <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
       {/* Header */}
-      <div className="space-y-2">
+      <div className="space-y-3">
         <Skeleton className="h-3 w-40" />
-        <Skeleton className="h-7 w-64" />
+        <Skeleton className="h-8 w-64" />
       </div>
+
       {/* Score card */}
-      <div className="rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-        <Skeleton className="h-10 w-full" />
-        <div className="flex items-center justify-center gap-8 p-8">
-          <Skeleton className="h-36 w-36 rounded-full" />
-          <div className="space-y-3">
-            <Skeleton className="h-8 w-32" />
-            <Skeleton className="h-4 w-24" />
-            <Skeleton className="h-8 w-28 rounded-full" />
-          </div>
-        </div>
-        <div className="grid grid-cols-4 gap-3 px-4 pb-4">
-          {[1, 2, 3, 4].map((i) => (
-            <div
-              key={i}
-              className="rounded-xl border border-slate-200 dark:border-slate-700 p-4 space-y-2"
-            >
-              <Skeleton className="h-8 w-8 rounded-full mx-auto" />
-              <Skeleton className="h-5 w-12 mx-auto" />
-              <Skeleton className="h-3 w-16 mx-auto" />
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-6 w-32" />
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex items-center justify-center gap-8">
+            <Skeleton className="h-36 w-36 rounded-full" />
+            <div className="space-y-3">
+              <Skeleton className="h-8 w-32" />
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-8 w-28 rounded-full" />
             </div>
-          ))}
-        </div>
-      </div>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map((i) => (
+              <Card key={i}>
+                <CardContent className="p-4 text-center space-y-2">
+                  <Skeleton className="h-8 w-8 rounded-full mx-auto" />
+                  <Skeleton className="h-5 w-12 mx-auto" />
+                  <Skeleton className="h-3 w-16 mx-auto" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Section breakdown */}
-      <Skeleton className="h-48 w-full rounded-xl" />
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-6 w-48" />
+        </CardHeader>
+        <CardContent>
+          <Skeleton className="h-48 w-full" />
+        </CardContent>
+      </Card>
+
+      {/* Action buttons */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {[1, 2, 3].map((i) => (
+          <Skeleton key={i} className="h-11 w-full rounded" />
+        ))}
+      </div>
     </div>
   );
 }
@@ -95,37 +126,24 @@ function ResultError({
 }) {
   const router = useRouter();
   return (
-    <div className="flex items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-950 px-4">
-      <div className="max-w-md w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-8 text-center space-y-5">
-        <div className="mx-auto h-14 w-14 rounded-full bg-red-100 dark:bg-red-950 flex items-center justify-center">
-          <AlertCircleIcon className="h-7 w-7 text-red-500" />
+    <div className="flex items-center justify-center min-h-screen bg-background px-4">
+      <Card className="max-w-md w-full p-8 text-center space-y-6">
+        <div className="mx-auto h-14 w-14 rounded-full bg-destructive/10 flex items-center justify-center">
+          <AlertCircleIcon className="h-7 w-7 text-destructive" />
         </div>
-        <div className="space-y-1.5">
-          <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">
-            Could not load result
-          </h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            {message}
-          </p>
+        <div className="space-y-2">
+          <CardTitle className="text-xl">Could not load result</CardTitle>
+          <p className="text-muted-foreground">{message}</p>
         </div>
-        <div className="flex gap-2 justify-center">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onRetry}
-            className="gap-1.5"
-          >
-            <RefreshCwIcon className="h-3.5 w-3.5" /> Retry
+        <div className="flex gap-3 justify-center">
+          <Button variant="outline" onClick={onRetry} className="gap-2">
+            <RefreshCwIcon className="h-4 w-4" /> Retry
           </Button>
-          <Button
-            size="sm"
-            onClick={() => router.push("/dashboard")}
-            className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            <HomeIcon className="h-3.5 w-3.5" /> Dashboard
+          <Button onClick={() => router.push("/dashboard")} className="gap-2">
+            <HomeIcon className="h-4 w-4" /> Dashboard
           </Button>
         </div>
-      </div>
+      </Card>
     </div>
   );
 }
@@ -181,42 +199,56 @@ export default function ResultPage() {
   const shareTitle = `${result.testTitle} — Score: ${result.score}/${result.totalMarks}`;
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
-      <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
+    <div className="min-h-screen bg-background">
+      <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
         {/* ── Page header ─────────────────────────────────────────────────── */}
-        <div className="space-y-1">
+        <div className="space-y-4">
           {/* Breadcrumb */}
-          <div className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500">
-            <Link
-              href="/dashboard"
-              className="hover:text-blue-600 transition-colors"
-            >
-              Dashboard
-            </Link>
-            <span>›</span>
-            <Link
-              href={`/test/${testId}`}
-              className="hover:text-blue-600 transition-colors"
-            >
-              {result.testTitle}
-            </Link>
-            <span>›</span>
-            <span className="text-slate-600 dark:text-slate-400">Result</span>
-          </div>
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink href="/dashboard">Dashboard</BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbLink href={`/test/${testId}`}>
+                  {result.testTitle}
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage>Result</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
 
-          <div className="flex items-start justify-between gap-3">
-            <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100 leading-tight">
-              {result.testTitle}
-            </h1>
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-2">
+              <h1 className="text-3xl font-bold tracking-tight">
+                {result.testTitle}
+              </h1>
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary">
+                  Attempt #{result.attemptNumber}
+                </Badge>
+                <Badge variant="outline">
+                  {format(
+                    new Date(result.submittedAt || result.startTime),
+                    "dd MMM yyyy, HH:mm",
+                  )}
+                </Badge>
+              </div>
+            </div>
+
             {/* Share button */}
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={() => handleShare(shareTitle, shareUrl)}
-              className="shrink-0 gap-1.5"
+              className="shrink-0 gap-2"
             >
-              <Share2Icon className="h-3.5 w-3.5" />
+              <Share2Icon className="h-4 w-4" />
               Share
             </Button>
           </div>
@@ -231,53 +263,54 @@ export default function ResultPage() {
         )}
 
         {/* ── Action buttons ────────────────────────────────────────────────── */}
-        <div className={cn("grid gap-3", "grid-cols-1 sm:grid-cols-2 md:grid-cols-3")}>
-          {/* View Solutions */}
-          <Link href={solutionsUrl}>
-            <Button
-              type="button"
-              className="w-full xl:min-w-64 gap-2 bg-blue-600 hover:bg-blue-700 text-white h-11"
-            >
-              <BookOpenIcon className="h-4 w-4" />
-              Solutions &amp; Explanations
-            </Button>
-          </Link>
+        <Card>
+          <CardContent className="p-6">
+            <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
+              {/* View Solutions */}
+              <Link href={solutionsUrl}>
+                <Button type="button" className="w-full gap-2 h-12">
+                  <BookOpenIcon className="h-4 w-4" />
+                  Solutions &amp; Explanations
+                </Button>
+              </Link>
 
-          {/* View Leaderboard */}
-          <Link href={`/leaderboard/${testId}`}>
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full gap-2 h-11 border-blue-200 text-blue-700 hover:bg-blue-50 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-900/40"
-            >
-              <TrophyIcon className="h-4 w-4" />
-              View Leaderboard
-            </Button>
-          </Link>
+              {/* View Leaderboard */}
+              <Link href={`/leaderboard/${testId}`}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full gap-2 h-12"
+                >
+                  <TrophyIcon className="h-4 w-4" />
+                  View Leaderboard
+                </Button>
+              </Link>
 
-          {/* Retake */}
-          <Link href={`/test/${testId}`}>
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full gap-2 h-11 border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
-            >
-              <RefreshCwIcon className="h-4 w-4" />
-              Retake Test
-            </Button>
-          </Link>
-        </div>
+              {/* Retake */}
+              <Link href={`/test/${testId}`}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full gap-2 h-12"
+                >
+                  <RefreshCwIcon className="h-4 w-4" />
+                  Retake Test
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* ── Back to dashboard ─────────────────────────────────────────────── */}
-        <div className="flex justify-center pt-2 pb-6">
+        <div className="flex justify-center pt-4">
           <Link href="/dashboard">
             <Button
               type="button"
               variant="ghost"
               size="sm"
-              className="gap-1.5 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+              className="gap-2 text-muted-foreground hover:text-foreground"
             >
-              <ArrowLeftIcon className="h-3.5 w-3.5" />
+              <ArrowLeftIcon className="h-4 w-4" />
               Back to Dashboard
             </Button>
           </Link>

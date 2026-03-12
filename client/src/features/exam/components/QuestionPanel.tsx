@@ -127,8 +127,8 @@ export function QuestionPanel({
     optionOrders.some((o) => o == null || o < 0);
 
   if (hasInvalidOrder) {
-    throw new Error(
-      `Question ${question.id} has duplicate/invalid option orders: ${JSON.stringify(optionOrders)}`,
+    console.error(
+      `[QuestionPanel] Question ${question.id} has duplicate/invalid option orders. Rendering as-is.`,
     );
   }
 

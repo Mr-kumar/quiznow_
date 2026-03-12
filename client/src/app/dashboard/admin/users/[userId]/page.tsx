@@ -128,7 +128,7 @@ export default function DeepUserProfilePage({ params }: { params: Promise<{ user
           <CardHeader className="text-center pb-2">
             <Avatar className="h-24 w-24 mx-auto mb-4 border-4 border-background shadow-xs">
               <AvatarImage src={user.image} />
-              <AvatarFallback className="text-2xl bg-linear-to-br from-indigo-500 to-purple-600 text-white">
+              <AvatarFallback className="text-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white">
                 {user.name?.charAt(0).toUpperCase() || user.email.charAt(0).toUpperCase()}
               </AvatarFallback>
             </Avatar>
@@ -205,7 +205,7 @@ export default function DeepUserProfilePage({ params }: { params: Promise<{ user
         <div className="col-span-1 md:col-span-2 space-y-6">
           
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card className="shadow-xs bg-linear-to-br from-indigo-50 to-white dark:from-indigo-950/20 dark:to-zinc-950 border-indigo-100 dark:border-indigo-900/30">
+            <Card className="shadow-xs bg-gradient-to-br from-indigo-50 to-white dark:from-indigo-950/20 dark:to-zinc-950 border-indigo-100 dark:border-indigo-900/30">
               <CardContent className="p-4 flex flex-col gap-2">
                 <div className="flex items-center justify-between text-indigo-600 dark:text-indigo-400">
                   <span className="text-xs font-bold uppercase tracking-wider">Tests Taken</span>
@@ -215,7 +215,7 @@ export default function DeepUserProfilePage({ params }: { params: Promise<{ user
               </CardContent>
             </Card>
 
-            <Card className="shadow-xs bg-linear-to-br from-emerald-50 to-white dark:from-emerald-950/20 dark:to-zinc-950 border-emerald-100 dark:border-emerald-900/30">
+            <Card className="shadow-xs bg-gradient-to-br from-emerald-50 to-white dark:from-emerald-950/20 dark:to-zinc-950 border-emerald-100 dark:border-emerald-900/30">
               <CardContent className="p-4 flex flex-col gap-2">
                 <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400">
                   <span className="text-xs font-bold uppercase tracking-wider">Avg Score</span>
@@ -225,7 +225,7 @@ export default function DeepUserProfilePage({ params }: { params: Promise<{ user
               </CardContent>
             </Card>
 
-            <Card className="shadow-xs bg-linear-to-br from-amber-50 to-white dark:from-amber-950/20 dark:to-zinc-950 border-amber-100 dark:border-amber-900/30">
+            <Card className="shadow-xs bg-gradient-to-br from-amber-50 to-white dark:from-amber-950/20 dark:to-zinc-950 border-amber-100 dark:border-amber-900/30">
               <CardContent className="p-4 flex flex-col gap-2">
                 <div className="flex items-center justify-between text-amber-600 dark:text-amber-400">
                   <span className="text-xs font-bold uppercase tracking-wider">Avg Accuracy</span>
@@ -235,7 +235,7 @@ export default function DeepUserProfilePage({ params }: { params: Promise<{ user
               </CardContent>
             </Card>
 
-            <Card className="shadow-xs bg-linear-to-br from-violet-50 to-white dark:from-violet-950/20 dark:to-zinc-950 border-violet-100 dark:border-violet-900/30">
+            <Card className="shadow-xs bg-gradient-to-br from-violet-50 to-white dark:from-violet-950/20 dark:to-zinc-950 border-violet-100 dark:border-violet-900/30">
               <CardContent className="p-4 flex flex-col gap-2">
                 <div className="flex items-center justify-between text-violet-600 dark:text-violet-400">
                   <span className="text-xs font-bold uppercase tracking-wider">Avg Time</span>

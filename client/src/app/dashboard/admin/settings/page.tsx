@@ -1165,7 +1165,7 @@ export default function AdminSettingsPage() {
     <div className="space-y-5">
       {/* Page header */}
       <div className="flex items-center gap-2.5">
-        <div className="h-8 w-8 rounded-lg bg-linear-to-br from-slate-700 to-slate-900 dark:from-slate-600 dark:to-slate-800 flex items-center justify-center shadow-sm">
+        <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-slate-700 to-slate-900 dark:from-slate-600 dark:to-slate-800 flex items-center justify-center shadow-sm">
           <Settings className="h-4 w-4 text-white" />
         </div>
         <div>

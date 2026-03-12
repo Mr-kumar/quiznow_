@@ -42,11 +42,22 @@ import {
   AlertCircleIcon,
   FilterIcon,
   BookOpenIcon,
+  TrendingUpIcon,
+  SparkleIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import { studentTestsApi, adminCategoriesApi } from "@/api/tests";
 import { attemptsApi } from "@/api/attempts";
 import { testKeys, attemptKeys } from "@/api/query-keys";
@@ -112,166 +123,151 @@ function TestCard({ test, attempts }: TestCardProps) {
   );
 
   return (
-    <div
+    <Card
       className={cn(
-        "rounded-2xl border-2 bg-white dark:bg-slate-900 transition-all duration-200 flex flex-col",
-        live
-          ? "border-green-400 dark:border-green-600 shadow-md shadow-green-500/10"
-          : "border-slate-200 dark:border-slate-800 hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-md",
+        "transition-all duration-200 hover:shadow-lg",
+        live && "ring-2 ring-green-500 ring-offset-2",
       )}
     >
-      <div className="p-4 flex flex-col flex-1 gap-3">
-        {/* Header */}
-        <div className="space-y-1.5">
-          <div className="flex items-center gap-2 flex-wrap">
-            {live && (
-              <Badge className="bg-green-500 text-white border-transparent text-[10px] px-2 h-4 animate-pulse">
-                🔴 LIVE
-              </Badge>
-            )}
-            {cta === "locked" && (
-              <Badge
-                variant="outline"
-                className="text-amber-600 border-amber-300 dark:border-amber-700 text-[10px] px-2 h-4"
-              >
-                <LockIcon className="h-2.5 w-2.5 mr-1" />
-                Premium
-              </Badge>
-            )}
-            {cta === "resume" && (
-              <Badge
-                variant="outline"
-                className="text-blue-600 border-blue-300 dark:border-blue-700 text-[10px] px-2 h-4"
-              >
-                In Progress
-              </Badge>
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-2">
+              {live && (
+                <Badge className="bg-green-500 hover:bg-green-600 text-white text-xs gap-1 animate-pulse">
+                  <span className="h-2 w-2 bg-white rounded-full" />
+                  LIVE
+                </Badge>
+              )}
+              {cta === "locked" && (
+                <Badge variant="secondary" className="text-xs gap-1">
+                  <LockIcon className="h-3 w-3" />
+                  Premium
+                </Badge>
+              )}
+              {cta === "resume" && (
+                <Badge
+                  variant="outline"
+                  className="text-xs gap-1 border-blue-200 text-blue-600"
+                >
+                  <RotateCcwIcon className="h-3 w-3" />
+                  In Progress
+                </Badge>
+              )}
+            </div>
+            <CardTitle className="text-base leading-tight">
+              {test.title}
+            </CardTitle>
+            {test.series && (
+              <CardDescription className="text-xs">
+                {test.series.title}
+                {test.series.exam && ` · ${test.series.exam.name}`}
+              </CardDescription>
             )}
           </div>
-
-          <h3 className="text-sm font-semibold text-slate-900 dark:text-white leading-snug">
-            {test.title}
-          </h3>
-
-          {test.series && (
-            <p className="text-[11px] text-slate-400 dark:text-slate-500">
-              {test.series.title}
-              {test.series.exam && ` · ${test.series.exam.name}`}
-            </p>
-          )}
         </div>
+      </CardHeader>
 
+      <CardContent className="space-y-4">
         {/* Stats */}
-        <div className="flex items-center gap-3 flex-wrap">
-          <span className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
-            <ClockIcon className="h-3.5 w-3.5" />
+        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+          <div className="flex items-center gap-1">
+            <ClockIcon className="h-4 w-4" />
             {formatDuration(test.durationMins)}
-          </span>
-          <span className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
-            <TargetIcon className="h-3.5 w-3.5" />
+          </div>
+          <Separator orientation="vertical" className="h-4" />
+          <div className="flex items-center gap-1">
+            <TargetIcon className="h-4 w-4" />
             {test.totalMarks} marks
-          </span>
+          </div>
           {test.negativeMark > 0 && (
-            <span className="flex items-center gap-1 text-xs text-red-400">
-              <ZapIcon className="h-3 w-3" />-{test.negativeMark}
-            </span>
+            <>
+              <Separator orientation="vertical" className="h-4" />
+              <div className="flex items-center gap-1 text-red-500">
+                <ZapIcon className="h-4 w-4" />-{test.negativeMark}
+              </div>
+            </>
           )}
         </div>
 
         {/* Last score if attempted */}
         {latestAttempt && cta === "result" && (
-          <div className="rounded-lg bg-slate-50 dark:bg-slate-800 px-3 py-2 text-xs text-slate-600 dark:text-slate-400">
-            Last score:{" "}
-            <span className="font-semibold text-slate-900 dark:text-slate-100 tabular-nums">
-              {latestAttempt.score}/{latestAttempt.totalMarks}
-            </span>{" "}
-            · Accuracy:{" "}
-            <span
-              className={cn(
-                "font-semibold",
-                (latestAttempt.accuracy ?? 0) >= 70
-                  ? "text-green-600"
-                  : (latestAttempt.accuracy ?? 0) >= 40
-                    ? "text-amber-600"
-                    : "text-red-500",
-              )}
-            >
-              {latestAttempt.accuracy?.toFixed(1) ?? "—"}%
-            </span>
+          <div className="rounded-lg bg-muted p-3">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-muted-foreground">Last score</span>
+              <span className="font-semibold tabular-nums">
+                {latestAttempt.score}/{latestAttempt.totalMarks}
+              </span>
+            </div>
+            <div className="flex items-center justify-between text-xs mt-1">
+              <span className="text-muted-foreground">Accuracy</span>
+              <span
+                className={cn(
+                  "font-semibold tabular-nums",
+                  (latestAttempt.accuracy ?? 0) >= 70
+                    ? "text-green-600"
+                    : (latestAttempt.accuracy ?? 0) >= 40
+                      ? "text-amber-600"
+                      : "text-red-500",
+                )}
+              >
+                {latestAttempt.accuracy?.toFixed(1) ?? "—"}%
+              </span>
+            </div>
           </div>
         )}
+      </CardContent>
 
-        {/* CTA */}
-        <div className="mt-auto">
-          {cta === "locked" ? (
-            <Link href="/plans">
-              <Button
-                size="sm"
-                className="w-full h-8 text-xs gap-1.5 bg-amber-500 hover:bg-amber-600 text-white"
-              >
-                <LockIcon className="h-3 w-3" />
-                Unlock — View Plans
-              </Button>
-            </Link>
-          ) : cta === "resume" ? (
-            <Link
-              href={`/test/${test.id}/attempt?attemptId=${inProgressAttempt?.attemptId ?? ""}`}
-            >
-              <Button
-                size="sm"
-                className="w-full h-8 text-xs gap-1.5 bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                <RotateCcwIcon className="h-3 w-3" />
-                Resume Test
-              </Button>
-            </Link>
-          ) : cta === "result" ? (
-            <div className="flex gap-2">
-              <Link
-                href={`/test/${test.id}/result?attemptId=${latestAttempt?.attemptId ?? ""}`}
-                className="flex-1"
-              >
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="w-full h-8 text-xs gap-1.5"
-                >
-                  <BarChart2Icon className="h-3 w-3" />
-                  Result
-                </Button>
-              </Link>
-              <Link href={`/test/${test.id}`} className="flex-1">
-                <Button
-                  size="sm"
-                  className="w-full h-8 text-xs gap-1.5 bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  <RotateCcwIcon className="h-3 w-3" />
-                  Retake
-                </Button>
-              </Link>
-            </div>
-          ) : cta === "upcoming" ? (
-            <Button
-              size="sm"
-              disabled
-              className="w-full h-8 text-xs"
-              variant="outline"
-            >
-              Not started yet
+      <CardFooter className="pt-0">
+        {cta === "locked" ? (
+          <Link href="/plans" className="w-full">
+            <Button className="w-full gap-2" variant="secondary">
+              <LockIcon className="h-4 w-4" />
+              Unlock — View Plans
             </Button>
-          ) : (
-            <Link href={`/test/${test.id}`}>
-              <Button
-                size="sm"
-                className="w-full h-8 text-xs gap-1.5 bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                <PlayCircleIcon className="h-3 w-3" />
-                Start Test
+          </Link>
+        ) : cta === "resume" ? (
+          <Link
+            href={`/test/${test.id}/attempt?attemptId=${inProgressAttempt?.attemptId ?? ""}`}
+            className="w-full"
+          >
+            <Button className="w-full gap-2">
+              <RotateCcwIcon className="h-4 w-4" />
+              Resume Test
+            </Button>
+          </Link>
+        ) : cta === "result" ? (
+          <div className="flex gap-2 w-full">
+            <Link
+              href={`/test/${test.id}/result?attemptId=${latestAttempt?.attemptId ?? ""}`}
+              className="flex-1"
+            >
+              <Button variant="outline" className="w-full gap-2">
+                <BarChart2Icon className="h-4 w-4" />
+                Result
               </Button>
             </Link>
-          )}
-        </div>
-      </div>
-    </div>
+            <Link href={`/test/${test.id}`} className="flex-1">
+              <Button className="w-full gap-2">
+                <RotateCcwIcon className="h-4 w-4" />
+                Retake
+              </Button>
+            </Link>
+          </div>
+        ) : cta === "upcoming" ? (
+          <Button disabled className="w-full">
+            Not started yet
+          </Button>
+        ) : (
+          <Link href={`/test/${test.id}`} className="w-full">
+            <Button className="w-full gap-2">
+              <PlayCircleIcon className="h-4 w-4" />
+              Start Test
+            </Button>
+          </Link>
+        )}
+      </CardFooter>
+    </Card>
   );
 }
 
@@ -279,15 +275,25 @@ function TestCard({ test, attempts }: TestCardProps) {
 
 function TestCardSkeleton() {
   return (
-    <div className="rounded-2xl border-2 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 space-y-3">
-      <Skeleton className="h-4 w-3/4" />
-      <Skeleton className="h-3 w-1/2" />
-      <div className="flex gap-3">
-        <Skeleton className="h-3 w-16" />
-        <Skeleton className="h-3 w-16" />
-      </div>
-      <Skeleton className="h-8 w-full rounded-xl" />
-    </div>
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="space-y-2">
+          <Skeleton className="h-4 w-20" />
+          <Skeleton className="h-5 w-3/4" />
+          <Skeleton className="h-3 w-1/2" />
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex items-center gap-4">
+          <Skeleton className="h-4 w-16" />
+          <Skeleton className="h-4 w-16" />
+        </div>
+        <Skeleton className="h-12 w-full rounded-lg" />
+      </CardContent>
+      <CardFooter className="pt-0">
+        <Skeleton className="h-9 w-full rounded" />
+      </CardFooter>
+    </Card>
   );
 }
 
@@ -341,7 +347,7 @@ export default function DashboardTestsPage() {
       const outer = res.data as any;
       const inner = outer?.data ?? outer;
       // inner may be { data: Test[], total } or Test[] directly
-      if (inner && typeof inner === 'object' && Array.isArray(inner.data)) {
+      if (inner && typeof inner === "object" && Array.isArray(inner.data)) {
         return { tests: inner.data as Test[], total: inner.total as number };
       }
       // Fallback: direct array
@@ -383,130 +389,155 @@ export default function DashboardTestsPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pb-20">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+    <div className="min-h-screen bg-background">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-8">
         {/* ── Header ─────────────────────────────────────────────────────── */}
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-white">
-            Available Tests
-          </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-            All tests you can take right now
-          </p>
-        </div>
-
-        {/* ── Search + filter bar ─────────────────────────────────────────── */}
-        <div className="flex flex-col sm:flex-row gap-3">
-          {/* Search */}
-          <div className="relative flex-1">
-            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <Input
-              placeholder="Search tests…"
-              value={searchInput}
-              onChange={(e) => {
-                setSearchInput(e.target.value);
-                setPage(1);
-              }}
-              className="pl-9 pr-9 h-9"
-            />
-            {searchInput && (
-              <button
-                onClick={handleClearSearch}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-              >
-                <XIcon className="h-3.5 w-3.5" />
-              </button>
-            )}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">
+                Available Tests
+              </h1>
+              <p className="text-muted-foreground">
+                All tests you can take right now
+              </p>
+            </div>
+            <div className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground">
+              <TrendingUpIcon className="h-4 w-4" />
+              <span>{totalCount} tests available</span>
+            </div>
           </div>
         </div>
 
-        {/* ── Category pills ──────────────────────────────────────────────── */}
-        {categories.length > 0 && (
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
-            <FilterIcon className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-            <button
-              onClick={() => {
-                setActiveCategoryId(null);
-                setPage(1);
-              }}
-              className={cn(
-                "shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-colors",
-                activeCategoryId === null
-                  ? "bg-blue-600 text-white"
-                  : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700",
-              )}
-            >
-              All
-            </button>
-            {categories.map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => {
-                  setActiveCategoryId(cat.id);
+        {/* ── Search & Filter Bar ─────────────────────────────────────────── */}
+        <Card>
+          <CardContent className="p-6 space-y-4">
+            {/* Search */}
+            <div className="relative">
+              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search tests…"
+                value={searchInput}
+                onChange={(e) => {
+                  setSearchInput(e.target.value);
                   setPage(1);
                 }}
-                className={cn(
-                  "shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-colors",
-                  activeCategoryId === cat.id
-                    ? "bg-blue-600 text-white"
-                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700",
-                )}
-              >
-                {cat.name}
-              </button>
-            ))}
-          </div>
-        )}
+                className="pl-10 pr-10 h-11"
+              />
+              {searchInput && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleClearSearch}
+                  className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 p-0"
+                >
+                  <XIcon className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
 
-        {/* ── Grid ───────────────────────────────────────────────────────── */}
+            {/* Category Filters */}
+            {categories.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <FilterIcon className="h-4 w-4" />
+                  <span>Categories</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant={activeCategoryId === null ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => {
+                      setActiveCategoryId(null);
+                      setPage(1);
+                    }}
+                    className="gap-1"
+                  >
+                    All Categories
+                  </Button>
+                  {categories.map((cat) => (
+                    <Button
+                      key={cat.id}
+                      variant={
+                        activeCategoryId === cat.id ? "default" : "outline"
+                      }
+                      size="sm"
+                      onClick={() => {
+                        setActiveCategoryId(cat.id);
+                        setPage(1);
+                      }}
+                      className="gap-1"
+                    >
+                      {cat.name}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* ── Content Grid ───────────────────────────────────────────────────── */}
         {testsLoading ? (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {Array.from({ length: 9 }).map((_, i) => (
               <TestCardSkeleton key={i} />
             ))}
           </div>
         ) : testsError ? (
-          <div className="flex flex-col items-center py-16 text-center">
-            <AlertCircleIcon className="h-10 w-10 text-red-400 mb-3" />
-            <h3 className="text-base font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Failed to load tests
-            </h3>
-            <p className="text-sm text-slate-400 dark:text-slate-500">
-              Check your connection and refresh.
-            </p>
-          </div>
+          <Card className="p-12 text-center">
+            <div className="mx-auto h-16 w-16 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
+              <AlertCircleIcon className="h-8 w-8 text-destructive" />
+            </div>
+            <CardTitle className="text-xl mb-2">Unable to load tests</CardTitle>
+            <CardDescription className="mb-6 max-w-md mx-auto">
+              We couldn't fetch the available tests. Please check your
+              connection and try again.
+            </CardDescription>
+            <Button onClick={() => window.location.reload()} className="gap-2">
+              <RefreshCwIcon className="h-4 w-4" />
+              Try Again
+            </Button>
+          </Card>
         ) : filteredTests.length === 0 ? (
-          <div className="flex flex-col items-center py-16 text-center">
-            <BookOpenIcon className="h-10 w-10 text-slate-300 dark:text-slate-600 mb-3" />
-            <h3 className="text-base font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              No tests found
-            </h3>
-            <p className="text-sm text-slate-400 dark:text-slate-500 max-w-xs">
+          <Card className="p-12 text-center">
+            <div className="mx-auto h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-4">
+              <BookOpenIcon className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <CardTitle className="text-xl mb-2">
+              {debouncedSearch ? "No tests found" : "No tests available"}
+            </CardTitle>
+            <CardDescription className="mb-6 max-w-md mx-auto">
               {debouncedSearch
-                ? `No tests match "${debouncedSearch}". Try a different search.`
-                : "No tests available right now. Check back soon."}
-            </p>
+                ? `No tests match "${debouncedSearch}". Try a different search term.`
+                : "No tests are available right now. Check back soon for new content."}
+            </CardDescription>
             {debouncedSearch && (
               <Button
-                variant="outline"
-                size="sm"
                 onClick={handleClearSearch}
-                className="mt-4 gap-1.5"
+                variant="outline"
+                className="gap-2"
               >
-                <XIcon className="h-3.5 w-3.5" />
-                Clear search
+                <XIcon className="h-4 w-4" />
+                Clear Search
               </Button>
             )}
-          </div>
+          </Card>
         ) : (
-          <>
-            <p className="text-xs text-slate-400 dark:text-slate-500">
-              {totalCount} test{totalCount !== 1 ? "s" : ""} found
-              {filteredTests.length !== totalCount && activeCategoryId
-                ? ` · showing ${filteredTests.length} in this category`
-                : ""}
-            </p>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">
+                Showing {filteredTests.length} of {totalCount} tests
+                {activeCategoryId && ` in this category`}
+              </p>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">
+                  Page {page} of {totalPages}
+                </span>
+              </div>
+            </div>
+
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredTests.map((test: Test) => (
                 <TestCard key={test.id} test={test} attempts={attempts} />
               ))}
@@ -514,31 +545,42 @@ export default function DashboardTestsPage() {
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-center gap-3 pt-2">
+              <div className="flex items-center justify-center gap-2 pt-8">
                 <Button
                   variant="outline"
                   size="sm"
                   disabled={page === 1}
                   onClick={() => setPage((p) => p - 1)}
-                  className="h-8"
                 >
                   Previous
                 </Button>
-                <span className="text-xs text-slate-500 dark:text-slate-400 tabular-nums">
-                  Page {page} of {totalPages}
-                </span>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    const pageNum = i + 1;
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={page === pageNum ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setPage(pageNum)}
+                        className="w-8 h-8 p-0"
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
+                </div>
                 <Button
                   variant="outline"
                   size="sm"
                   disabled={page >= totalPages}
                   onClick={() => setPage((p) => p + 1)}
-                  className="h-8"
                 >
                   Next
                 </Button>
               </div>
             )}
-          </>
+          </div>
         )}
       </div>
     </div>

@@ -359,7 +359,7 @@ export default function LeaderboardPage() {
                   (e, idx) =>
                     e && (
                       <PodiumSlot
-                        key={`podium-${e.userId}`}
+                        key={`podium-${e.userId}-${e.rank || idx}`}
                         entry={e}
                         position={[2, 1, 3][idx] as 1 | 2 | 3}
                       />
@@ -398,9 +398,9 @@ export default function LeaderboardPage() {
                       </td>
                     </tr>
                   ) : (
-                    entries.map((entry) => (
+                    entries.map((entry, index) => (
                       <LeaderboardRow
-                        key={`table-${entry.userId}`}
+                        key={`table-${entry.userId}-${entry.rank || index}`}
                         entry={entry}
                         currentUserId={user?.id || null}
                       />

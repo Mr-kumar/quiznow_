@@ -161,7 +161,7 @@ export function CountdownBanner({
   return (
     <div
       className={cn(
-        "rounded-xl border border-blue-200 dark:border-blue-800 bg-linear-to-br from-blue-500 to-indigo-600 text-white dark:from-blue-950/40 dark:to-indigo-950/40",
+        "rounded-xl border border-blue-200 dark:border-blue-800 bg-gradient-to-br from-blue-500 to-indigo-600 text-white dark:from-blue-950/40 dark:to-indigo-950/40",
         "px-5 py-5",
         className,
       )}

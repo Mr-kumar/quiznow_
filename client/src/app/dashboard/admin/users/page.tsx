@@ -169,7 +169,7 @@ export default function UsersAnalyticsPage() {
           <div className="flex items-center gap-3">
             <Avatar className="h-8 w-8">
               <AvatarImage src={user.image} />
-              <AvatarFallback className="bg-linear-to-br from-blue-500 to-purple-600 text-white">
+              <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
                 {user.name?.charAt(0).toUpperCase() ||
                   user.email.charAt(0).toUpperCase()}
               </AvatarFallback>
@@ -412,7 +412,7 @@ export default function UsersAnalyticsPage() {
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card className="border-0 bg-linear-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20">
+        <Card className="border-0 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-blue-700 dark:text-blue-300">
               Total Users
@@ -425,7 +425,7 @@ export default function UsersAnalyticsPage() {
             </div>
           </CardContent>
         </Card>
-        <Card className="border-0 bg-linear-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20">
+        <Card className="border-0 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-green-700 dark:text-green-300">
               Students
@@ -438,7 +438,7 @@ export default function UsersAnalyticsPage() {
             </div>
           </CardContent>
         </Card>
-        <Card className="border-0 bg-linear-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20">
+        <Card className="border-0 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-purple-700 dark:text-purple-300">
               Instructors
@@ -451,7 +451,7 @@ export default function UsersAnalyticsPage() {
             </div>
           </CardContent>
         </Card>
-        <Card className="border-0 bg-linear-to-br from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20">
+        <Card className="border-0 bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-red-700 dark:text-red-300">
               Admins

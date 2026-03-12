@@ -186,7 +186,9 @@ export default function AttemptPage() {
   // ── Store state ──────────────────────────────────────────────────────────
   const examStatus = useExamStore(selectStatus);
   const attemptId = useExamStore(selectAttemptId);
-  const navigation = useExamStore(selectNavigation);
+  const currentSectionIdx = useExamStore((state) => state.currentSectionIdx);
+  const currentQuestionIdx = useExamStore((state) => state.currentQuestionIdx);
+  const navigation = { currentSectionIdx, currentQuestionIdx };
   const examStore = useExamStore(); // Get the full store for methods
 
   // Use store methods directly
@@ -497,7 +499,7 @@ export default function AttemptPage() {
   }
 
   // ── Derive current question ───────────────────────────────────────────────
-  const { currentSectionIdx, currentQuestionIdx } = navigation;
+  // ── Derive current question ───────────────────────────────────────────────
 
   const currentQuestion = getQuestion(
     sections,

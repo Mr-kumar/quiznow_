@@ -411,16 +411,18 @@ export default async function TestInstructionsPage({ params }: PageProps) {
             }
           >
             <StartExamButton
-              testId={testId}
+              testId={test.id}
               testTitle={test.title}
               durationMins={test.durationMins}
-              isDisabled={isUpcoming || isExpired}
+              isDisabled={(!isSubscribed && test.isPremium) || isUpcoming || isExpired}
               disabledReason={
-                isUpcoming
-                  ? "Test hasn't started yet"
+                !isSubscribed && test.isPremium
+                  ? "Requires Premium Subscription"
                   : isExpired
-                    ? "Test has ended"
-                    : undefined
+                    ? "Test Has Ended"
+                    : isUpcoming
+                      ? "Test Starts Soon"
+                      : undefined
               }
             />
           </Suspense>

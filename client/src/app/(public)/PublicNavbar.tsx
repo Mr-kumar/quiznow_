@@ -102,7 +102,12 @@ export function PublicNavbar() {
               <Link href="/login">
                 <Button
                   variant="ghost"
-                  className="hidden lg:flex text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white font-medium px-4"
+                  className={cn(
+                    pathname.startsWith("/login")
+                      ? "bg-blue-600 text-white"
+                      : "bg-linear-to-br from-slate-300 to-slate-400 dark:from-slate-600 dark:to-slate-700 text-slate-700 dark:text-slate-300",
+                    "dark:hover:text-white font-medium px-4",
+                  )}
                 >
                   Log in
                 </Button>
@@ -151,10 +156,13 @@ export function PublicNavbar() {
               Pricing Plans
             </Link>
           </div>
-          
+
           <div className="pt-2 flex flex-col gap-3">
-             <Link href="/login" className="w-full">
-              <Button variant="outline" className="w-full h-12 rounded-xl text-base font-medium">
+            <Link href="/login" className="w-full">
+              <Button
+                variant="outline"
+                className="w-full h-12 rounded-xl text-base font-medium"
+              >
                 Log in
               </Button>
             </Link>

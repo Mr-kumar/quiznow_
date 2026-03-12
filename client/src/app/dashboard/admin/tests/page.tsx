@@ -432,8 +432,8 @@ function TestCard({
           className={cn(
             "h-9 w-9 rounded-xl flex items-center justify-center shrink-0",
             test.isLive
-              ? "bg-linear-to-br from-emerald-400 to-teal-500"
-              : "bg-linear-to-br from-indigo-400 to-violet-500",
+              ? "bg-gradient-to-br from-emerald-400 to-teal-500"
+              : "bg-gradient-to-br from-indigo-400 to-violet-500",
           )}
         >
           <BookOpen className="h-4 w-4 text-white" />
@@ -921,7 +921,7 @@ export default function TestsPage() {
       <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-10">
         <div className="max-w-[1400px] mx-auto px-5 h-14 flex items-center gap-4">
           <div className="flex items-center gap-2.5">
-            <div className="h-8 w-8 rounded-lg bg-linear-to-br from-indigo-500 to-violet-600 flex items-center justify-center">
+            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center">
               <BookOpen className="h-4 w-4 text-white" />
             </div>
             <h1 className="text-sm font-bold text-slate-900 dark:text-slate-100">
@@ -1120,7 +1120,7 @@ export default function TestsPage() {
           {/* ── Empty ── */}
           {!loading && filtered.length === 0 && (
             <div className="flex flex-col items-center py-24 text-center">
-              <div className="h-16 w-16 rounded-2xl bg-linear-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700 flex items-center justify-center mb-4">
+              <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700 flex items-center justify-center mb-4">
                 <BookOpen className="h-8 w-8 text-slate-300 dark:text-slate-600" />
               </div>
               <p className="text-sm font-semibold text-slate-600 dark:text-slate-400">

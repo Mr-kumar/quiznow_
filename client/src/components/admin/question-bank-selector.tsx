@@ -547,7 +547,7 @@ export function QuestionBankSelector({
         <DialogHeader className="shrink-0 px-6 pt-5 pb-4 border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
-              <div className="h-12 w-12 rounded-full bg-linear-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg">
+              <div className="h-12 w-12 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg">
                 <Database className="h-4 w-4 text-white" />
               </div>
               <div>
@@ -739,7 +739,7 @@ export function QuestionBankSelector({
             </div>
           ) : questions.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full py-20 text-slate-400">
-              <div className="h-14 w-14 rounded-2xl bg-linear-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700 flex items-center justify-center mb-4">
+              <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700 flex items-center justify-center mb-4">
                 <BookOpen className="h-7 w-7 text-slate-400 dark:text-slate-500" />
               </div>
               <p className="text-sm font-medium">No questions found</p>

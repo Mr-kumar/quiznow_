@@ -504,7 +504,7 @@ export default function TestAssemblyPage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
-          <div className="h-10 w-10 rounded-2xl bg-linear-to-br from-indigo-500 to-violet-600 flex items-center justify-center mx-auto mb-3 shadow-lg">
+          <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center mx-auto mb-3 shadow-lg">
             <Loader2 className="h-5 w-5 text-white animate-spin" />
           </div>
           <p className="text-sm text-slate-500">Loading test…</p>
@@ -706,7 +706,7 @@ export default function TestAssemblyPage() {
           <div className="flex-1 min-w-0 space-y-4">
             {!currentSection ? (
               <div className="rounded-xl border border-dashed border-slate-200 dark:border-slate-700 py-20 flex flex-col items-center text-center">
-                <div className="h-14 w-14 rounded-2xl bg-linear-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700 flex items-center justify-center mb-4">
+                <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700 flex items-center justify-center mb-4">
                   <Layers className="h-7 w-7 text-slate-300 dark:text-slate-600" />
                 </div>
                 <p className="text-sm font-semibold text-slate-600 dark:text-slate-400 mb-1">
@@ -773,7 +773,7 @@ export default function TestAssemblyPage() {
                     onClick={() => openBankForSection(currentSection)}
                     className="flex items-center gap-3 px-4 py-3.5 rounded-xl border-2 border-dashed border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-950/10 hover:border-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/20 transition-all group text-left"
                   >
-                    <div className="h-9 w-9 rounded-xl bg-linear-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-sm shrink-0">
+                    <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-sm shrink-0">
                       <Database className="h-4 w-4 text-white" />
                     </div>
                     <div>
@@ -795,7 +795,7 @@ export default function TestAssemblyPage() {
                     }
                     className="flex items-center gap-3 px-4 py-3.5 rounded-xl border-2 border-dashed border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/10 hover:border-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 transition-all group text-left"
                   >
-                    <div className="h-9 w-9 rounded-xl bg-linear-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-sm shrink-0">
+                    <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-sm shrink-0">
                       <Upload className="h-4 w-4 text-white" />
                     </div>
                     <div>

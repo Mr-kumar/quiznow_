@@ -23,6 +23,8 @@ export interface AuthUser {
   email: string;
   name: string;
   role: "ADMIN" | "STUDENT" | "INSTRUCTOR";
+  status?: "ACTIVE" | "SUSPENDED" | "BANNED";
+  preferredLang?: "EN" | "HI";
 }
 
 interface AuthState {

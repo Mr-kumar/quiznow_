@@ -17,6 +17,9 @@
 import { useQueries } from "@tanstack/react-query";
 import api from "@/lib/api";
 import type { ExamTest, ExamSection, ExamQuestion } from "@/types/exam";
+import { useAuthStore } from "@/stores/auth-store";
+import { useLangStore } from "@/stores/language-store";
+import { useEffect } from "react";
 
 // ── Query keys ────────────────────────────────────────────────────────────────
 // Scoped under "exam" so invalidation never touches admin test cache
@@ -97,6 +100,16 @@ export function useExamLoader(testId: string | null): ExamLoaderResult {
   });
 
   const totalQuestions = questionMap.size;
+
+  // ── Hydrate Language Preference ───────────────────────────────────────────
+  const user = useAuthStore((s) => s.user);
+  const setLang = useLangStore((s) => s.setLang);
+
+  useEffect(() => {
+    if (user?.preferredLang) {
+      setLang(user.preferredLang);
+    }
+  }, [user?.preferredLang, setLang]);
 
   // Aggregate error message
   const error =

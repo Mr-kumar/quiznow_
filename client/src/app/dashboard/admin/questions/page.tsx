@@ -1795,7 +1795,7 @@ export default function QuestionsPage() {
       {/* ── Top bar ── */}
       <div className="shrink-0 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 px-5 h-14 flex items-center gap-4">
         <div className="flex items-center gap-2.5">
-          <div className="h-7 w-7 rounded-lg bg-linear-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-sm">
+          <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-sm">
             <BookOpen className="h-3.5 w-3.5 text-white" />
           </div>
           <div>
@@ -2114,7 +2114,7 @@ export default function QuestionsPage() {
 
             {!isLoading && !error && questions.length === 0 && (
               <div className="flex flex-col items-center py-24 text-center">
-                <div className="h-16 w-16 rounded-2xl bg-linear-to-br from-zinc-100 to-zinc-200 dark:from-zinc-800 dark:to-zinc-700 flex items-center justify-center mb-4">
+                <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-zinc-100 to-zinc-200 dark:from-zinc-800 dark:to-zinc-700 flex items-center justify-center mb-4">
                   <BookOpen className="h-8 w-8 text-zinc-300 dark:text-zinc-600" />
                 </div>
                 <p className="text-sm font-semibold text-zinc-600 dark:text-zinc-400">

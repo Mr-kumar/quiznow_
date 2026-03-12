@@ -32,6 +32,8 @@ import {
   RefreshCwIcon,
   Loader2Icon,
   ShieldCheckIcon,
+  SparkleIcon,
+  TrendingUpIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,6 +42,14 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { TopicAnalysis } from "@/features/results/components/TopicAnalysis";
 import { attemptsApi } from "@/api/attempts";
 import { leaderboardApi } from "@/api/leaderboard";
@@ -149,32 +159,48 @@ function ProfileStat({
   label,
   value,
   color,
+  trend,
 }: {
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
   label: string;
   value: string;
   color: string;
+  trend?: "up" | "down" | "neutral";
 }) {
   return (
-    <div className="flex flex-col items-center gap-1.5 p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
-      <div
-        className={cn(
-          "h-9 w-9 rounded-xl flex items-center justify-center",
-          color,
-        )}
-      >
-        <Icon
-          className="h-4.5 w-4.5"
-          style={{ height: "1.125rem", width: "1.125rem" }}
-        />
-      </div>
-      <span className="text-lg font-bold text-slate-900 dark:text-slate-100 tabular-nums">
-        {value}
-      </span>
-      <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 text-center leading-tight">
-        {label}
-      </span>
-    </div>
+    <Card className="text-center hover:shadow-md transition-shadow">
+      <CardContent className="p-6">
+        <div className="flex flex-col items-center gap-3">
+          <div
+            className={cn(
+              "h-12 w-12 rounded-xl flex items-center justify-center",
+              color,
+            )}
+          >
+            <Icon className="h-6 w-6 text-white" />
+          </div>
+          <div className="space-y-1">
+            <p className="text-2xl font-bold text-foreground tabular-nums">
+              {value}
+            </p>
+            <p className="text-xs text-muted-foreground font-medium">{label}</p>
+          </div>
+          {trend && (
+            <div
+              className={cn(
+                "flex items-center gap-1 text-xs",
+                trend === "up" && "text-green-600",
+                trend === "down" && "text-red-500",
+                trend === "neutral" && "text-muted-foreground",
+              )}
+            >
+              <TrendingUpIcon className="h-3 w-3" />
+              {trend === "up" ? "+8%" : trend === "down" ? "-3%" : "0%"}
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -182,23 +208,55 @@ function ProfileStat({
 
 function ProfileSkeleton() {
   return (
-    <div className="max-w-2xl mx-auto px-4 py-6 space-y-5">
-      <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5">
-        <div className="flex items-center gap-4">
-          <Skeleton className="h-16 w-16 rounded-full" />
-          <div className="space-y-2">
-            <Skeleton className="h-5 w-36" />
-            <Skeleton className="h-4 w-48" />
-            <Skeleton className="h-3.5 w-28" />
+    <div className="max-w-4xl mx-auto px-4 py-8 space-y-8">
+      {/* Profile Card */}
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-center gap-4">
+            <Skeleton className="h-16 w-16 rounded-full" />
+            <div className="space-y-2 flex-1">
+              <Skeleton className="h-6 w-48" />
+              <Skeleton className="h-4 w-64" />
+              <Skeleton className="h-3 w-32" />
+            </div>
           </div>
-        </div>
-      </div>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        </CardContent>
+      </Card>
+
+      {/* Stats Grid */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[1, 2, 3, 4].map((i) => (
-          <Skeleton key={i} className="h-24 rounded-xl" />
+          <Card key={i}>
+            <CardContent className="p-6">
+              <div className="flex flex-col items-center gap-3">
+                <Skeleton className="h-12 w-12 rounded-xl" />
+                <Skeleton className="h-8 w-12" />
+                <Skeleton className="h-3 w-16" />
+              </div>
+            </CardContent>
+          </Card>
         ))}
       </div>
-      <Skeleton className="h-64 rounded-xl" />
+
+      {/* Topic Analysis */}
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-6 w-48" />
+        </CardHeader>
+        <CardContent>
+          <Skeleton className="h-64 w-full" />
+        </CardContent>
+      </Card>
+
+      {/* Subscription */}
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-6 w-32" />
+        </CardHeader>
+        <CardContent>
+          <Skeleton className="h-20 w-full" />
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -239,22 +297,27 @@ export default function ProfilePage() {
 
   if (attemptsQuery.isError || topicsQuery.isError) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[40vh] gap-3">
-        <AlertCircleIcon className="h-7 w-7 text-red-400" />
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          Failed to load profile.
-        </p>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => {
-            attemptsQuery.refetch();
-            topicsQuery.refetch();
-          }}
-          className="gap-1.5"
-        >
-          <RefreshCwIcon className="h-3.5 w-3.5" /> Retry
-        </Button>
+      <div className="flex items-center justify-center min-h-[60vh] px-4">
+        <Card className="max-w-md w-full p-8 text-center space-y-6">
+          <div className="mx-auto h-14 w-14 rounded-full bg-destructive/10 flex items-center justify-center">
+            <AlertCircleIcon className="h-7 w-7 text-destructive" />
+          </div>
+          <div className="space-y-2">
+            <CardTitle className="text-xl">Unable to load profile</CardTitle>
+            <CardDescription>
+              We couldn't fetch your profile data. Please try again.
+            </CardDescription>
+          </div>
+          <Button
+            onClick={() => {
+              attemptsQuery.refetch();
+              topicsQuery.refetch();
+            }}
+            className="gap-2"
+          >
+            <RefreshCwIcon className="h-4 w-4" /> Retry
+          </Button>
+        </Card>
       </div>
     );
   }
@@ -289,142 +352,209 @@ export default function ProfilePage() {
     : "?";
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-6 space-y-5">
-      {/* ── Profile card ──────────────────────────────────────────────────── */}
-      <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5">
-        <div className="flex items-start gap-4">
-          {/* Avatar */}
-          <Avatar size="lg" className="h-16 w-16 text-xl shrink-0">
-            <AvatarFallback className="bg-linear-to-br from-blue-500 to-indigo-600 text-white font-bold text-lg">
-              {initials}
-            </AvatarFallback>
-          </Avatar>
+    <div className="max-w-4xl mx-auto px-4 py-8 space-y-8">
+      {/* ── Profile Card ──────────────────────────────────────────────────── */}
+      <Card className="bg-linear-to-br from-primary/5 to-primary/10 border-primary/20">
+        <CardContent className="p-8">
+          <div className="flex items-start gap-6">
+            {/* Avatar */}
+            <div className="relative">
+              <Avatar className="h-20 w-20 text-xl">
+                <AvatarFallback className="bg-linear-to-br from-blue-500 to-indigo-600 text-white font-bold text-lg">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+              <div className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-green-500 border-2 border-background flex items-center justify-center">
+                <CheckIcon className="h-3 w-3 text-white" />
+              </div>
+            </div>
 
-          {/* Info */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between gap-2">
-              <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100 truncate">
-                {user?.name}
-              </h2>
-              {!isEditingName && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 w-7 p-0 shrink-0"
-                  onClick={() => setIsEditingName(true)}
-                >
-                  <PencilIcon className="h-3.5 w-3.5" />
-                </Button>
+            {/* Info */}
+            <div className="flex-1 min-w-0 space-y-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-2xl font-bold text-foreground">
+                      {user?.name}
+                    </h2>
+                    <Badge variant="secondary" className="gap-1">
+                      <ShieldCheckIcon className="h-3 w-3" />
+                      {user?.role}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <MailIcon className="h-4 w-4" />
+                    {user?.email}
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <CalendarIcon className="h-4 w-4" />
+                    Member since {format(new Date(), "MMMM yyyy")}
+                  </div>
+                </div>
+                {!isEditingName && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsEditingName(true)}
+                    className="gap-2"
+                  >
+                    <PencilIcon className="h-4 w-4" />
+                    Edit Profile
+                  </Button>
+                )}
+              </div>
+
+              {/* Edit name form */}
+              {isEditingName && user && (
+                <Card className="bg-muted/50">
+                  <CardContent className="p-4">
+                    <EditNameForm
+                      currentName={user.name}
+                      onClose={() => setIsEditingName(false)}
+                    />
+                  </CardContent>
+                </Card>
               )}
             </div>
-
-            <div className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-              <MailIcon className="h-3.5 w-3.5 shrink-0" />
-              {user?.email}
-            </div>
-
-            <div className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500 mt-0.5">
-              <CalendarIcon className="h-3 w-3 shrink-0" />
-              Member since {format(new Date(), "MMMM yyyy")}
-            </div>
-
-            <div className="flex items-center gap-2 mt-2">
-              <Badge variant="outline" className="text-[11px] gap-1">
-                <ShieldCheckIcon className="h-3 w-3" />
-                {user?.role}
-              </Badge>
-            </div>
-
-            {/* Edit name inline form */}
-            {isEditingName && user && (
-              <EditNameForm
-                currentName={user.name}
-                onClose={() => setIsEditingName(false)}
-              />
-            )}
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
-      {/* ── Stats grid ────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <ProfileStat
-          icon={BookOpenIcon}
-          label="Total Tests"
-          value={String(totalAttempts)}
-          color="bg-blue-100 text-blue-600 dark:bg-blue-950/50 dark:text-blue-400"
-        />
-        <ProfileStat
-          icon={TargetIcon}
-          label="Avg Accuracy"
-          value={avgAccuracy !== null ? `${avgAccuracy}%` : "—"}
-          color="bg-green-100 text-green-600 dark:bg-green-950/50 dark:text-green-400"
-        />
-        <ProfileStat
-          icon={TrophyIcon}
-          label="Avg Score"
-          value={avgScore !== null ? String(avgScore) : "—"}
-          color="bg-amber-100 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400"
-        />
-        <ProfileStat
-          icon={CrownIcon}
-          label="Tests Passed"
-          value={String(submitted.length)}
-          color="bg-purple-100 text-purple-600 dark:bg-purple-950/50 dark:text-purple-400"
-        />
-      </div>
-
-      {/* ── Topic heatmap ──────────────────────────────────────────────────── */}
-      <TopicAnalysis
-        topics={topics}
-        mode="heatmap"
-        title="Topic Performance Heatmap"
-        showEmpty
-      />
-
-      {/* ── Subscription status ────────────────────────────────────────────── */}
-      <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 overflow-hidden">
-        <div className="flex items-center gap-2 px-5 py-3.5 border-b border-slate-100 dark:border-slate-800">
-          <CrownIcon className="h-4 w-4 text-amber-500" />
-          <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-            Subscription
+      {/* ── Performance Stats ────────────────────────────────────────────── */}
+      <div className="space-y-6">
+        <div className="flex items-center gap-2">
+          <TrendingUpIcon className="h-5 w-5 text-primary" />
+          <h3 className="text-xl font-semibold text-foreground">
+            Performance Overview
           </h3>
         </div>
-        {/* TODO: replace with real subscription data from /users/me/subscription */}
-        <div className="p-5">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
-                {subscription?.data?.plan || "Free"} Plan
-              </p>
-              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <ProfileStat
+            icon={BookOpenIcon}
+            label="Total Tests"
+            value={String(totalAttempts)}
+            color="bg-blue-500"
+            trend={totalAttempts > 0 ? "up" : "neutral"}
+          />
+          <ProfileStat
+            icon={TargetIcon}
+            label="Avg Accuracy"
+            value={avgAccuracy !== null ? `${avgAccuracy}%` : "—"}
+            color="bg-green-500"
+            trend={
+              avgAccuracy && avgAccuracy > 70
+                ? "up"
+                : avgAccuracy && avgAccuracy < 50
+                  ? "down"
+                  : "neutral"
+            }
+          />
+          <ProfileStat
+            icon={TrophyIcon}
+            label="Avg Score"
+            value={avgScore !== null ? String(avgScore) : "—"}
+            color="bg-amber-500"
+            trend={
+              avgScore && avgScore > 70
+                ? "up"
+                : avgScore && avgScore < 50
+                  ? "down"
+                  : "neutral"
+            }
+          />
+          <ProfileStat
+            icon={CrownIcon}
+            label="Tests Passed"
+            value={String(submitted.length)}
+            color="bg-purple-500"
+            trend={submitted.length > 0 ? "up" : "neutral"}
+          />
+        </div>
+      </div>
+
+      {/* ── Topic Performance Heatmap ─────────────────────────────────────── */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TargetIcon className="h-5 w-5" />
+            Topic Performance Heatmap
+          </CardTitle>
+          <CardDescription>
+            Visual representation of your performance across different topics
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <TopicAnalysis topics={topics} mode="heatmap" title="" showEmpty />
+        </CardContent>
+      </Card>
+
+      {/* ── Subscription Status ────────────────────────────────────────────── */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CrownIcon className="h-5 w-5 text-amber-500" />
+            Subscription Status
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <h3 className="text-lg font-semibold text-foreground">
+                  {subscription?.data?.plan || "Free"} Plan
+                </h3>
+                <Badge
+                  variant={
+                    subscription?.data?.plan === "FREE"
+                      ? "secondary"
+                      : "default"
+                  }
+                >
+                  {subscription?.data?.plan || "Free"}
+                </Badge>
+              </div>
+              <p className="text-sm text-muted-foreground">
                 {subscription?.data?.plan === "FREE"
                   ? "Access to free mock tests only"
                   : `Access to ${subscription?.data?.plan} features`}
               </p>
             </div>
-            <Badge
-              variant="outline"
-              className="text-amber-600 border-amber-300 dark:border-amber-700 shrink-0"
-            >
-              {subscription?.data?.plan || "Free"}
-            </Badge>
+            <div className="h-12 w-12 rounded-xl bg-amber-100 dark:bg-amber-950/20 flex items-center justify-center">
+              <CrownIcon className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+            </div>
           </div>
-          <Separator className="my-4" />
+
+          <Separator />
+
           <div className="flex items-center justify-between">
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Unlock premium tests and detailed analytics
-            </p>
-            <Button
-              size="sm"
-              className="shrink-0 bg-linear-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white gap-1.5 h-8"
-            >
-              <CrownIcon className="h-3.5 w-3.5" />
-              Upgrade
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-foreground">
+                {subscription?.data?.plan === "FREE"
+                  ? "Upgrade to Premium"
+                  : "Manage Subscription"}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {subscription?.data?.plan === "FREE"
+                  ? "Unlock premium tests and detailed analytics"
+                  : "View your subscription details and benefits"}
+              </p>
+            </div>
+            <Button className="gap-2">
+              {subscription?.data?.plan === "FREE" ? (
+                <>
+                  <CrownIcon className="h-4 w-4" />
+                  Upgrade
+                </>
+              ) : (
+                <>
+                  <ShieldCheckIcon className="h-4 w-4" />
+                  Manage
+                </>
+              )}
             </Button>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

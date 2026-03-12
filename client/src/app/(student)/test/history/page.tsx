@@ -34,6 +34,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { attemptsApi } from "@/api/attempts";
 import { attemptKeys } from "@/api/query-keys";
@@ -64,38 +67,33 @@ function StatusBadge({ status }: { status: AttemptStatus }) {
     {
       label: string;
       icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
-      cls: string;
+      variant: "default" | "secondary" | "destructive" | "outline";
     }
   > = {
     SUBMITTED: {
       label: "Submitted",
       icon: CheckCircle2Icon,
-      cls: "bg-green-100 text-green-700 dark:bg-green-950/50 dark:text-green-400 border-green-200 dark:border-green-800",
+      variant: "default",
     },
     STARTED: {
       label: "In Progress",
       icon: ClockIcon,
-      cls: "bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400 border-amber-200 dark:border-amber-800",
+      variant: "secondary",
     },
     EXPIRED: {
       label: "Expired",
       icon: XCircleIcon,
-      cls: "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400 border-red-200 dark:border-red-800",
+      variant: "destructive",
     },
   };
 
-  const { label, icon: Icon, cls } = configs[status];
+  const { label, icon: Icon, variant } = configs[status];
 
   return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold",
-        cls,
-      )}
-    >
+    <Badge variant={variant} className="gap-1 text-xs">
       <Icon className="h-3 w-3" />
       {label}
-    </span>
+    </Badge>
   );
 }
 
@@ -103,59 +101,28 @@ function StatusBadge({ status }: { status: AttemptStatus }) {
 
 function HistorySkeleton() {
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {[1, 2, 3, 4, 5].map((i) => (
-        <div key={i} className="flex items-center gap-3 p-3">
-          <Skeleton className="h-4 w-4 rounded" />
-          <Skeleton className="h-4 flex-1" />
-          <Skeleton className="h-4 w-16" />
-          <Skeleton className="h-4 w-12" />
-          <Skeleton className="h-5 w-20 rounded-full" />
-          <Skeleton className="h-7 w-20 rounded" />
-        </div>
+        <Card key={i}>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-4">
+              <Skeleton className="h-4 w-4 rounded" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-3 w-1/2" />
+              </div>
+              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-4 w-12" />
+              <Skeleton className="h-6 w-20 rounded-full" />
+              <div className="flex gap-2">
+                <Skeleton className="h-8 w-16 rounded" />
+                <Skeleton className="h-8 w-20 rounded" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       ))}
     </div>
-  );
-}
-
-// ── Filter tab ────────────────────────────────────────────────────────────────
-
-function FilterTab({
-  value,
-  label,
-  active,
-  count,
-  onClick,
-}: {
-  value: FilterType;
-  label: string;
-  active: boolean;
-  count?: number;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors",
-        active
-          ? "bg-blue-600 text-white"
-          : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700",
-      )}
-    >
-      {label}
-      {count !== undefined && (
-        <span
-          className={cn(
-            "rounded-full px-1.5 py-0.5 text-[10px] font-bold",
-            active ? "bg-white/25" : "bg-slate-200 dark:bg-slate-700",
-          )}
-        >
-          {count}
-        </span>
-      )}
-    </button>
   );
 }
 
@@ -197,218 +164,229 @@ export default function HistoryPage() {
   );
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-6 space-y-5">
+    <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
       {/* ── Header ──────────────────────────────────────────────────────── */}
-      <div>
-        <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">
-          Test History
-        </h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+      <div className="space-y-2">
+        <h1 className="text-3xl font-bold tracking-tight">Test History</h1>
+        <p className="text-muted-foreground">
           All your past exam attempts · {totalCount} total
         </p>
       </div>
 
       {/* ── Filter bar ──────────────────────────────────────────────────── */}
-      <div className="flex gap-2 flex-wrap">
-        <FilterTab
-          value="ALL"
-          label="All"
-          active={filter === "ALL"}
-          count={totalCount}
-          onClick={() => {
-            setFilter("ALL");
-            setPage(1);
-          }}
-        />
-        <FilterTab
-          value="SUBMITTED"
-          label="Submitted"
-          active={filter === "SUBMITTED"}
-          count={counts.SUBMITTED ?? 0}
-          onClick={() => {
-            setFilter("SUBMITTED");
-            setPage(1);
-          }}
-        />
-        <FilterTab
-          value="STARTED"
-          label="In Progress"
-          active={filter === "STARTED"}
-          count={counts.STARTED ?? 0}
-          onClick={() => {
-            setFilter("STARTED");
-            setPage(1);
-          }}
-        />
-        <FilterTab
-          value="EXPIRED"
-          label="Expired"
-          active={filter === "EXPIRED"}
-          count={counts.EXPIRED ?? 0}
-          onClick={() => {
-            setFilter("EXPIRED");
-            setPage(1);
-          }}
-        />
-      </div>
+      <Tabs
+        value={filter}
+        onValueChange={(value) => {
+          setFilter(value as FilterType);
+          setPage(1);
+        }}
+        className="w-full"
+      >
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="ALL" className="gap-2">
+            All
+            <Badge variant="secondary" className="text-xs">
+              {totalCount}
+            </Badge>
+          </TabsTrigger>
+          <TabsTrigger value="SUBMITTED" className="gap-2">
+            Submitted
+            <Badge variant="secondary" className="text-xs">
+              {counts.SUBMITTED ?? 0}
+            </Badge>
+          </TabsTrigger>
+          <TabsTrigger value="STARTED" className="gap-2">
+            In Progress
+            <Badge variant="secondary" className="text-xs">
+              {counts.STARTED ?? 0}
+            </Badge>
+          </TabsTrigger>
+          <TabsTrigger value="EXPIRED" className="gap-2">
+            Expired
+            <Badge variant="secondary" className="text-xs">
+              {counts.EXPIRED ?? 0}
+            </Badge>
+          </TabsTrigger>
+        </TabsList>
 
-      {/* ── Table ────────────────────────────────────────────────────────── */}
-      <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 overflow-hidden">
-        {/* Table header */}
-        <div className="hidden sm:grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-4 px-5 py-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
-          {["Test Name", "Date", "Score", "Accuracy", "Status", "Actions"].map(
-            (h) => (
-              <span
-                key={h}
-                className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider"
-              >
-                {h}
-              </span>
-            ),
-          )}
-        </div>
-
-        {/* Rows */}
-        {isLoading ? (
-          <div className="p-4">
-            <HistorySkeleton />
-          </div>
-        ) : isError ? (
-          <div className="flex flex-col items-center py-10 gap-3">
-            <AlertCircleIcon className="h-6 w-6 text-red-400" />
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              Failed to load history.
-            </p>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => refetch()}
-              className="gap-1.5"
-            >
-              <RefreshCwIcon className="h-3.5 w-3.5" /> Retry
-            </Button>
-          </div>
-        ) : attempts.length === 0 ? (
-          <div className="flex flex-col items-center py-12 text-center px-4">
-            <InboxIcon className="h-8 w-8 text-slate-300 dark:text-slate-600 mb-2" />
-            <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
-              {filter === "ALL"
-                ? "No attempts yet"
-                : `No ${filter.toLowerCase()} attempts`}
-            </p>
-            {filter === "ALL" && (
-              <Link href="/dashboard/tests" className="mt-3">
+        <TabsContent value={filter} className="mt-6">
+          {/* ── Table ────────────────────────────────────────────────────────── */}
+          <div className="space-y-4">
+            {isLoading ? (
+              <HistorySkeleton />
+            ) : isError ? (
+              <Card className="p-8 text-center">
+                <AlertCircleIcon className="h-12 w-12 text-destructive mx-auto mb-4" />
+                <h3 className="text-lg font-semibold mb-2">
+                  Failed to load history
+                </h3>
+                <p className="text-muted-foreground mb-4">
+                  Unable to fetch your test attempts. Please try again.
+                </p>
                 <Button
-                  size="sm"
-                  className="bg-blue-600 hover:bg-blue-700 text-white gap-1.5"
+                  variant="outline"
+                  onClick={() => refetch()}
+                  className="gap-2"
                 >
-                  <PlayIcon className="h-3.5 w-3.5" /> Take a Test
+                  <RefreshCwIcon className="h-4 w-4" /> Retry
                 </Button>
-              </Link>
+              </Card>
+            ) : attempts.length === 0 ? (
+              <Card className="p-12 text-center">
+                <InboxIcon className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-xl font-semibold mb-2">
+                  {filter === "ALL"
+                    ? "No attempts yet"
+                    : `No ${filter.toLowerCase()} attempts`}
+                </h3>
+                <p className="text-muted-foreground mb-6">
+                  {filter === "ALL"
+                    ? "Start taking tests to see your history here."
+                    : `You don't have any ${filter.toLowerCase()} attempts.`}
+                </p>
+                {filter === "ALL" && (
+                  <Link href="/dashboard/tests">
+                    <Button className="gap-2">
+                      <PlayIcon className="h-4 w-4" /> Take a Test
+                    </Button>
+                  </Link>
+                )}
+              </Card>
+            ) : (
+              <div className="space-y-3">
+                {attempts.map((attempt, index) => {
+                  const isSubmitted = attempt.status === "SUBMITTED";
+                  const isStarted = attempt.status === "STARTED";
+
+                  return (
+                    <Card
+                      key={`${attempt.attemptId}-${index}`}
+                      className="hover:shadow-md transition-shadow"
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+                          {/* Test name */}
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-foreground truncate mb-1">
+                              {attempt.testTitle}
+                            </h3>
+                            <p className="text-sm text-muted-foreground truncate">
+                              {attempt.seriesTitle} · Attempt #
+                              {attempt.attemptNumber}
+                            </p>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-4 lg:gap-6">
+                            {/* Date */}
+                            <div className="text-center lg:text-left">
+                              <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                                Date
+                              </p>
+                              <p className="font-semibold text-sm">
+                                {format(
+                                  new Date(attempt.startTime),
+                                  "dd MMM yyyy",
+                                )}
+                              </p>
+                            </div>
+
+                            {/* Score */}
+                            <div className="text-center lg:text-left">
+                              <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                                Score
+                              </p>
+                              <p className="font-bold text-foreground">
+                                {isSubmitted
+                                  ? `${attempt.score}/${attempt.totalMarks}`
+                                  : "—"}
+                              </p>
+                            </div>
+
+                            {/* Accuracy */}
+                            <div className="text-center lg:text-left">
+                              <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                                Accuracy
+                              </p>
+                              <p
+                                className={cn(
+                                  "font-bold text-sm",
+                                  attempt.accuracy !== null &&
+                                    attempt.accuracy >= 70
+                                    ? "text-green-600 dark:text-green-400"
+                                    : attempt.accuracy !== null &&
+                                        attempt.accuracy >= 40
+                                      ? "text-amber-600 dark:text-amber-400"
+                                      : "text-red-500 dark:text-red-400",
+                                )}
+                              >
+                                {attempt.accuracy !== null
+                                  ? `${Math.round(attempt.accuracy)}%`
+                                  : "—"}
+                              </p>
+                            </div>
+
+                            {/* Status */}
+                            <div className="text-center lg:text-left">
+                              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
+                                Status
+                              </p>
+                              <StatusBadge status={attempt.status} />
+                            </div>
+
+                            {/* Actions */}
+                            <div className="flex items-center gap-2">
+                              {isSubmitted && (
+                                <>
+                                  <Link
+                                    href={`/test/${attempt.testId}/result?attemptId=${attempt.attemptId}`}
+                                  >
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="gap-1"
+                                    >
+                                      <BarChart3Icon className="h-3 w-3" />{" "}
+                                      Result
+                                    </Button>
+                                  </Link>
+                                  <Link
+                                    href={`/test/${attempt.testId}/solutions?attemptId=${attempt.attemptId}`}
+                                  >
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="gap-1"
+                                    >
+                                      <BookOpenIcon className="h-3 w-3" />{" "}
+                                      Solutions
+                                    </Button>
+                                  </Link>
+                                </>
+                              )}
+                              {isStarted && (
+                                <Link href={`/test/${attempt.testId}/attempt`}>
+                                  <Button size="sm" className="gap-1">
+                                    <PlayIcon className="h-3 w-3" /> Resume
+                                  </Button>
+                                </Link>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
             )}
           </div>
-        ) : (
-          <div className="divide-y divide-slate-100 dark:divide-slate-800">
-            {attempts.map((attempt, index) => {
-              const isSubmitted = attempt.status === "SUBMITTED";
-              const isStarted = attempt.status === "STARTED";
-
-              return (
-                <div
-                  key={`${attempt.attemptId}-${index}`}
-                  className="flex flex-col sm:grid sm:grid-cols-[1fr_auto_auto_auto_auto_auto] gap-2 sm:gap-4 sm:items-center px-5 py-3.5 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors"
-                >
-                  {/* Test name */}
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">
-                      {attempt.testTitle}
-                    </p>
-                    <p className="text-[11px] text-slate-400 dark:text-slate-500 truncate">
-                      {attempt.seriesTitle} · Attempt #{attempt.attemptNumber}
-                    </p>
-                  </div>
-
-                  {/* Date */}
-                  <p className="text-xs text-slate-500 dark:text-slate-400 tabular-nums whitespace-nowrap">
-                    {format(new Date(attempt.startTime), "dd MMM yyyy")}
-                  </p>
-
-                  {/* Score */}
-                  <p className="text-sm font-bold text-slate-900 dark:text-slate-100 tabular-nums">
-                    {isSubmitted
-                      ? `${attempt.score}/${attempt.totalMarks}`
-                      : "—"}
-                  </p>
-
-                  {/* Accuracy */}
-                  <p
-                    className={cn(
-                      "text-sm font-semibold tabular-nums",
-                      attempt.accuracy !== null && attempt.accuracy >= 70
-                        ? "text-green-600 dark:text-green-400"
-                        : attempt.accuracy !== null && attempt.accuracy >= 40
-                          ? "text-amber-600 dark:text-amber-400"
-                          : "text-red-500 dark:text-red-400",
-                    )}
-                  >
-                    {attempt.accuracy !== null
-                      ? `${Math.round(attempt.accuracy)}%`
-                      : "—"}
-                  </p>
-
-                  {/* Status */}
-                  <StatusBadge status={attempt.status} />
-
-                  {/* Actions */}
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    {isSubmitted && (
-                      <>
-                        <Link
-                          href={`/test/${attempt.testId}/result?attemptId=${attempt.attemptId}`}
-                        >
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-7 px-2 text-xs gap-1"
-                          >
-                            <BarChart3Icon className="h-3 w-3" /> Result
-                          </Button>
-                        </Link>
-                        <Link
-                          href={`/test/${attempt.testId}/solutions?attemptId=${attempt.attemptId}`}
-                        >
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-7 px-2 text-xs gap-1"
-                          >
-                            <BookOpenIcon className="h-3 w-3" /> Solutions
-                          </Button>
-                        </Link>
-                      </>
-                    )}
-                    {isStarted && (
-                      <Link href={`/test/${attempt.testId}/attempt`}>
-                        <Button
-                          size="sm"
-                          className="h-7 px-2 text-xs gap-1 bg-amber-500 hover:bg-amber-600 text-white"
-                        >
-                          <PlayIcon className="h-3 w-3" /> Resume
-                        </Button>
-                      </Link>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+        </TabsContent>
+      </Tabs>
 
       {/* ── Pagination ────────────────────────────────────────────────────── */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
-          <p className="text-xs text-slate-500 dark:text-slate-400">
+          <p className="text-sm text-muted-foreground">
             Page {page} of {totalPages} · {totalCount} total
           </p>
           <div className="flex items-center gap-2">
@@ -425,19 +403,15 @@ export default function HistoryPage() {
             {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
               const pg = i + 1;
               return (
-                <button
+                <Button
                   key={pg}
-                  type="button"
+                  variant={pg === page ? "default" : "outline"}
+                  size="sm"
                   onClick={() => setPage(pg)}
-                  className={cn(
-                    "h-8 w-8 rounded-md text-xs font-semibold transition-colors",
-                    pg === page
-                      ? "bg-blue-600 text-white"
-                      : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800",
-                  )}
+                  className="h-8 w-8 p-0"
                 >
                   {pg}
-                </button>
+                </Button>
               );
             })}
             <Button
