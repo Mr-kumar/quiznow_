@@ -57,7 +57,7 @@ export function StartExamButton({
       const res = await attemptsApi.start(testId);
       const data = (res.data as { data?: typeof res.data }).data ?? res.data;
 
-      const { attemptId } = data as { attemptId: string };
+      const { id: attemptId } = data as { id: string };
 
       // 2. Initialise exam state in Zustand store
       //    Use server-returned duration (most accurate)

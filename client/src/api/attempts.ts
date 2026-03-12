@@ -22,7 +22,7 @@ export type AttemptStatus = "STARTED" | "SUBMITTED" | "EXPIRED";
 
 /** Minimal attempt object returned when starting a test */
 export interface StartAttemptResponse {
-  attemptId: string; // BigInt serialized as string from server
+  id: string; // ✅ FIXED: BigInt serialized as string from server (field is 'id', not 'attemptId')
   testId: string;
   attemptNumber: number;
   status: AttemptStatus;

@@ -189,7 +189,6 @@ export default function AttemptPage() {
   const navigation = useExamStore(selectNavigation);
   const examStore = useExamStore(); // Get the full store for methods
 
-
   // Use store methods directly
   const restoreFromSession = examStore.restoreFromSession;
   const storeNavigate = examStore.navigate;
@@ -278,18 +277,29 @@ export default function AttemptPage() {
       if (!test || isLoading) return;
 
       try {
-        const response = await attemptsApi.start(testId);
-        const { attemptId } = response.data;
+        const response: any = await attemptsApi.start(testId);
+        
+        // Server wraps response in { success, data: attempt }
+        // attempt has { id, status, ... }
+        const outerData = response?.data || response;
+        const attemptData = outerData?.data || outerData;
+        const newAttemptId = attemptData?.id ?? attemptData?.attemptId;
+        
+        if (!newAttemptId) {
+          console.error("Failed to extract attempt ID from response:", response);
+          router.replace(`/test/${testId}`);
+          return;
+        }
 
         // Start exam in store with the attemptId
-        examStore.startExam(attemptId, testId, test.durationMins);
+        examStore.startExam(String(newAttemptId), testId, test.durationMins);
 
         // Navigate to first question
         navigateTo(0, 0);
 
         setIsInitialised(true);
       } catch (error) {
-        console.error("Failed to start exam attempt:", error);
+        console.error("🔍 Failed to start exam attempt:", error);
         // Redirect back to instructions on failure
         router.replace(`/test/${testId}`);
       }
@@ -367,7 +377,10 @@ export default function AttemptPage() {
       // 1. Drain any failed answer syncs before submitting
       console.log("[SUBMIT] Step 1: drainAll starting...");
       const allAnswersDrained = await drainAll();
-      console.log("[SUBMIT] Step 1: drainAll completed, result:", allAnswersDrained);
+      console.log(
+        "[SUBMIT] Step 1: drainAll completed, result:",
+        allAnswersDrained,
+      );
 
       if (!allAnswersDrained) {
         console.warn("Some answers failed to sync, proceeding with submit");

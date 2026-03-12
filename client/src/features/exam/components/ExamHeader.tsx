@@ -86,7 +86,7 @@ function ExamHeaderInner({
         {/* Right cluster */}
         <div className="ml-auto flex items-center gap-2 shrink-0">
           {/* Language toggle — compact on mobile */}
-          <LanguageToggle compact className="hidden xs:flex" />
+          <LanguageToggle compact className="flex" />
 
           {/* Timer */}
           <div className="px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-800">

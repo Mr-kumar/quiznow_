@@ -61,94 +61,111 @@ export function PublicNavbar() {
             </span>
           </Link>
 
-          {/* Desktop links */}
-          <div className="hidden md:flex items-center gap-1">
-            {NAV_LINKS.map(({ href, label }) => (
+          {/* Desktop Links & Search */}
+          <div className="hidden md:flex items-center gap-6">
+            <div className="flex items-center gap-1">
               <Link
-                key={href}
-                href={href}
+                href="/exams"
                 className={cn(
-                  "px-3 py-2 rounded-md text-sm font-medium transition-colors",
-                  pathname.startsWith(href)
-                    ? "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40"
-                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800",
+                  "px-3 py-2 rounded-full text-sm font-medium transition-all duration-300",
+                  pathname.startsWith("/exams")
+                    ? "text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-900/40"
+                    : "text-slate-600 hover:text-blue-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:text-blue-400 dark:hover:bg-slate-800",
                 )}
               >
-                {label}
+                Browse Exams
               </Link>
-            ))}
-          </div>
-
-          {/* Desktop CTAs */}
-          <div className="hidden md:flex items-center gap-2">
-            <Link href="/login">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="gap-1.5 text-slate-600 dark:text-slate-400"
-              >
-                <LogInIcon className="h-4 w-4" />
-                Login
-              </Button>
-            </Link>
-            <Link href="/login">
-              <Button
-                size="sm"
-                className="bg-blue-600 hover:bg-blue-700 text-white gap-1.5"
-              >
-                Get Started Free
-              </Button>
-            </Link>
-          </div>
-
-          {/* Mobile menu button */}
-          <button
-            type="button"
-            className="md:hidden p-2 rounded-md text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-            onClick={() => setOpen((v) => !v)}
-            aria-label={open ? "Close menu" : "Open menu"}
-          >
-            {open ? (
-              <XIcon className="h-5 w-5" />
-            ) : (
-              <MenuIcon className="h-5 w-5" />
-            )}
-          </button>
-        </div>
-
-        {/* Mobile menu */}
-        {open && (
-          <div className="md:hidden border-t border-slate-200 dark:border-slate-800 py-3 space-y-1">
-            {NAV_LINKS.map(({ href, label, icon: Icon }) => (
               <Link
-                key={href}
-                href={href}
+                href="/plans"
                 className={cn(
-                  "flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-                  pathname.startsWith(href)
-                    ? "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40"
-                    : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800",
+                  "px-3 py-2 rounded-full text-sm font-medium transition-all duration-300 flex items-center gap-1.5",
+                  pathname.startsWith("/plans")
+                    ? "text-amber-600 bg-amber-50 dark:text-amber-400 dark:bg-amber-900/20"
+                    : "text-slate-600 hover:text-amber-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:text-amber-400 dark:hover:bg-slate-800",
                 )}
               >
-                <Icon className="h-4 w-4" />
-                {label}
+                <CrownIcon className="h-3.5 w-3.5" />
+                Pricing
               </Link>
-            ))}
-            <div className="flex flex-col gap-2 pt-2 pb-1">
+              <Link
+                href="/#features"
+                className="px-3 py-2 rounded-full text-sm font-medium text-slate-600 hover:text-blue-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:text-blue-400 dark:hover:bg-slate-800 transition-all duration-300"
+              >
+                Features
+              </Link>
+            </div>
+
+            <div className="h-6 w-px bg-slate-200 dark:bg-slate-800 mx-2" />
+
+            {/* CTAs */}
+            <div className="flex items-center gap-3">
               <Link href="/login">
-                <Button variant="outline" className="w-full gap-1.5">
-                  <LogInIcon className="h-4 w-4" /> Login
+                <Button
+                  variant="ghost"
+                  className="hidden lg:flex text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white font-medium px-4"
+                >
+                  Log in
                 </Button>
               </Link>
               <Link href="/login">
-                <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white">
+                <Button className="bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-full px-6 shadow-sm hover:shadow-md transition-all duration-300">
                   Get Started Free
                 </Button>
               </Link>
             </div>
           </div>
-        )}
+
+          {/* Mobile menu button */}
+          <div className="md:hidden flex items-center">
+            <button
+              type="button"
+              className="p-2 -mr-2 rounded-md text-slate-600 focus:outline-hidden hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+              onClick={() => setOpen((prev) => !prev)}
+            >
+              {open ? (
+                <XIcon className="h-6 w-6" />
+              ) : (
+                <MenuIcon className="h-6 w-6" />
+              )}
+            </button>
+          </div>
+        </div>
       </nav>
+
+      {/* Mobile menu */}
+      {open && (
+        <div className="md:hidden border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-4 py-4 space-y-4 shadow-xl">
+          <div className="flex flex-col space-y-2">
+            <Link
+              href="/exams"
+              className="px-4 py-3 rounded-xl text-base font-medium text-slate-700 bg-slate-50 hover:bg-slate-100 dark:text-slate-200 dark:bg-slate-900 flex items-center gap-3"
+            >
+              <BookOpenIcon className="h-5 w-5 text-blue-500" />
+              Browse Exams
+            </Link>
+            <Link
+              href="/plans"
+              className="px-4 py-3 rounded-xl text-base font-medium text-slate-700 bg-slate-50 hover:bg-slate-100 dark:text-slate-200 dark:bg-slate-900 flex items-center gap-3"
+            >
+              <CrownIcon className="h-5 w-5 text-amber-500" />
+              Pricing Plans
+            </Link>
+          </div>
+          
+          <div className="pt-2 flex flex-col gap-3">
+             <Link href="/login" className="w-full">
+              <Button variant="outline" className="w-full h-12 rounded-xl text-base font-medium">
+                Log in
+              </Button>
+            </Link>
+            <Link href="/login" className="w-full">
+              <Button className="w-full h-12 rounded-xl bg-blue-600 text-white text-base font-semibold shadow-md">
+                Get Started Free
+              </Button>
+            </Link>
+          </div>
+        </div>
+      )}
     </header>
   );
 }

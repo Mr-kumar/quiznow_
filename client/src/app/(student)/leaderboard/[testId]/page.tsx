@@ -250,7 +250,9 @@ export default function LeaderboardPage() {
   });
 
   const entries = data?.entries ?? [];
-  const totalPages = data?.totalPages ?? 1;
+  const totalPages = data?.pagination?.total && data?.pagination?.limit 
+    ? Math.max(1, Math.ceil(data.pagination.total / data.pagination.limit)) 
+    : 1;
   const myEntry = data?.currentUserEntry;
 
   // Podium — top 3 (only if we have them)
@@ -277,10 +279,9 @@ export default function LeaderboardPage() {
           </div>
           {data && (
             <p className="text-sm text-slate-500 dark:text-slate-400">
-              {data.testTitle} ·{" "}
               <span className="inline-flex items-center gap-1">
                 <UsersIcon className="h-3.5 w-3.5" />
-                {data.totalParticipants.toLocaleString()} participants
+                {(data.pagination?.total ?? 0).toLocaleString()} participants
               </span>
             </p>
           )}
@@ -300,7 +301,7 @@ export default function LeaderboardPage() {
                 #{myEntry.rank}
                 {data && (
                   <span className="text-sm font-normal text-blue-200 ml-1">
-                    / {data.totalParticipants.toLocaleString()}
+                    / {(data.pagination?.total ?? 0).toLocaleString()}
                   </span>
                 )}
               </p>

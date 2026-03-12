@@ -337,9 +337,9 @@ export function TopicAnalysis({
       )}
       <div className="space-y-5">
         {Array.from(heatmapGroups.entries()).map(
-          ([subjectName, subjectTopics]) => (
+          ([subjectName, subjectTopics], index) => (
             <TopicHeatmapGroup
-              key={subjectName}
+              key={`${subjectName}-${index}`}
               subjectName={subjectName}
               topics={subjectTopics}
             />

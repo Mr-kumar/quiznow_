@@ -31,39 +31,15 @@ import {
   StarIcon,
   BrainIcon,
   PlayCircleIcon,
+  SearchIcon,
+  TrendingUpIcon,
+  AwardIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-
-// ── Feature card ──────────────────────────────────────────────────────────────
-
-function FeatureCard({
-  icon: Icon,
-  title,
-  description,
-  color,
-}: {
-  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
-  title: string;
-  description: string;
-  color: string;
-}) {
-  return (
-    <div className="group p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-lg transition-all duration-200">
-      <div
-        className={`h-11 w-11 rounded-xl flex items-center justify-center mb-4 ${color}`}
-      >
-        <Icon className="h-5 w-5" />
-      </div>
-      <h3 className="text-base font-semibold text-slate-900 dark:text-white mb-2">
-        {title}
-      </h3>
-      <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
-        {description}
-      </p>
-    </div>
-  );
-}
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AnimatedFeatures } from "./AnimatedFeatures";
 
 // ── Exam category card ────────────────────────────────────────────────────────
 
@@ -155,70 +131,72 @@ function Testimonial({
 export default function PublicLandingPage() {
   return (
     <div className="overflow-hidden">
-      {/* ── Hero ────────────────────────────────────────────────────────────── */}
-      <section className="relative pt-16 pb-20 sm:pt-24 sm:pb-28 overflow-hidden">
-        {/* BG gradient */}
-        <div className="absolute inset-0 -z-10 bg-linear-to-br from-blue-50 via-white to-indigo-50 dark:from-slate-950 dark:via-slate-950 dark:to-indigo-950/20" />
-        <div className="absolute top-0 -right-48 w-96 h-96 bg-blue-400/10 dark:bg-blue-600/10 rounded-full blur-3xl -z-10" />
+      {/* ── Premium Hero ──────────────────────────────────────────────────────── */}
+      <section className="relative pt-20 pb-24 sm:pt-28 sm:pb-32 overflow-hidden bg-white dark:bg-slate-950">
+        {/* Modern grid background */}
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]"></div>
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="max-w-3xl mx-auto text-center space-y-6">
-            <Badge className="gap-1.5 bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800 px-3 py-1">
-              <ZapIcon className="h-3.5 w-3.5" />
-              India's #1 Exam Preparation Platform
+        {/* Glow effects */}
+        <div className="absolute top-0 right-1/4 w-96 h-96 bg-blue-500/10 dark:bg-blue-600/15 rounded-full blur-[100px] -z-10" />
+        <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-indigo-500/10 dark:bg-indigo-600/15 rounded-full blur-[100px] -z-10" />
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="max-w-4xl mx-auto text-center space-y-8">
+            <Badge className="gap-1.5 bg-blue-50/80 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300 border-blue-200/50 dark:border-blue-800/50 px-4 py-1.5 rounded-full backdrop-blur-sm shadow-sm">
+              <AwardIcon className="h-4 w-4 text-amber-500" />
+              <span className="font-medium">
+                India's #1 Exam Preparation Platform
+              </span>
             </Badge>
 
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-slate-900 dark:text-white leading-tight">
-              Crack Your{" "}
-              <span className="bg-linear-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                Dream Exam
-              </span>{" "}
-              with Confidence
+            <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight text-slate-900 dark:text-white leading-[1.15]">
+              Ace Your Target Exam With{" "}
+              <span className="relative whitespace-nowrap">
+                <span className="absolute -inset-1 rounded-lg bg-blue-100 dark:bg-blue-900/40 transform -rotate-1"></span>
+                <span className="relative bg-clip-text text-transparent bg-linear-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">
+                  Precision
+                </span>
+              </span>
             </h1>
 
-            <p className="text-lg sm:text-xl text-slate-500 dark:text-slate-400 max-w-2xl mx-auto leading-relaxed">
-              Practice with real exam-pattern tests, get instant results with
-              detailed explanations, and track your progress. NTA-style
-              interface — exactly like the real exam.
+            <p className="text-lg md:text-xl text-slate-600 dark:text-slate-400 max-w-2xl mx-auto leading-relaxed font-medium">
+              Join 2 Million+ aspirants practicing on NTA-style mock tests. Get
+              detailed analytics, bilingual questions, and video solutions.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
-              <Link href="/login">
-                <Button
-                  size="lg"
-                  className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white gap-2 h-12 px-8 text-base font-semibold shadow-lg shadow-blue-500/25"
-                >
-                  <PlayCircleIcon className="h-5 w-5" />
-                  Start Practicing Free
-                </Button>
-              </Link>
-              <Link href="/exams">
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="w-full sm:w-auto gap-2 h-12 px-8 text-base border-slate-300 dark:border-slate-700"
-                >
-                  <BookOpenIcon
-                    className="h-4.5 w-4.5"
-                    style={{ height: "1.125rem", width: "1.125rem" }}
-                  />
-                  Browse Exams
-                </Button>
-              </Link>
+            {/* Premium Search Bar (Testbook Style) */}
+            <div className="max-w-2xl mx-auto mt-10 relative group">
+              <div className="absolute -inset-1 bg-linear-to-r from-blue-500 to-indigo-500 rounded-2xl blur-lg opacity-25 group-hover:opacity-40 transition duration-500"></div>
+              <div className="relative flex items-center bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xl p-2 pl-4">
+                <SearchIcon className="h-6 w-6 text-slate-400 ml-2" />
+                <Input
+                  type="text"
+                  placeholder="What are you preparing for? (e.g. UPSC, SSC CGL...)"
+                  className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent text-base md:text-lg h-14 w-full px-4 shadow-none font-medium"
+                />
+                <Link href="/exams">
+                  <Button
+                    size="lg"
+                    className="h-14 px-8 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-base shadow-md"
+                  >
+                    Start Prep
+                  </Button>
+                </Link>
+              </div>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-4 font-medium flex items-center justify-center gap-2">
+                <TrendingUpIcon className="h-4 w-4 text-green-500" />
+                Trending: SSC CGL, RRB NTPC, IBPS PO
+              </p>
             </div>
-
-            <p className="text-xs text-slate-400 dark:text-slate-500">
-              Free to start · No credit card required · 500+ free tests
-              available
-            </p>
           </div>
         </div>
       </section>
 
       {/* ── Social proof stats ───────────────────────────────────────────────── */}
-      <section className="border-y border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 py-10">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+      <section className="bg-slate-900 dark:bg-slate-950 py-12 relative overflow-hidden">
+        <div className="absolute inset-0 bg-[url('https://transparenttextures.com/patterns/cubes.png')] opacity-5"></div>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12 divide-x-0 lg:divide-x divide-slate-800">
             <StatBlock number="2M+" label="Registered Students" />
             <StatBlock number="50K+" label="Tests Available" />
             <StatBlock number="98%" label="Selection Rate" />
@@ -228,136 +206,208 @@ export default function PublicLandingPage() {
       </section>
 
       {/* ── Features ────────────────────────────────────────────────────────── */}
-      <section className="py-20 bg-slate-50 dark:bg-slate-950">
+      <AnimatedFeatures />
+
+      {/* ── Exam categories (Tabbed Interface) ─────────────────────────────── */}
+      <section className="py-24 bg-white dark:bg-slate-950">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12 space-y-3">
-            <Badge
-              variant="outline"
-              className="text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800"
-            >
-              Why QuizNow
-            </Badge>
-            <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 dark:text-white">
-              Everything you need to succeed
+          <div className="text-center mb-12 space-y-4">
+            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white">
+              Explore Exams by Category
             </h2>
-            <p className="text-slate-500 dark:text-slate-400 max-w-xl mx-auto text-base">
-              Built by exam toppers and educators. Designed for serious
-              aspirants.
+            <p className="text-slate-500 dark:text-slate-400 text-lg">
+              1000+ tests across 30+ exam categories. Find yours.
             </p>
           </div>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            <FeatureCard
-              icon={TargetIcon}
-              title="NTA-Style Interface"
-              description="Exact replica of the real exam UI — question palette, section tabs, timer, mark for review. Zero surprises on exam day."
-              color="bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400"
-            />
-            <FeatureCard
-              icon={BrainIcon}
-              title="Bilingual Questions"
-              description="Toggle between English and Hindi at any point during the exam. Questions available in both languages for all major exams."
-              color="bg-green-100 text-green-600 dark:bg-green-950 dark:text-green-400"
-            />
-            <FeatureCard
-              icon={BarChart3Icon}
-              title="Deep Analytics"
-              description="Know your weak topics before the real exam. Section-wise breakdown, accuracy trends, topic heatmaps — all in one place."
-              color="bg-purple-100 text-purple-600 dark:bg-purple-950 dark:text-purple-400"
-            />
-            <FeatureCard
-              icon={BookOpenIcon}
-              title="Detailed Solutions"
-              description="Every question has a step-by-step explanation with LaTeX math rendering. Learn why the answer is correct, not just what it is."
-              color="bg-amber-100 text-amber-600 dark:bg-amber-950 dark:text-amber-400"
-            />
-            <FeatureCard
-              icon={TrophyIcon}
-              title="Live Leaderboards"
-              description="See where you rank among thousands of aspirants. Competitive environment keeps you motivated to improve every attempt."
-              color="bg-orange-100 text-orange-600 dark:bg-orange-950 dark:text-orange-400"
-            />
-            <FeatureCard
-              icon={ShieldCheckIcon}
-              title="Anti-Cheat Monitoring"
-              description="Fullscreen enforcement, tab-switch detection, copy-paste prevention. Practice under real exam conditions every time."
-              color="bg-red-100 text-red-600 dark:bg-red-950 dark:text-red-400"
-            />
-          </div>
-        </div>
-      </section>
+          <Tabs defaultValue="popular" className="w-full max-w-5xl mx-auto">
+            <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 h-auto rounded-xl bg-slate-100 dark:bg-slate-900 p-1.5 mb-8">
+              <TabsTrigger
+                value="popular"
+                className="rounded-lg py-2.5 text-sm md:text-base data-[state=active]:bg-white data-[state=active]:shadow-sm"
+              >
+                Popular
+              </TabsTrigger>
+              <TabsTrigger
+                value="upsc"
+                className="rounded-lg py-2.5 text-sm md:text-base data-[state=active]:bg-white data-[state=active]:shadow-sm"
+              >
+                UPSC & State PSC
+              </TabsTrigger>
+              <TabsTrigger
+                value="ssc"
+                className="rounded-lg py-2.5 text-sm md:text-base data-[state=active]:bg-white data-[state=active]:shadow-sm"
+              >
+                SSC
+              </TabsTrigger>
+              <TabsTrigger
+                value="banking"
+                className="rounded-lg py-2.5 text-sm md:text-base data-[state=active]:bg-white data-[state=active]:shadow-sm"
+              >
+                Banking
+              </TabsTrigger>
+              <TabsTrigger
+                value="engineering"
+                className="rounded-lg py-2.5 text-sm md:text-base data-[state=active]:bg-white data-[state=active]:shadow-sm"
+              >
+                Engineering
+              </TabsTrigger>
+            </TabsList>
 
-      {/* ── Exam categories ──────────────────────────────────────────────────── */}
-      <section className="py-20 bg-white dark:bg-slate-900">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-10 space-y-2">
-            <h2 className="text-3xl font-bold text-slate-900 dark:text-white">
-              Prepare for any competitive exam
-            </h2>
-            <p className="text-slate-500 dark:text-slate-400">
-              1000+ tests across 30+ exam categories
-            </p>
-          </div>
+            <TabsContent value="popular" className="mt-0">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <ExamCategoryCard
+                  name="SSC CGL"
+                  count="180+"
+                  emoji="📋"
+                  href="/exams?category=ssc"
+                />
+                <ExamCategoryCard
+                  name="UPSC CSE"
+                  count="250+"
+                  emoji="🏛️"
+                  href="/exams?category=upsc"
+                />
+                <ExamCategoryCard
+                  name="IBPS PO"
+                  count="120+"
+                  emoji="🏦"
+                  href="/exams?category=banking"
+                />
+                <ExamCategoryCard
+                  name="RRB NTPC"
+                  count="200+"
+                  emoji="🚂"
+                  href="/exams?category=railways"
+                />
+              </div>
+            </TabsContent>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-            {[
-              {
-                name: "UPSC CSE",
-                count: "250+",
-                emoji: "🏛️",
-                href: "/exams?category=upsc",
-              },
-              {
-                name: "SSC CGL",
-                count: "180+",
-                emoji: "📋",
-                href: "/exams?category=ssc",
-              },
-              {
-                name: "IBPS PO",
-                count: "120+",
-                emoji: "🏦",
-                href: "/exams?category=banking",
-              },
-              {
-                name: "RRB NTPC",
-                count: "200+",
-                emoji: "🚂",
-                href: "/exams?category=railways",
-              },
-              {
-                name: "GATE",
-                count: "90+",
-                emoji: "⚙️",
-                href: "/exams?category=gate",
-              },
-              {
-                name: "NEET UG",
-                count: "150+",
-                emoji: "🩺",
-                href: "/exams?category=neet",
-              },
-              {
-                name: "JEE Main",
-                count: "130+",
-                emoji: "⚗️",
-                href: "/exams?category=jee",
-              },
-              {
-                name: "CAT",
-                count: "80+",
-                emoji: "📊",
-                href: "/exams?category=cat",
-              },
-            ].map((cat) => (
-              <ExamCategoryCard key={cat.name} {...cat} />
-            ))}
-          </div>
+            <TabsContent value="upsc" className="mt-0">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <ExamCategoryCard
+                  name="UPSC CSE"
+                  count="250+"
+                  emoji="🏛️"
+                  href="/exams?category=upsc"
+                />
+                <ExamCategoryCard
+                  name="UPPSC"
+                  count="90+"
+                  emoji="📜"
+                  href="/exams?category=upsc"
+                />
+                <ExamCategoryCard
+                  name="BPSC"
+                  count="110+"
+                  emoji="📚"
+                  href="/exams?category=upsc"
+                />
+                <ExamCategoryCard
+                  name="MPPSC"
+                  count="75+"
+                  emoji="🗺️"
+                  href="/exams?category=upsc"
+                />
+              </div>
+            </TabsContent>
 
-          <div className="text-center mt-8">
+            <TabsContent value="ssc" className="mt-0">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <ExamCategoryCard
+                  name="SSC CGL"
+                  count="180+"
+                  emoji="📋"
+                  href="/exams?category=ssc"
+                />
+                <ExamCategoryCard
+                  name="SSC CHSL"
+                  count="150+"
+                  emoji="📝"
+                  href="/exams?category=ssc"
+                />
+                <ExamCategoryCard
+                  name="SSC MTS"
+                  count="120+"
+                  emoji="📄"
+                  href="/exams?category=ssc"
+                />
+                <ExamCategoryCard
+                  name="SSC GD"
+                  count="200+"
+                  emoji="🛡️"
+                  href="/exams?category=ssc"
+                />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="banking" className="mt-0">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <ExamCategoryCard
+                  name="IBPS PO"
+                  count="120+"
+                  emoji="🏦"
+                  href="/exams?category=banking"
+                />
+                <ExamCategoryCard
+                  name="SBI PO"
+                  count="95+"
+                  emoji="💰"
+                  href="/exams?category=banking"
+                />
+                <ExamCategoryCard
+                  name="IBPS Clerk"
+                  count="150+"
+                  emoji="🧾"
+                  href="/exams?category=banking"
+                />
+                <ExamCategoryCard
+                  name="RBI Grade B"
+                  count="80+"
+                  emoji="🏦"
+                  href="/exams?category=banking"
+                />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="engineering" className="mt-0">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <ExamCategoryCard
+                  name="JEE Main"
+                  count="130+"
+                  emoji="⚗️"
+                  href="/exams?category=jee"
+                />
+                <ExamCategoryCard
+                  name="JEE Advanced"
+                  count="80+"
+                  emoji="🔬"
+                  href="/exams?category=jee"
+                />
+                <ExamCategoryCard
+                  name="GATE CS/IT"
+                  count="90+"
+                  emoji="💻"
+                  href="/exams?category=gate"
+                />
+                <ExamCategoryCard
+                  name="GATE Mechanical"
+                  count="85+"
+                  emoji="⚙️"
+                  href="/exams?category=gate"
+                />
+              </div>
+            </TabsContent>
+          </Tabs>
+
+          <div className="text-center mt-12">
             <Link href="/exams">
-              <Button variant="outline" className="gap-2">
-                View All Exam Categories
+              <Button
+                variant="outline"
+                size="lg"
+                className="gap-2 h-12 px-8 rounded-full border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
+              >
+                View All Categories
                 <ArrowRightIcon className="h-4 w-4" />
               </Button>
             </Link>

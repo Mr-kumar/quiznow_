@@ -41,6 +41,7 @@ import { StartExamButton } from "@/app/(student)/test/[testId]/StartExamButton";
 import { CountdownBanner } from "@/components/shared/CountdownBanner";
 import { SubscriptionGate } from "@/components/shared/SubscriptionGate";
 import type { ExamTest, ExamSection } from "@/types/exam";
+import { LanguageToggle } from "@/features/exam/components/LanguageToggle";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -378,6 +379,21 @@ export default async function TestInstructionsPage({ params }: PageProps) {
               text={`You need ${test.passMarks} marks to pass this test.`}
             />
           </ul>
+        </div>
+
+        <Separator />
+
+        {/* ── Language Selection ─────────────────────────────────────────── */}
+        <div className="flex flex-col sm:flex-row flex-wrap sm:items-center justify-between gap-4 p-5 rounded-xl border border-blue-100 dark:border-blue-900/30 bg-blue-50/50 dark:bg-blue-900/10">
+          <div>
+            <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+              Select Exam Language
+            </h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-[400px]">
+              Choose your preferred language for the questions. You can also switch languages dynamically anytime during the test.
+            </p>
+          </div>
+          <LanguageToggle />
         </div>
 
         <Separator />

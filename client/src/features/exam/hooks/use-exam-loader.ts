@@ -22,8 +22,8 @@ import type { ExamTest, ExamSection, ExamQuestion } from "@/types/exam";
 // Scoped under "exam" so invalidation never touches admin test cache
 
 export const examKeys = {
-  test: (id: string) => ["exam", "test", id] as const,
-  sections: (id: string) => ["exam", "sections", id] as const,
+  test: (id: string) => ["exam", "test", "v2", id] as const,
+  sections: (id: string) => ["exam", "sections", "v2", id] as const,
 };
 
 // ── API calls ─────────────────────────────────────────────────────────────────

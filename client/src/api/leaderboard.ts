@@ -24,18 +24,18 @@ export interface LeaderboardEntry {
 }
 
 export interface LeaderboardResponse {
-  testId: string;
-  testTitle: string;
-  totalParticipants: number;
+  testId?: string;
   entries: LeaderboardEntry[];
 
   // Current user's position (always included, even if not in top N)
   currentUserEntry: LeaderboardEntry | null;
 
   // Pagination
-  page: number;
-  limit: number;
-  totalPages: number;
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+  };
 }
 
 export interface UserTopicStat {
@@ -58,7 +58,7 @@ export const leaderboardApi = {
    * Server attaches isCurrentUser flag to the authenticated user's entry.
    */
   getByTest: (testId: string, page = 1, limit = 50) =>
-    api.get<LeaderboardResponse>(`/tests/${testId}/leaderboard`, {
+    api.get<LeaderboardResponse>(`/leaderboard/test/${testId}`, {
       params: { page, limit },
     }),
 

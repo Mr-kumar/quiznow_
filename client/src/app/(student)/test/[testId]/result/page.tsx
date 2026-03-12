@@ -35,6 +35,7 @@ import {
   Loader2Icon,
   AlertCircleIcon,
   HomeIcon,
+  TrophyIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -230,15 +231,27 @@ export default function ResultPage() {
         )}
 
         {/* ── Action buttons ────────────────────────────────────────────────── */}
-        <div className={cn("grid gap-3", "grid-cols-1 sm:grid-cols-3")}>
+        <div className={cn("grid gap-3", "grid-cols-1 sm:grid-cols-2 md:grid-cols-3")}>
           {/* View Solutions */}
-          <Link href={solutionsUrl} className="sm:col-span-2">
+          <Link href={solutionsUrl}>
             <Button
               type="button"
-              className="w-full gap-2 bg-blue-600 hover:bg-blue-700 text-white h-11"
+              className="w-full xl:min-w-64 gap-2 bg-blue-600 hover:bg-blue-700 text-white h-11"
             >
               <BookOpenIcon className="h-4 w-4" />
-              View Solutions &amp; Explanations
+              Solutions &amp; Explanations
+            </Button>
+          </Link>
+
+          {/* View Leaderboard */}
+          <Link href={`/leaderboard/${testId}`}>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full gap-2 h-11 border-blue-200 text-blue-700 hover:bg-blue-50 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-900/40"
+            >
+              <TrophyIcon className="h-4 w-4" />
+              View Leaderboard
             </Button>
           </Link>
 
@@ -247,7 +260,7 @@ export default function ResultPage() {
             <Button
               type="button"
               variant="outline"
-              className="w-full gap-2 h-11"
+              className="w-full gap-2 h-11 border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
             >
               <RefreshCwIcon className="h-4 w-4" />
               Retake Test
