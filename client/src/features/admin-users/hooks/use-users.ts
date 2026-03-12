@@ -33,3 +33,15 @@ export function useUser(id: string) {
     staleTime: 1000 * 60 * 5, // 5 min
   });
 }
+
+export function useDeepProfile(id: string) {
+  return useQuery({
+    queryKey: [...userKeys.detail(id), 'deep-profile'],
+    queryFn: async () => {
+      const res = await adminUsersApi.getDeepProfile(id);
+      return res.data.data; 
+    },
+    enabled: !!id,
+    staleTime: 1000 * 60 * 5, // 5 min
+  });
+}

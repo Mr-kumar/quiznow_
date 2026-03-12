@@ -64,9 +64,15 @@ import {
   Calendar,
   Shield,
   User as UserIcon,
+  Ban,
+  AlertCircle,
+  CheckCircle,
+  Eye,
 } from "lucide-react";
 import { ColumnDef } from "@tanstack/react-table";
 import { User as UserType } from "@/api/users";
+import { useUpdateUserStatus } from "@/features/admin-users/hooks/use-user-mutations";
+import Link from "next/link";
 
 const userFormSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -96,6 +102,7 @@ export default function UsersAnalyticsPage() {
   const createMutation = useCreateUser();
   const updateMutation = useUpdateUser();
   const deleteMutation = useDeleteUser();
+  const updateStatusMutation = useUpdateUserStatus();
 
   const createForm = useForm<UserFormValues>({
     resolver: zodResolver(userFormSchema),
@@ -205,6 +212,27 @@ export default function UsersAnalyticsPage() {
       },
     },
     {
+      accessorKey: "status",
+      header: "Status",
+      cell: ({ row }) => {
+        const status = row.getValue("status") as string;
+        const statusConfig = {
+          ACTIVE: { color: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400", icon: CheckCircle },
+          SUSPENDED: { color: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400", icon: AlertCircle },
+          BANNED: { color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400", icon: Ban },
+        };
+        const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.ACTIVE;
+        const Icon = config.icon;
+        
+        return (
+          <Badge className={config.color}>
+            <Icon className="w-3 h-3 mr-1" />
+            {status}
+          </Badge>
+        );
+      },
+    },
+    {
       accessorKey: "createdAt",
       header: "Created",
       cell: ({ row }) => {
@@ -224,21 +252,62 @@ export default function UsersAnalyticsPage() {
       id: "actions",
       cell: ({ row }) => {
         const user = row.original;
+        
         return (
           <ActionDropdown>
+            <DropdownMenuItem asChild>
+              <Link href={`/dashboard/admin/users/${user.id}`}>
+                <Eye className="mr-2 h-4 w-4" />
+                View Profile
+              </Link>
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => openEditDialog(user)}>
               <Edit className="mr-2 h-4 w-4" />
-              Edit User
+              Edit Details
             </DropdownMenuItem>
+            
+            {user.status !== "ACTIVE" && (
+              <DropdownMenuItem 
+                onClick={() => updateStatusMutation.mutate({ id: user.id, status: "ACTIVE" })}
+                className="text-emerald-600 focus:text-emerald-600"
+              >
+                <CheckCircle className="mr-2 h-4 w-4" />
+                Activate User
+              </DropdownMenuItem>
+            )}
+            
+            {user.status !== "SUSPENDED" && (
+              <DropdownMenuItem 
+                onClick={() => updateStatusMutation.mutate({ id: user.id, status: "SUSPENDED" })}
+                className="text-amber-600 focus:text-amber-600"
+              >
+                <AlertCircle className="mr-2 h-4 w-4" />
+                Suspend Account
+              </DropdownMenuItem>
+            )}
+
+            {user.status !== "BANNED" && (
+              <DropdownMenuItem 
+                onClick={() => updateStatusMutation.mutate({ id: user.id, status: "BANNED" })}
+                className="text-red-600 focus:text-red-600"
+              >
+                <Ban className="mr-2 h-4 w-4" />
+                Ban Permanently
+              </DropdownMenuItem>
+            )}
+            
+            {/* Divider */}
+            <div className="h-px bg-zinc-200 dark:bg-zinc-800 my-1" />
+
             <DropdownMenuItem
               onClick={() => {
                 setUserToDelete(user);
                 setDeleteDialogOpen(true);
               }}
-              className="text-red-600"
+              className="text-red-600 focus:bg-red-50 focus:text-red-600 dark:focus:bg-red-950/50"
             >
               <Trash2 className="mr-2 h-4 w-4" />
-              Delete User
+              Delete Data
             </DropdownMenuItem>
           </ActionDropdown>
         );

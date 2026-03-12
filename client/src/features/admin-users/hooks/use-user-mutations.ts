@@ -54,3 +54,21 @@ export function useDeleteUser() {
     },
   });
 }
+
+export function useUpdateUserStatus() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, status }: { id: string; status: "ACTIVE" | "SUSPENDED" | "BANNED" }) =>
+      adminUsersApi.updateStatus(id, status),
+    onSuccess: (_, { id, status }) => {
+      queryClient.invalidateQueries({ queryKey: userKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: userKeys.detail(id) });
+      toast.success(`User status updated to ${status}`);
+    },
+    onError: (error: unknown) => {
+      const apiError = parseApiError(error);
+      toast.error(apiError.message);
+    },
+  });
+}

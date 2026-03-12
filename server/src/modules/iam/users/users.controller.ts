@@ -18,7 +18,7 @@ import {
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { User, Role } from '@prisma/client';
+import { User, Role, UserStatus } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -96,6 +96,47 @@ export class UsersController {
   }
 
   // ← /me methods go ABOVE this line
+  // ─── Admin Deep-Dive Endpoints ────────────────────────────────────────────────
+  
+  @Get(':id/profile')
+  @ApiOperation({ summary: 'Get detailed user profile including stats and history' })
+  async getDeepProfile(@Param('id') id: string) {
+    try {
+      const data = await this.usersService.getDeepProfile(id);
+      return {
+        success: true,
+        message: 'User profile retrieved successfully',
+        data,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message || 'Failed to retrieve user profile',
+      };
+    }
+  }
+
+  @Patch(':id/status')
+  @ApiOperation({ summary: 'Update user status (ACTIVE, SUSPENDED, BANNED)' })
+  async updateStatus(
+    @Param('id') id: string,
+    @Body('status') status: UserStatus,
+  ) {
+    try {
+      const data = await this.usersService.updateStatus(id, status);
+      return {
+        success: true,
+        message: `User status updated to ${status}`,
+        data,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message || 'Failed to update user status',
+      };
+    }
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get user by ID' })
   @ApiResponse({ status: 200, description: 'User retrieved successfully' })
@@ -170,4 +211,5 @@ export class UsersController {
       };
     }
   }
+
 }

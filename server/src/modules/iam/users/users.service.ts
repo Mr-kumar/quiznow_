@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../services/prisma/prisma.service';
-import { User, Role } from '@prisma/client';
+import { User, Role, UserStatus } from '@prisma/client';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 
@@ -182,5 +182,67 @@ export class UsersService {
       },
       orderBy: { expiresAt: 'desc' },
     });
+  }
+  // ─── Admin Deep-Dive methods ───────────────────────────────────────────────────
+
+  async updateStatus(id: string, status: UserStatus): Promise<User> {
+    const existingUser = await this.findOne(id);
+    if (!existingUser) {
+      throw new Error('User not found');
+    }
+
+    return this.prisma.user.update({
+      where: { id },
+      data: { status },
+    });
+  }
+
+  async getDeepProfile(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        subscriptions: {
+          include: { plan: true },
+          orderBy: { createdAt: 'desc' },
+        },
+        topicStats: {
+          include: {
+            topic: {
+              include: { subject: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!user) throw new Error('User not found');
+
+    // Get aggregated attempt stats
+    const attemptsSummary = await this.prisma.attempt.aggregate({
+      where: { userId },
+      _count: { id: true },
+      _avg: { score: true, accuracy: true, timeTaken: true },
+    });
+
+    // Recent attempts log
+    const recentAttempts = await this.prisma.attempt.findMany({
+      where: { userId },
+      take: 10,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        test: { select: { title: true } },
+      },
+    });
+
+    return {
+      user,
+      stats: {
+        totalAttempts: attemptsSummary._count.id,
+        avgScore: attemptsSummary._avg.score || 0,
+        avgAccuracy: attemptsSummary._avg.accuracy || 0,
+        avgTimeTaken: attemptsSummary._avg.timeTaken || 0,
+      },
+      recentAttempts,
+    };
   }
 }

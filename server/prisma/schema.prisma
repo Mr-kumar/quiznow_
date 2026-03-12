@@ -17,6 +17,12 @@ enum Role {
   ADMIN
 }
 
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  BANNED
+}
+
 enum Status {
   STARTED
   SUBMITTED
@@ -43,8 +49,9 @@ model User {
   email         String    @unique
   name          String?
   image         String?
-  role          Role      @default(STUDENT)
-  preferredLang Language  @default(EN)
+  role          Role       @default(STUDENT)
+  status        UserStatus @default(ACTIVE)
+  preferredLang Language   @default(EN)
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
