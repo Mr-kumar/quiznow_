@@ -103,6 +103,13 @@ export class TestSeriesService {
   ) {
     const where: any = {
       isActive: true, // Only show active series
+      tests: {
+        some: {
+          isActive: true,
+          isLive: true,
+          sections: { some: { questions: { some: {} } } },
+        },
+      },
     };
 
     if (examId) where.examId = examId;
@@ -114,9 +121,23 @@ export class TestSeriesService {
       where,
       include: {
         exam: { select: { name: true } },
-        _count: { select: { tests: { where: { isActive: true } } } },
+        _count: {
+          select: {
+            tests: {
+              where: {
+                isActive: true,
+                isLive: true,
+                sections: { some: { questions: { some: {} } } },
+              },
+            },
+          },
+        },
         tests: {
-          where: { isActive: true },
+          where: {
+            isActive: true,
+            isLive: true,
+            sections: { some: { questions: { some: {} } } },
+          },
           select: { id: true, isPremium: true },
           take: 1, // Just need to know if there are premium/free tests
         },
@@ -142,12 +163,26 @@ export class TestSeriesService {
 
   // 7. Public Find One (for public series page)
   async findPublicOne(id: string) {
-    const series = await this.prisma.testSeries.findUnique({
-      where: { id, isActive: true },
+    const series = await this.prisma.testSeries.findFirst({
+      where: {
+        id,
+        isActive: true,
+        tests: {
+          some: {
+            isActive: true,
+            isLive: true,
+            sections: { some: { questions: { some: {} } } },
+          },
+        },
+      },
       include: {
         exam: { select: { name: true } },
         tests: {
-          where: { isActive: true },
+          where: {
+            isActive: true,
+            isLive: true,
+            sections: { some: { questions: { some: {} } } },
+          },
           include: {
             _count: { select: { sections: true } },
           },

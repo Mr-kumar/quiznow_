@@ -30,6 +30,13 @@ export interface TestSeries {
   createdAt: string;
   updatedAt: string;
   exam?: Exam;
+  examName?: string;
+  description?: string;
+  category?: string;
+  testCount?: number;
+  freeTestCount?: number;
+  isPremium?: boolean;
+  level?: string;
 }
 
 export interface Test {

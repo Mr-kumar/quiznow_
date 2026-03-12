@@ -238,3 +238,24 @@ export const attemptsApi = {
       | "WINDOW_BLUR",
   ) => api.patch(`/attempts/${attemptId}/suspicious`, { eventType }),
 };
+
+export const adminAttemptsApi = {
+  /**
+   * Get all attempts for a specific test with pagination.
+   */
+  getByTest: (testId: string, page = 1, limit = 10) =>
+    api.get<{
+      data: AttemptResult[];
+      total: number;
+      page: number;
+      limit: number;
+    }>(`/admin/attempts/test/${testId}`, { params: { page, limit } }),
+
+  /**
+   * Permanently delete a fraudulent or test attempt.
+   */
+  delete: (attemptId: string) =>
+    api.delete<{ success: boolean; message: string }>(
+      `/admin/attempts/${attemptId}`,
+    ),
+};

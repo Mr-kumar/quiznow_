@@ -445,6 +445,14 @@ export class TestsService {
 
     const where: any = {
       isActive: true,
+      isLive: true,
+      sections: {
+        some: {
+          questions: {
+            some: {},
+          },
+        },
+      },
     };
 
     if (search) {
@@ -480,8 +488,13 @@ export class TestsService {
   }
 
   async findOneForStudents(testId: string, userId?: string) {
-    const test = await this.prisma.test.findUnique({
-      where: { id: testId, isActive: true },
+    const test = await this.prisma.test.findFirst({
+      where: {
+        id: testId,
+        isActive: true,
+        isLive: true,
+        sections: { some: { questions: { some: {} } } },
+      },
       include: {
         series: {
           select: { id: true, title: true, exam: { select: { name: true } } },

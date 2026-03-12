@@ -787,4 +787,55 @@ export class AttemptsService {
 
     return results;
   }
+
+  // ─── ADMIN: Find All Attempts for a Specific Test ──────────────────────
+  async findAllByTest(testId: string, page: number = 1, limit: number = 10) {
+    const skip = (page - 1) * limit;
+
+    const [attempts, total] = await Promise.all([
+      this.prisma.attempt.findMany({
+        where: { testId },
+        include: {
+          user: { select: { id: true, name: true, email: true, image: true } },
+        },
+        orderBy: { startTime: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.attempt.count({ where: { testId } }),
+    ]);
+
+    // Format IDs for BigInt safety
+    const safeAttempts = attempts.map((v) => ({
+      ...v,
+      id: v.id.toString(),
+    }));
+
+    return {
+      data: safeAttempts,
+      total,
+      page,
+      limit,
+    };
+  }
+
+  // ─── ADMIN: Delete an Attempt ──────────────────────
+  async deleteAttempt(id: string) {
+    const attempt = await this.prisma.attempt.findUnique({
+      where: { id: BigInt(id) },
+    });
+
+    if (!attempt) {
+      throw new ResourceNotFoundException('Attempt', id);
+    }
+
+    try {
+      await this.prisma.attempt.delete({
+        where: { id: BigInt(id) },
+      });
+      return { success: true, message: 'Attempt deleted successfully' };
+    } catch (error) {
+       throw new ValidationException('Failed to delete attempt', 'DELETE_FAILED');
+    }
+  }
 }

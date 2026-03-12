@@ -2,11 +2,8 @@
  * app/(public)/exams/[examId]/page.tsx
  *
  * Exam Detail Page — shows all test series for a specific exam.
+ * Dark-first · Amber accent · Sora + DM Sans typography
  * URL: /exams/[examId]
- *
- * Server Component — SSR, revalidate 300s.
- * generateMetadata: dynamic title + OG per exam.
- * JSON-LD: Course schema for SEO rich results.
  */
 
 import Link from "next/link";
@@ -20,6 +17,11 @@ import {
   PlayCircleIcon,
   LayersIcon,
   CalendarIcon,
+  TrophyIcon,
+  UsersIcon,
+  ChevronRightIcon,
+  SparklesIcon,
+  BarChart3Icon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -46,7 +48,7 @@ async function getExam(examId: string): Promise<Exam | null> {
 
 async function getSeriesForExam(examId: string): Promise<TestSeries[]> {
   try {
-    const res = await fetch(`${API}/test-series?examId=${examId}`, {
+    const res = await fetch(`${API}/public/test-series?examId=${examId}`, {
       next: { revalidate: 300 },
     });
     if (!res.ok) throw new Error();
@@ -69,7 +71,7 @@ export async function generateMetadata({
   if (!exam) return { title: "Exam Not Found | QuizNow" };
   return {
     title: `${exam.name} Mock Tests & Practice Papers | QuizNow`,
-    description: `Prepare for ${exam.name} with India's best mock tests. NTA-style, bilingual, instant results with explanations.`,
+    description: `Prepare for ${exam.name} with India's best mock tests. NTA-style, bilingual, instant results.`,
     openGraph: {
       title: `${exam.name} Mock Tests | QuizNow`,
       description: `Practice with ${exam.name} mock tests. Instant results and detailed analytics.`,
@@ -79,34 +81,85 @@ export async function generateMetadata({
 
 // ── Series card ───────────────────────────────────────────────────────────────
 
-function SeriesCard({ series }: { series: TestSeries }) {
+function SeriesCard({ series, index }: { series: TestSeries; index: number }) {
+  // Cycle through subtle accent colors for visual variety
+  const accents = [
+    "from-amber-500 to-orange-600",
+    "from-violet-500 to-purple-600",
+    "from-cyan-500 to-blue-600",
+    "from-emerald-500 to-green-600",
+    "from-rose-500 to-pink-600",
+    "from-orange-500 to-red-600",
+  ];
+  const accent = accents[index % accents.length];
+
   return (
-    <div className="group rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-lg transition-all duration-200 flex flex-col">
-      <div className="h-24 bg-linear-to-br from-blue-50 to-indigo-100 dark:from-slate-800 dark:to-slate-700 flex items-center justify-center">
-        <div className="h-12 w-12 rounded-xl bg-linear-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow">
+    <div className="group relative rounded-2xl border border-white/[0.06] bg-white/[0.02] overflow-hidden hover:border-amber-500/20 hover:bg-white/[0.04] transition-all duration-300 flex flex-col">
+      {/* Top color bar */}
+      <div
+        className={`h-1 w-full bg-gradient-to-r ${accent} opacity-0 group-hover:opacity-100 transition-opacity duration-500`}
+      />
+
+      {/* Thumbnail */}
+      <div className="h-24 relative overflow-hidden bg-white/[0.02] flex items-center justify-center">
+        <div className="absolute inset-0 opacity-10">
+          <div className={`absolute top-0 right-0 h-20 w-20 rounded-full bg-gradient-to-br ${accent} blur-xl`} />
+        </div>
+        <div
+          className={`relative h-12 w-12 rounded-xl bg-gradient-to-br ${accent} flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300`}
+        >
           <LayersIcon className="h-6 w-6 text-white" />
         </div>
       </div>
+
       <div className="p-4 flex flex-col flex-1 gap-3">
         <div>
-          <h3 className="text-sm font-semibold text-slate-900 dark:text-white leading-snug">
+          <h3 className="text-sm font-bold text-white leading-snug mb-1">
             {series.title}
           </h3>
-          <div className="flex items-center gap-1 mt-1 text-[11px] text-slate-400 dark:text-slate-500">
+          <div className="flex items-center gap-1.5 text-[11px] text-slate-600">
             <CalendarIcon className="h-3 w-3" />
-            {new Date(series.createdAt).getFullYear()}
+            <span>{new Date(series.createdAt).getFullYear()}</span>
+            <span className="text-white/10">·</span>
+            <LayersIcon className="h-3 w-3" />
+            <span>{series.testCount ?? "—"} tests</span>
           </div>
         </div>
+
         <Link href={`/series/${series.id}`} className="mt-auto">
           <Button
             size="sm"
-            className="w-full h-8 text-xs gap-1.5 bg-blue-600 hover:bg-blue-700 text-white"
+            className="w-full h-9 text-xs font-bold gap-1.5 rounded-xl bg-white/5 border border-white/10 text-white hover:bg-amber-500 hover:text-[#080c18] hover:border-amber-500 transition-all duration-200"
           >
             <PlayCircleIcon className="h-3 w-3" />
             View Tests
             <ArrowRightIcon className="h-3 w-3 ml-auto" />
           </Button>
         </Link>
+      </div>
+    </div>
+  );
+}
+
+// ── Stat pill ──────────────────────────────────────────────────────────────────
+
+function StatPill({
+  icon: Icon,
+  value,
+  label,
+}: {
+  icon: any;
+  value: string;
+  label: string;
+}) {
+  return (
+    <div className="flex items-center gap-2.5 bg-white/[0.04] border border-white/[0.06] rounded-xl px-4 py-3">
+      <div className="h-8 w-8 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0">
+        <Icon className="h-4 w-4 text-amber-400" />
+      </div>
+      <div>
+        <p className="text-base font-black text-white tabular-nums">{value}</p>
+        <p className="text-[10px] text-slate-500 font-medium">{label}</p>
       </div>
     </div>
   );
@@ -141,89 +194,184 @@ export default async function ExamDetailPage({
   return (
     <>
       <JsonLd data={courseSchema} />
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
-        {/* Hero */}
-        <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <nav className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500 mb-4">
-              <Link href="/" className="hover:text-blue-600">
+      <div
+        className="min-h-screen bg-[#080c18] text-white"
+        style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }}
+      >
+        <style>{`
+          @import url('https://fonts.googleapis.com/css2?family=Sora:wght@700;800;900&family=DM+Sans:wght@400;500;600;700&display=swap');
+          .font-sora { font-family: 'Sora', sans-serif; }
+          .grid-bg {
+            background-image: 
+              linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+            background-size: 40px 40px;
+          }
+          .glow-text {
+            background: linear-gradient(135deg, #fbbf24 0%, #f97316 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text;
+          }
+        `}</style>
+
+        {/* ── Hero ──────────────────────────────────────────────────────────── */}
+        <div className="relative overflow-hidden border-b border-white/[0.05]">
+          <div className="absolute inset-0 grid-bg" />
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[#080c18]" />
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-48 bg-amber-600/8 rounded-full blur-[80px]" />
+
+          <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+            {/* Breadcrumb */}
+            <nav className="flex items-center gap-1.5 text-xs text-slate-600 mb-6">
+              <Link href="/" className="hover:text-amber-400 transition-colors">
                 Home
               </Link>
-              <span>›</span>
-              <Link href="/exams" className="hover:text-blue-600">
+              <ChevronRightIcon className="h-3 w-3" />
+              <Link
+                href="/exams"
+                className="hover:text-amber-400 transition-colors"
+              >
                 Exams
               </Link>
-              <span>›</span>
-              <span className="text-slate-600 dark:text-slate-400">
-                {exam.name}
-              </span>
+              <ChevronRightIcon className="h-3 w-3" />
+              <span className="text-slate-400">{exam.name}</span>
             </nav>
-            <div className="flex items-start justify-between gap-4 flex-wrap">
-              <div className="space-y-2">
-                <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white">
-                  {exam.name}
-                </h1>
-                <p className="text-slate-500 dark:text-slate-400 text-sm">
-                  {seriesList.length} test series available
-                </p>
-                {exam.category && (
-                  <Badge variant="outline" className="text-xs">
-                    {exam.category.name}
-                  </Badge>
-                )}
+
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6">
+              <div className="space-y-4 flex-1">
+                {/* Icon + Title */}
+                <div className="flex items-center gap-4">
+                  <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-xl shadow-amber-900/30 shrink-0">
+                    <BookOpenIcon className="h-7 w-7 text-white" />
+                  </div>
+                  <div>
+                    {exam.category && (
+                      <span className="inline-block text-[10px] font-bold text-amber-400/80 uppercase tracking-widest mb-1">
+                        {exam.category.name}
+                      </span>
+                    )}
+                    <h1
+                      className="font-sora text-2xl sm:text-3xl font-black text-white leading-tight"
+                      style={{ fontFamily: "'Sora', sans-serif" }}
+                    >
+                      {exam.name}
+                    </h1>
+                  </div>
+                </div>
+
+                {/* Stat pills */}
+                <div className="flex flex-wrap gap-3">
+                  <StatPill
+                    icon={LayersIcon}
+                    value={`${seriesList.length}`}
+                    label="Test Series"
+                  />
+                  <StatPill icon={BarChart3Icon} value="NTA-Style" label="Interface" />
+                  <StatPill icon={UsersIcon} value="2M+" label="Aspirants" />
+                </div>
               </div>
-              <Link href="/exams">
-                <Button variant="outline" size="sm" className="gap-1.5 h-8">
-                  <ArrowLeftIcon className="h-3.5 w-3.5" /> All Exams
+
+              <Link href="/exams" className="shrink-0">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 h-9 rounded-xl border-white/10 text-slate-400 hover:text-white hover:border-amber-500/30 hover:bg-white/5"
+                >
+                  <ArrowLeftIcon className="h-3.5 w-3.5" />
+                  All Exams
                 </Button>
               </Link>
             </div>
           </div>
         </div>
 
-        {/* Series grid */}
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* ── Content ───────────────────────────────────────────────────────── */}
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
           {seriesList.length === 0 ? (
-            <div className="flex flex-col items-center py-16 text-center">
-              <BookOpenIcon className="h-10 w-10 text-slate-300 dark:text-slate-600 mb-3" />
-              <h2 className="text-base font-semibold text-slate-700 dark:text-slate-300 mb-1">
+            /* Empty state */
+            <div className="flex flex-col items-center py-24 text-center">
+              <div className="relative h-20 w-20 mb-6">
+                <div className="h-20 w-20 rounded-2xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center">
+                  <BookOpenIcon className="h-9 w-9 text-slate-600" />
+                </div>
+                <div className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-amber-500/20 border border-amber-500/30 flex items-center justify-center">
+                  <span className="text-[10px]">🔜</span>
+                </div>
+              </div>
+              <h2
+                className="font-sora text-xl font-black text-white mb-3"
+                style={{ fontFamily: "'Sora', sans-serif" }}
+              >
                 No test series yet
               </h2>
-              <p className="text-sm text-slate-400 dark:text-slate-500 max-w-xs">
-                We're adding {exam.name} series soon. Check back shortly.
+              <p className="text-sm text-slate-500 max-w-xs leading-relaxed mb-6">
+                We're adding {exam.name} series soon. Check back shortly or
+                browse other exams.
               </p>
-              <Link href="/exams" className="mt-4">
-                <Button variant="outline" size="sm" className="gap-1.5">
-                  <ArrowLeftIcon className="h-3.5 w-3.5" /> Browse Other Exams
+              <Link href="/exams">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 border-white/10 text-slate-400 hover:text-white hover:border-amber-500/30"
+                >
+                  <ArrowLeftIcon className="h-3.5 w-3.5" />
+                  Browse Other Exams
                 </Button>
               </Link>
             </div>
           ) : (
             <>
-              <p className="text-sm text-slate-500 dark:text-slate-400 mb-5">
-                {seriesList.length} series found
-              </p>
+              <div className="flex items-center justify-between mb-6">
+                <p className="text-sm text-slate-500">
+                  <span className="text-white font-bold">
+                    {seriesList.length}
+                  </span>{" "}
+                  series available
+                </p>
+                <div className="flex items-center gap-2 text-xs text-slate-600">
+                  <TrophyIcon className="h-3.5 w-3.5 text-amber-500/50" />
+                  Most popular first
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {seriesList.map((s) => (
-                  <SeriesCard key={s.id} series={s} />
+                {seriesList.map((s, i) => (
+                  <SeriesCard key={s.id} series={s} index={i} />
                 ))}
               </div>
             </>
           )}
 
-          <div className="mt-10 rounded-2xl bg-linear-to-r from-blue-600 to-indigo-600 p-6 text-center text-white">
-            <LockIcon className="h-6 w-6 mx-auto mb-2 opacity-80" />
-            <h3 className="font-semibold mb-1">
-              Unlock all premium test series
-            </h3>
-            <p className="text-blue-100 text-sm mb-4">
-              Unlimited access to {exam.name} and 30+ exam categories.
-            </p>
-            <Link href="/plans">
-              <Button className="bg-white text-blue-600 hover:bg-blue-50 gap-1.5 text-sm font-semibold">
-                View Plans <ArrowRightIcon className="h-4 w-4" />
-              </Button>
-            </Link>
+          {/* ── Premium CTA ───────────────────────────────────────────────── */}
+          <div className="mt-12 relative rounded-2xl overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-r from-amber-950/50 to-orange-950/30" />
+            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-500/50 to-transparent" />
+            <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/5 rounded-full blur-[60px]" />
+
+            <div className="relative z-10 p-8 sm:p-10 flex flex-col sm:flex-row items-center justify-between gap-6">
+              <div className="text-center sm:text-left">
+                <div className="inline-flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs font-semibold px-3 py-1.5 rounded-full mb-3">
+                  <LockIcon className="h-3 w-3" />
+                  Premium Access
+                </div>
+                <h3
+                  className="font-sora text-xl font-black text-white mb-2"
+                  style={{ fontFamily: "'Sora', sans-serif" }}
+                >
+                  Unlock all premium {exam.name} series
+                </h3>
+                <p className="text-sm text-slate-500 max-w-sm">
+                  Unlimited access to {exam.name} and 30+ exam categories.
+                  PDF solutions, video explanations included.
+                </p>
+              </div>
+              <Link href="/plans" className="shrink-0">
+                <Button className="bg-gradient-to-r from-amber-500 to-orange-500 text-[#080c18] font-black gap-2 h-12 px-8 rounded-xl hover:from-amber-400 hover:to-orange-400 shadow-lg shadow-amber-900/30 border-0 whitespace-nowrap">
+                  View Plans
+                  <ArrowRightIcon className="h-4 w-4" />
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
       </div>

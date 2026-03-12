@@ -250,9 +250,10 @@ export default function LeaderboardPage() {
   });
 
   const entries = data?.entries ?? [];
-  const totalPages = data?.pagination?.total && data?.pagination?.limit 
-    ? Math.max(1, Math.ceil(data.pagination.total / data.pagination.limit)) 
-    : 1;
+  const totalPages =
+    data?.pagination?.total && data?.pagination?.limit
+      ? Math.max(1, Math.ceil(data.pagination.total / data.pagination.limit))
+      : 1;
   const myEntry = data?.currentUserEntry;
 
   // Podium — top 3 (only if we have them)
@@ -358,7 +359,7 @@ export default function LeaderboardPage() {
                   (e, idx) =>
                     e && (
                       <PodiumSlot
-                        key={e.userId}
+                        key={`podium-${e.userId}`}
                         entry={e}
                         position={[2, 1, 3][idx] as 1 | 2 | 3}
                       />
@@ -399,7 +400,7 @@ export default function LeaderboardPage() {
                   ) : (
                     entries.map((entry) => (
                       <LeaderboardRow
-                        key={entry.userId}
+                        key={`table-${entry.userId}`}
                         entry={entry}
                         currentUserId={user?.id || null}
                       />

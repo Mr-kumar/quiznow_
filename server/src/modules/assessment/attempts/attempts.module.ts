@@ -1,11 +1,12 @@
 import { Module } from '@nestjs/common';
 import { AttemptsService } from './attempts.service';
 import { AttemptsController } from './attempts.controller';
+import { AdminAttemptsController } from './admin-attempts.controller';
 import { SchedulerModule } from '../../../common/services/scheduler.module';
 
 @Module({
   imports: [SchedulerModule],
-  controllers: [AttemptsController],
+  controllers: [AttemptsController, AdminAttemptsController],
   providers: [AttemptsService],
   exports: [AttemptsService],
 })

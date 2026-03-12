@@ -48,6 +48,8 @@ import {
 import { cn } from "@/lib/utils";
 import BulkQuestionUpload from "@/components/admin/bulk-upload";
 import { QuestionBankSelector } from "@/components/admin/question-bank-selector";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TestSubmissionsTable } from "@/components/admin/test-submissions-table";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -605,19 +607,36 @@ export default function TestAssemblyPage() {
           />
         </div>
 
-        {/* ── Language toggle ── */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Languages className="h-4 w-4 text-slate-400" />
-            <span className="text-sm text-slate-600 dark:text-slate-400">
-              Question Language
-            </span>
-          </div>
-          <LangToggle value={lang} onChange={setLang} />
-        </div>
+        {/* ── Tabs (Assembly vs Submissions) ── */}
+        <Tabs defaultValue="assembly" className="w-full">
+          <div className="flex items-center justify-between mb-4">
+            <TabsList className="bg-slate-100 dark:bg-slate-800 p-1">
+              <TabsTrigger
+                value="assembly"
+                className="text-xs data-[state=active]:bg-white data-[state=active]:text-slate-900 dark:data-[state=active]:bg-slate-700 dark:data-[state=active]:text-slate-100 dark:text-slate-400"
+              >
+                1. Test Assembly
+              </TabsTrigger>
+              <TabsTrigger
+                value="analytics"
+                className="text-xs data-[state=active]:bg-white data-[state=active]:text-slate-900 dark:data-[state=active]:bg-slate-700 dark:data-[state=active]:text-slate-100 dark:text-slate-400"
+              >
+                2. Submissions & Analytics
+              </TabsTrigger>
+            </TabsList>
 
-        {/* ── Main layout: sidebar sections + content ── */}
-        <div className="flex gap-5 items-start">
+            {/* ── Language toggle ── */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Languages className="h-4 w-4 text-slate-400" />
+              </div>
+              <LangToggle value={lang} onChange={setLang} />
+            </div>
+          </div>
+
+          <TabsContent value="assembly" className="mt-0">
+            {/* ── Main layout: sidebar sections + content ── */}
+            <div className="flex gap-5 items-start">
           {/* Sections sidebar */}
           <div className="w-56 shrink-0 hidden md:block">
             <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden sticky top-20">
@@ -988,7 +1007,17 @@ export default function TestAssemblyPage() {
             )}
           </div>
         </div>
-      </div>
+      </TabsContent>
+
+      {/* ── Submissions & Analytics Tab ── */}
+      <TabsContent value="analytics" className="mt-0">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 mb-5 shadow-sm">
+          <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-2 border-b border-slate-100 dark:border-slate-800 pb-3">Test Submissions</h2>
+          <p className="text-sm text-slate-500 mb-6">Review all student attempts, scores, and manage access for fraudulent submissions.</p>
+          <TestSubmissionsTable testId={testId} />
+        </div>
+      </TabsContent>
+      </Tabs>
 
       {/* ── Question Bank Selector dialog ── */}
       <QuestionBankSelector
@@ -1184,6 +1213,7 @@ export default function TestAssemblyPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      </div>
     </div>
   );
 }
