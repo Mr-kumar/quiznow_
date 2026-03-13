@@ -7,7 +7,7 @@ import { BigIntInterceptor } from './common/interceptors/bigint.interceptor';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { rawBody: true });
 
   // 🌐 Set Global API Prefix
   app.setGlobalPrefix('api');

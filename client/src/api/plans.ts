@@ -6,11 +6,28 @@ export interface Plan {
   name: string;
   description?: string;
   price: number;
-  durationDays: number; // in days - renamed from duration to match pages
+  durationDays: number;
   features?: string[];
+  isPopular?: boolean;
+  badge?: string;
+  accesses?: PlanAccess[];
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface PlanAccess {
+  id: string;
+  planId: string;
+  examId?: string;
+  seriesId?: string;
+  exam?: { id: string; name: string };
+  series?: { id: string; title: string };
+}
+
+export interface AddPlanAccessDto {
+  examId?: string;
+  seriesId?: string;
 }
 
 // Explicit request DTOs — never use Omit<Plan,...> for write operations
@@ -43,4 +60,21 @@ export const adminPlansApi = {
   update: (id: string, data: UpdatePlanRequest) =>
     api.patch<ApiResponse<Plan>>(`/admin/plans/${id}`, data),
   delete: (id: string) => api.delete<ApiResponse<void>>(`/admin/plans/${id}`),
+
+  addAccess: async (
+    planId: string,
+    data: AddPlanAccessDto
+  ): Promise<PlanAccess> => {
+    const res = await api.post(`/admin/plans/${planId}/access`, data);
+    return res.data;
+  },
+
+  removeAccess: async (planId: string, accessId: string): Promise<void> => {
+    await api.delete(`/admin/plans/${planId}/access/${accessId}`);
+  },
+
+  getAccesses: async (planId: string): Promise<PlanAccess[]> => {
+    const res = await api.get(`/admin/plans/${planId}/access`);
+    return res.data;
+  },
 };

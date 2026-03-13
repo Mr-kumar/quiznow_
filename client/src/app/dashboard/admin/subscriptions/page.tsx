@@ -223,21 +223,40 @@ export default function SubscriptionsPage() {
       ),
     },
     {
+      accessorKey: "paymentOrderId",
+      header: "Payment Ref",
+      cell: ({ row }) => {
+        const pOrderId = row.original.paymentOrderId;
+        return pOrderId ? (
+          <span className="text-xs font-mono text-muted-foreground" title={row.original.paymentId || "No Payment ID"}>
+            {pOrderId.replace("order_", "")}
+          </span>
+        ) : (
+          <span className="text-xs text-muted-foreground italic">Manual</span>
+        );
+      },
+    },
+    {
       id: "actions",
       header: "Actions",
       cell: ({ row }) => (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-red-500 hover:text-red-700"
-          onClick={() => {
-            setSubscriptionToDelete(row.original);
-            setDeleteDialogOpen(true);
-          }}
-          disabled={isCrudLoading}
-        >
-          <Trash2 className="h-4 w-4" />
-        </Button>
+        <div className="flex gap-2">
+          {row.original.status !== "CANCELLED" && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-red-500 hover:text-red-700 hover:bg-red-50"
+              title="Cancel & Refund"
+              onClick={() => {
+                setSubscriptionToDelete(row.original);
+                setDeleteDialogOpen(true);
+              }}
+              disabled={isCrudLoading}
+            >
+              <XCircle className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
       ),
     },
   ];
@@ -397,15 +416,17 @@ export default function SubscriptionsPage() {
         </CardContent>
       </Card>
 
-      {/* Delete Dialog */}
+      {/* Cancel Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Cancel Subscription?</AlertDialogTitle>
+            <AlertDialogTitle>Cancel & Refund Subscription?</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to cancel the subscription for{" "}
               <strong>{subscriptionToDelete?.user?.name || "this user"}</strong>
-              ? This action will immediately revoke access.
+              ? This action will immediately revoke access and mark the associated payment as <strong>REFUNDED</strong> (Please process the actual refund in the Razorpay Dashboard). 
+              <br/><br/>
+              <strong>This action cannot be undone.</strong>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

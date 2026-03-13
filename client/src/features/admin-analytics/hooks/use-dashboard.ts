@@ -8,6 +8,7 @@ import type {
   UserStats,
   TestStats,
   AttemptStats,
+  RevenueStats,
 } from "@/api/analytics";
 
 export function useDashboard() {
@@ -40,10 +41,16 @@ export function useDashboard() {
           adminAnalyticsApi.getAttemptStats().then(unwrap<AttemptStats>),
         staleTime: 1000 * 60 * 5,
       },
+      {
+        queryKey: analyticsKeys.revenue(),
+        queryFn: () =>
+          adminAnalyticsApi.getRevenueStats().then(unwrap<RevenueStats>),
+        staleTime: 1000 * 60 * 5,
+      },
     ],
   });
 
-  const [metricsQ, usersQ, testsQ, attemptsQ] = results;
+  const [metricsQ, usersQ, testsQ, attemptsQ, revenueQ] = results;
 
   // Invalidate all 4 queries at once and track the in-progress state separately
   // so the refresh button can show a spinner without flashing skeleton cards
@@ -54,6 +61,7 @@ export function useDashboard() {
       queryClient.invalidateQueries({ queryKey: analyticsKeys.users() }),
       queryClient.invalidateQueries({ queryKey: analyticsKeys.tests() }),
       queryClient.invalidateQueries({ queryKey: analyticsKeys.attempts() }),
+      queryClient.invalidateQueries({ queryKey: analyticsKeys.revenue() }),
     ]);
     setIsRefreshing(false);
   }, [queryClient]);
@@ -63,6 +71,7 @@ export function useDashboard() {
     userStats: (usersQ.data as UserStats | undefined) ?? null,
     testStats: (testsQ.data as TestStats | undefined) ?? null,
     attemptStats: (attemptsQ.data as AttemptStats | undefined) ?? null,
+    revenueStats: (revenueQ.data as RevenueStats | undefined) ?? null,
 
     // Per-card error tracking: one failing endpoint never blocks others
     errors: {
@@ -70,6 +79,7 @@ export function useDashboard() {
       users: usersQ.isError ? "Failed to load user stats" : undefined,
       tests: testsQ.isError ? "Failed to load test stats" : undefined,
       attempts: attemptsQ.isError ? "Failed to load attempt stats" : undefined,
+      revenue: revenueQ.isError ? "Failed to load revenue stats" : undefined,
     },
 
     isLoading: results.some((r) => r.isLoading),

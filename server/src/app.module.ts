@@ -23,6 +23,7 @@ import { AuditLogsModule } from './modules/admin/audit-logs/audit-logs.module';
 import { CacheModule } from './cache/cache.module';
 import { SchedulerService } from './common/services/scheduler.service';
 import { SchedulerModule } from './common/services/scheduler.module';
+import { PaymentsModule } from './modules/payments/payments.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { SchedulerModule } from './common/services/scheduler.module';
     SettingsModule,
     AuditLogsModule,
     CacheModule,
+    PaymentsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

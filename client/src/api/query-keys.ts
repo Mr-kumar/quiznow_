@@ -39,6 +39,7 @@ export const analyticsKeys = {
   users: () => [...analyticsKeys.all(), "users"] as const,
   tests: () => [...analyticsKeys.all(), "tests"] as const,
   attempts: () => [...analyticsKeys.all(), "attempts"] as const,
+  revenue: () => [...analyticsKeys.all(), "revenue"] as const,
 };
 
 export const auditLogKeys = {

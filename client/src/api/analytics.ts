@@ -39,6 +39,15 @@ export interface AttemptStats {
   avgDuration: number;
 }
 
+export interface RevenueStats {
+  totalRevenue: number;
+  monthRevenue: number;
+  lastMonthRevenue: number;
+  totalSubscriptions: number;
+  activeSubscriptions: number;
+  recentPayments: any[];
+}
+
 export const adminAnalyticsApi = {
   getDashboardMetrics: () =>
     api.get<ApiResponse<DashboardMetrics>>("/admin/analytics/dashboard"),
@@ -48,4 +57,10 @@ export const adminAnalyticsApi = {
     api.get<ApiResponse<TestStats>>("/admin/analytics/tests"),
   getAttemptStats: () =>
     api.get<ApiResponse<AttemptStats>>("/admin/analytics/attempts"),
+  getRevenueStats: async (): Promise<ApiResponse<RevenueStats>> => {
+    const response = await api.get<ApiResponse<RevenueStats>>(
+      "/admin/analytics/revenue"
+    );
+    return response.data;
+  },
 };

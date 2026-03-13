@@ -8,6 +8,8 @@ export interface Subscription {
   status: "ACTIVE" | "EXPIRED" | "CANCELLED";
   startAt: string; // server field name (NOT startsAt)
   expiresAt: string; // server field name (NOT endsAt)
+  paymentOrderId?: string;
+  paymentId?: string;
   createdAt: string;
   updatedAt: string;
   user?: {
@@ -52,4 +54,8 @@ export const adminSubscriptionsApi = {
     api.delete<Subscription>(`/admin/subscriptions/${id}`),
 
   delete: (id: string) => api.delete(`/admin/subscriptions/${id}`),
+  cancelSubscription: async (id: string): Promise<Subscription> => {
+    const response = await api.delete(`/admin/subscriptions/${id}/cancel`);
+    return response.data;
+  },
 };

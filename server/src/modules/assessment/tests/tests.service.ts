@@ -479,11 +479,24 @@ export class TestsService {
       this.prisma.test.count({ where }),
     ]);
 
+    let hasActiveSubscription = false;
+    if (userId) {
+      const activeSub = await this.prisma.subscription.findFirst({
+        where: {
+          userId,
+          status: 'ACTIVE',
+          expiresAt: { gt: new Date() },
+        },
+      });
+      hasActiveSubscription = !!activeSub;
+    }
+
     return {
       data: tests,
       total,
       page,
       limit,
+      hasActiveSubscription,
     };
   }
 

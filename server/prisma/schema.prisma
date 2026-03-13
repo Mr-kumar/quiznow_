@@ -35,6 +35,13 @@ enum SubscriptionStatus {
   CANCELLED
 }
 
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
 enum Language {
   EN
   HI
@@ -61,6 +68,7 @@ model User {
   leaderboard   LeaderboardEntry[]
   subscriptions Subscription[]
   topicStats    UserTopicStat[]
+  payments      Payment[]
 
   @@index([role])
 }
@@ -399,6 +407,10 @@ model Plan {
   name         String
   price        Float
   durationDays Int
+  description  String?
+  features     String[]   // e.g. ["Full mock tests", "Video solutions"]
+  isPopular    Boolean    @default(false)
+  badge        String?    // e.g. "Best Value"
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -406,6 +418,7 @@ model Plan {
 
   accesses      PlanAccess[]
   subscriptions Subscription[]
+  payments      Payment[]
 }
 
 model PlanAccess {
@@ -423,20 +436,42 @@ model PlanAccess {
 }
 
 model Subscription {
-  id        String   @id @default(cuid())
-  userId    String
-  planId    String
-  startAt   DateTime
-  expiresAt DateTime
-  status    SubscriptionStatus
+  id             String             @id @default(cuid())
+  userId         String
+  planId         String
+  startAt        DateTime
+  expiresAt      DateTime
+  status         SubscriptionStatus
+  paymentOrderId String?            // Razorpay order ID (order_xxx)
+  paymentId      String?            // Razorpay payment ID after success
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
-  plan Plan @relation(fields: [planId], references: [id], onDelete: Restrict)
+  user     User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+  plan     Plan      @relation(fields: [planId], references: [id], onDelete: Restrict)
+  payments Payment[]
 
   @@index([userId, expiresAt])
+}
+
+model Payment {
+  id                String        @id @default(cuid())
+  subscriptionId    String?
+  userId            String
+  planId            String
+  razorpayOrderId   String        @unique
+  razorpayPaymentId String?
+  razorpaySignature String?
+  amount            Int           // in paise (₹1 = 100 paise)
+  currency          String        @default("INR")
+  status            PaymentStatus @default(PENDING)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id])
+  user         User          @relation(fields: [userId], references: [id])
+  plan         Plan          @relation(fields: [planId], references: [id])
 }
 
 model AdminSettings {

@@ -114,6 +114,11 @@ export default function DashboardLayout({
       icon: CreditCard,
     },
     {
+      href: "/dashboard/admin/payments",
+      label: "Payments",
+      icon: DollarSign,
+    },
+    {
       href: "/dashboard/admin/audit-logs",
       label: "Audit Logs",
       icon: Shield,

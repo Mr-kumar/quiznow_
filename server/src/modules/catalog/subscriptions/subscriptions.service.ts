@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../../services/prisma/prisma.service';
 import { CreateSubscriptionDto } from './dto/create-subscription.dto';
 import { UpdateSubscriptionDto } from './dto/update-subscription.dto';
@@ -107,7 +107,28 @@ export class SubscriptionsService {
       },
     });
   }
+  async cancelWithRefundNote(id: string) {
+    const sub = await this.prisma.subscription.findUnique({
+      where: { id },
+      include: { payments: true },
+    });
 
+    if (!sub) throw new NotFoundException('Subscription not found');
+
+    return this.prisma.$transaction([
+      this.prisma.subscription.update({
+        where: { id },
+        data: { status: SubscriptionStatus.CANCELLED },
+      }),
+      // Mark linked payments as refunded (actual money refunded via Razorpay Dashboard)
+      ...sub.payments.map((payment) =>
+        this.prisma.payment.update({
+          where: { id: payment.id },
+          data: { status: 'REFUNDED' },
+        }),
+      ),
+    ]);
+  }
   async getUserActiveSubscription(userId: string) {
     return this.prisma.subscription.findFirst({
       where: {

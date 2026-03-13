@@ -60,8 +60,8 @@ export class SubscriptionsController {
     return this.subscriptionsService.update(id, updateSubscriptionDto);
   }
 
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.subscriptionsService.delete(id);
+  @Delete(':id/cancel')
+  cancelWithRefundNote(@Param('id') id: string) {
+    return this.subscriptionsService.cancelWithRefundNote(id);
   }
 }

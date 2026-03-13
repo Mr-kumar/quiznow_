@@ -88,8 +88,8 @@ function isLiveNow(test: Test): boolean {
 
 type TestCTA = "start" | "resume" | "result" | "locked" | "upcoming";
 
-function getTestCTA(test: Test, attempts: AttemptSummary[]): TestCTA {
-  if (test.isPremium) return "locked";
+function getTestCTA(test: Test, attempts: AttemptSummary[], hasActiveSubscription: boolean): TestCTA {
+  if (test.isPremium && !hasActiveSubscription) return "locked";
   if (test.startAt && new Date(test.startAt) > new Date()) return "upcoming";
 
   const testAttempts = attempts.filter((a) => a.testId === test.id);
@@ -106,10 +106,11 @@ function getTestCTA(test: Test, attempts: AttemptSummary[]): TestCTA {
 interface TestCardProps {
   test: Test;
   attempts: AttemptSummary[];
+  hasActiveSubscription: boolean;
 }
 
-function TestCard({ test, attempts }: TestCardProps) {
-  const cta = getTestCTA(test, attempts);
+function TestCard({ test, attempts, hasActiveSubscription }: TestCardProps) {
+  const cta = getTestCTA(test, attempts, hasActiveSubscription);
   const live = isLiveNow(test);
 
   const latestAttempt = attempts
@@ -349,16 +350,21 @@ export default function DashboardTestsPage() {
       const inner = outer?.data ?? outer;
       // inner may be { data: Test[], total } or Test[] directly
       if (inner && typeof inner === "object" && Array.isArray(inner.data)) {
-        return { tests: inner.data as Test[], total: inner.total as number };
+        return { 
+          tests: inner.data as Test[], 
+          total: inner.total as number,
+          hasActiveSubscription: !!inner.hasActiveSubscription 
+        };
       }
       // Fallback: direct array
-      return { tests: Array.isArray(inner) ? inner : [], total: 0 };
+      return { tests: Array.isArray(inner) ? inner : [], total: 0, hasActiveSubscription: false };
     },
     staleTime: 1000 * 60 * 2,
   });
 
   const tests: Test[] = testsData?.tests ?? [];
   const totalCount = testsData?.total ?? 0;
+  const hasActiveSubscription = testsData?.hasActiveSubscription ?? false;
   const totalPages = Math.ceil(totalCount / LIMIT);
 
   // Fetch recent attempt history to determine CTAs
@@ -540,7 +546,7 @@ export default function DashboardTestsPage() {
 
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredTests.map((test: Test) => (
-                <TestCard key={test.id} test={test} attempts={attempts} />
+                <TestCard key={test.id} test={test} attempts={attempts} hasActiveSubscription={hasActiveSubscription} />
               ))}
             </div>
 

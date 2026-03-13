@@ -26,6 +26,7 @@ export class AttemptsService {
   async start(dto: StartAttemptRequest) {
     const test = await this.prisma.test.findUnique({
       where: { id: dto.testId },
+      include: { series: true },
     });
     if (!test) {
       throw new ResourceNotFoundException('Test', dto.testId);
@@ -48,6 +49,38 @@ export class AttemptsService {
     }
     if (test.endAt && now > test.endAt) {
       throw new ValidationException('Test has ended', 'TEST_ENDED');
+    }
+
+    // ── Premium content gate: require plan access ──────────────
+    if (test.isPremium) {
+      const activeSub = await this.prisma.subscription.findFirst({
+        where: {
+          userId: dto.userId,
+          status: 'ACTIVE',
+          expiresAt: { gt: new Date() },
+        },
+        include: {
+          plan: { include: { accesses: true } },
+        },
+      });
+
+      if (!activeSub) {
+        throw new ForbiddenException(
+          'This is a premium test. Please subscribe to a plan to access it.',
+        );
+      }
+
+      // Check if the plan unlocks this specific series or its parent exam
+      const accesses = activeSub.plan.accesses;
+      const hasAccess = accesses.some(
+        (a) => a.seriesId === test.seriesId || a.examId === test.series.examId,
+      );
+
+      if (!hasAccess) {
+        throw new ForbiddenException(
+          'Your current plan does not include this series. Please upgrade.',
+        );
+      }
     }
 
     // FIX #1: Single count() — reuse the result for both the max-attempts

@@ -64,6 +64,21 @@ export class AnalyticsController {
     };
   }
 
+  @Get('revenue')
+  @ApiOperation({ summary: 'Get revenue statistics' })
+  @ApiResponse({
+    status: 200,
+    description: 'Revenue statistics retrieved successfully',
+  })
+  async getRevenueStats() {
+    const data = await this.analyticsService.getRevenueStats();
+    return {
+      success: true,
+      message: 'Revenue statistics retrieved successfully',
+      data,
+    };
+  }
+
   @Get('attempts')
   @ApiOperation({ summary: 'Get attempt statistics' })
   @ApiResponse({

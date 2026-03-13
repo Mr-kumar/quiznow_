@@ -1,4 +1,4 @@
-import { IsString, IsNumber, IsPositive, IsOptional } from 'class-validator';
+import { IsString, IsNumber, IsPositive, IsOptional, IsArray, IsBoolean } from 'class-validator';
 
 export class UpdatePlanDto {
   @IsOptional()
@@ -14,4 +14,21 @@ export class UpdatePlanDto {
   @IsNumber()
   @IsPositive()
   durationDays?: number;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  features?: string[];
+
+  @IsOptional()
+  @IsBoolean()
+  isPopular?: boolean;
+
+  @IsOptional()
+  @IsString()
+  badge?: string;
 }

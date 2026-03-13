@@ -54,9 +54,11 @@ import {
   Calendar,
   TrendingUp,
   Search,
+  Shield,
 } from "lucide-react";
 import { DataTable } from "@/components/admin/admin-data-table";
 import { ColumnDef } from "@tanstack/react-table";
+import Link from "next/link";
 
 const planFormSchema = z.object({
   name: z.string().min(1, "Plan name is required"),
@@ -192,13 +194,31 @@ export default function AdminPlansPage() {
       ),
     },
     {
+      accessorKey: "accesses",
+      header: "Access Rules",
+      cell: ({ row }) => {
+        const accesses = row.original.accesses || [];
+        return (
+          <Badge variant={accesses.length > 0 ? "secondary" : "outline"}>
+            {accesses.length} {accesses.length === 1 ? "rule" : "rules"}
+          </Badge>
+        );
+      },
+    },
+    {
       id: "actions",
       header: "Actions",
       cell: ({ row }) => (
         <div className="flex gap-2">
+          <Link href={`/dashboard/admin/plans/${row.original.id}/access`}>
+            <Button variant="ghost" size="sm" title="Manage Access">
+              <Shield className="h-4 w-4 text-blue-500" />
+            </Button>
+          </Link>
           <Button
             variant="ghost"
             size="sm"
+            title="Edit Plan"
             onClick={() => handleEditPlan(row.original)}
             disabled={isCrudLoading}
           >
@@ -207,6 +227,7 @@ export default function AdminPlansPage() {
           <Button
             variant="ghost"
             size="sm"
+            title="Delete Plan"
             className="text-red-500 hover:text-red-700"
             onClick={() => {
               setPlanToDelete(row.original);

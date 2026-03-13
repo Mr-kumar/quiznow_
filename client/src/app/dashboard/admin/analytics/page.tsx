@@ -18,6 +18,8 @@ import {
   TrendingUp,
   Trophy,
   Users,
+  DollarSign,
+  CreditCard,
 } from "lucide-react";
 import { useDashboard } from "@/features/admin-analytics/hooks/use-dashboard";
 import { cn } from "@/lib/utils";
@@ -325,6 +327,7 @@ export default function AdminAnalyticsPage() {
     userStats,
     testStats,
     attemptStats,
+    revenueStats,
     errors,
     isLoading,
     refresh,
@@ -415,7 +418,7 @@ export default function AdminAnalyticsPage() {
       </div>
 
       {/* ── Detail cards ── */}
-      <div className="grid lg:grid-cols-3 gap-4">
+      <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
         {/* Users */}
         <StatCard
           icon={Users}
@@ -565,6 +568,51 @@ export default function AdminAnalyticsPage() {
               value: `${Math.round((attemptStats?.avgDuration ?? 0) / 60)} min`,
               icon: Clock,
               color: "text-violet-500",
+            },
+          ]}
+        />
+
+        {/* Revenue */}
+        <StatCard
+          icon={DollarSign}
+          iconColor="bg-amber-500"
+          title="Revenue & Subscriptions"
+          description="Financial and active plan data"
+          loading={isLoading}
+          error={errors.revenue}
+          onRetry={refresh}
+          highlights={[
+            {
+              value: `₹${fmt(revenueStats?.totalRevenue)}`,
+              label: "Total Revenue",
+              color:
+                "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300",
+            },
+            {
+              value: `₹${fmt(revenueStats?.monthRevenue)}`,
+              label: "This Month",
+              color:
+                "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300",
+            },
+          ]}
+          stats={[
+            {
+              label: "Last Month Revenue",
+              value: `₹${fmt(revenueStats?.lastMonthRevenue)}`,
+              icon: Calendar,
+              color: "text-blue-500",
+            },
+            {
+              label: "Total Subscriptions",
+              value: fmt(revenueStats?.totalSubscriptions),
+              icon: Users,
+              color: "text-violet-500",
+            },
+            {
+              label: "Active Subscriptions",
+              value: fmt(revenueStats?.activeSubscriptions),
+              icon: CreditCard,
+              color: "text-emerald-500",
             },
           ]}
         />

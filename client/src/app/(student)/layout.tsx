@@ -38,6 +38,7 @@ import {
   XIcon,
   ZapIcon,
   BellIcon,
+  CrownIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -65,6 +66,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/test/history", label: "History", icon: ClockIcon },
   { href: "/leaderboard", label: "Leaderboard", icon: TrophyIcon }, // BUG-5 FIX: Added missing leaderboard nav item
   { href: "/profile", label: "Profile", icon: UserIcon },
+  { href: "/upgrade", label: "Upgrade", icon: CrownIcon },
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

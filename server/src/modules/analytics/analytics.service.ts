@@ -172,6 +172,60 @@ export class AnalyticsService {
     };
   }
 
+  async getRevenueStats() {
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+
+    const [
+      totalRevenue,
+      monthRevenue,
+      lastMonthRevenue,
+      totalSubscriptions,
+      activeSubscriptions,
+      recentPayments,
+    ] = await Promise.all([
+      this.prisma.payment.aggregate({
+        where: { status: 'SUCCESS' },
+        _sum: { amount: true },
+      }),
+      this.prisma.payment.aggregate({
+        where: { status: 'SUCCESS', createdAt: { gte: monthStart } },
+        _sum: { amount: true },
+      }),
+      this.prisma.payment.aggregate({
+        where: {
+          status: 'SUCCESS',
+          createdAt: { gte: lastMonthStart, lt: monthStart },
+        },
+        _sum: { amount: true },
+      }),
+      this.prisma.subscription.count(),
+      this.prisma.subscription.count({
+        where: { status: 'ACTIVE', expiresAt: { gt: now } },
+      }),
+      this.prisma.payment.findMany({
+        where: { status: 'SUCCESS' },
+        take: 10,
+        include: {
+          user: { select: { name: true, email: true } },
+          plan: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+    ]);
+
+    // amounts stored in paise — convert to rupees
+    return {
+      totalRevenue: (totalRevenue._sum.amount ?? 0) / 100,
+      monthRevenue: (monthRevenue._sum.amount ?? 0) / 100,
+      lastMonthRevenue: (lastMonthRevenue._sum.amount ?? 0) / 100,
+      totalSubscriptions,
+      activeSubscriptions,
+      recentPayments,
+    };
+  }
+
   async getAttemptStats() {
     const [total, completed, started, expired, avgScore, avgDuration] =
       await Promise.all([
