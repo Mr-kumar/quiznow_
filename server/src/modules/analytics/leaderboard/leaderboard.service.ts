@@ -161,18 +161,19 @@ export class LeaderboardService {
     };
   }
 
-  // Additional method to get user's specific rank
+  // M-7 fix: Use COUNT queries instead of loading all attempts into memory
   async getUserRank(testId: string, userId: string) {
-    const allAttempts = await this.prisma.attempt.findMany({
+    // Find the user's best attempt
+    const userAttempt = await this.prisma.attempt.findFirst({
       where: {
-        testId: testId,
+        testId,
+        userId,
         status: 'SUBMITTED',
       },
+      orderBy: [{ score: 'desc' }, { timeTaken: 'asc' }],
       select: {
-        id: true,
         score: true,
         timeTaken: true,
-        userId: true,
         answers: {
           select: {
             optionId: true,
@@ -184,26 +185,46 @@ export class LeaderboardService {
           },
         },
       },
-      orderBy: [{ score: 'desc' }, { timeTaken: 'asc' }],
     });
 
-    // Find user's rank
-    const userIndex = allAttempts.findIndex((a) => a.userId === userId);
-
-    if (userIndex === -1) {
+    if (!userAttempt) {
       return null; // User hasn't attempted this test
     }
 
-    const userAttempt = allAttempts[userIndex];
-    const totalParticipants = allAttempts.length;
+    // Count how many attempts scored strictly higher
+    const higherCount = await this.prisma.attempt.count({
+      where: {
+        testId,
+        status: 'SUBMITTED',
+        OR: [
+          { score: { gt: userAttempt.score } },
+          {
+            AND: [
+              { score: userAttempt.score },
+              {
+                timeTaken: userAttempt.timeTaken
+                  ? { lt: userAttempt.timeTaken }
+                  : undefined,
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    const totalParticipants = await this.prisma.attempt.count({
+      where: { testId, status: 'SUBMITTED' },
+    });
+
+    const rank = higherCount + 1;
 
     return {
-      rank: userIndex + 1,
+      rank,
       score: userAttempt.score,
       timeTaken: userAttempt.timeTaken,
       totalParticipants,
       percentile: Math.round(
-        ((totalParticipants - userIndex) / totalParticipants) * 100,
+        ((totalParticipants - rank + 1) / totalParticipants) * 100,
       ),
       accuracy: this.calculateAccuracy(userAttempt.answers),
     };

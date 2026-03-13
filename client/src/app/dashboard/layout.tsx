@@ -38,7 +38,7 @@ export default function DashboardLayout({
   const router = useRouter();
   const pathname = usePathname();
   const { user, logout, isAuthenticated, isLoading } = useAuthStore();
-  const [isSidebarOpen, setSidebarOpen] = useState(true);
+  const [isSidebarOpen, setSidebarOpen] = useState(false); // W-6 fix: default closed on mobile
   const { data: hierarchyCounts } = useHierarchyCounts();
 
   // Protect the route
@@ -47,6 +47,12 @@ export default function DashboardLayout({
     
     if (!isAuthenticated || !user) {
       router.replace("/login");
+      return;
+    }
+
+    // BUG-2 FIX: Add role guard — students cannot access admin dashboard
+    if (user.role !== "ADMIN") {
+      router.replace("/dashboard");
       return;
     }
 
@@ -71,12 +77,12 @@ export default function DashboardLayout({
     );
   }
 
-  // 🎯 ROLE-BASED NAVIGATION LINKS
+  // BUG-7 FIX: Student routes now point to correct existing pages
   const studentLinks = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/dashboard/tests", label: "My Tests", icon: BookOpen },
-    { href: "/dashboard/results", label: "Results", icon: Award },
-    { href: "/dashboard/leaderboard", label: "Leaderboard", icon: Target },
+    { href: "/test/history", label: "Results", icon: Award },
+    { href: "/leaderboard", label: "Leaderboard", icon: Target },
   ];
 
   const adminLinks = [
@@ -138,7 +144,7 @@ export default function DashboardLayout({
   const links = user.role === "ADMIN" ? adminLinks : studentLinks;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-zinc-50 dark:from-zinc-900 dark:via-zinc-900 dark:to-slate-900 flex">
+    <div className="min-h-screen bg-linear-to-br from-slate-50 via-white to-zinc-50 dark:from-zinc-900 dark:via-zinc-900 dark:to-slate-900 flex">
       {/* 1. Sidebar (Desktop) */}
       <aside
         className={`fixed inset-y-0 left-0 z-50 w-64 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border-r border-zinc-200/60 dark:border-zinc-800/60 transform transition-all duration-300 ease-in-out ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:relative lg:translate-x-0 shadow-xl lg:shadow-none`}
@@ -148,7 +154,7 @@ export default function DashboardLayout({
           <div className="h-16 flex items-center px-6 border-b border-zinc-200/60 dark:border-zinc-800/60 bg-linear-to-r from-blue-500/10 to-purple-500/10 dark:from-blue-500/5 dark:to-purple-500/5">
             <div className="flex items-center gap-3">
               <div
-                className={`h-8 w-8 rounded-xl ${user.role === "ADMIN" ? "bg-gradient-to-br from-red-500 to-orange-600" : "bg-gradient-to-br from-blue-500 to-purple-600"} flex items-center justify-center text-white font-bold text-lg shadow-lg`}
+                className={`h-8 w-8 rounded-xl ${user.role === "ADMIN" ? "bg-linear-to-br from-red-500 to-orange-600" : "bg-linear-to-br from-blue-500 to-purple-600"} flex items-center justify-center text-white font-bold text-lg shadow-lg`}
               >
                 {user.role === "ADMIN" ? <Shield className="h-4 w-4" /> : "Q"}
               </div>
@@ -181,16 +187,7 @@ export default function DashboardLayout({
                     />
                     {link.label}
                   </div>
-                  {/* Show test series count for Manage Hierarchy */}
-                  {link.href === "/dashboard/admin/tests-hierarchy" &&
-                    hierarchyCounts?.testSeriesCount !== undefined && (
-                      <Badge
-                        variant={isActive ? "secondary" : "outline"}
-                        className={`ml-2 text-xs ${isActive ? "bg-white/20 text-white border-white/30" : "bg-zinc-100 text-zinc-600 border-zinc-200"}`}
-                      >
-                        {hierarchyCounts.testSeriesCount}
-                      </Badge>
-                    )}
+                  {/* BUG-3 FIX: Removed dead tests-hierarchy badge */}
                 </Link>
               );
             })}
@@ -200,7 +197,7 @@ export default function DashboardLayout({
           <div className="p-4 border-t border-zinc-200/60 dark:border-zinc-800/60 bg-linear-to-t from-zinc-50/50 to-white/50 dark:from-zinc-800/50 dark:to-zinc-900/50">
             <div className="flex items-center gap-3 mb-4 px-2">
               <div
-                className={`h-10 w-10 rounded-full ${user.role === "ADMIN" ? "bg-gradient-to-br from-red-400 to-orange-600" : "bg-gradient-to-br from-blue-400 to-purple-600"} flex items-center justify-center shadow-lg`}
+                className={`h-10 w-10 rounded-full ${user.role === "ADMIN" ? "bg-linear-to-br from-red-400 to-orange-600" : "bg-linear-to-br from-blue-400 to-purple-600"} flex items-center justify-center shadow-lg`}
               >
                 {user.role === "ADMIN" ? (
                   <Shield className="h-5 w-5 text-white" />
@@ -242,7 +239,7 @@ export default function DashboardLayout({
         {/* Mobile Header */}
         <header className="lg:hidden h-16 flex items-center justify-between px-4 border-b border-zinc-200/60 dark:border-zinc-800/60 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl">
           <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg shadow-lg">
+            <div className="h-8 w-8 rounded-xl bg-linear-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg shadow-lg">
               Q
             </div>
             <span className="font-bold bg-linear-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
@@ -252,7 +249,7 @@ export default function DashboardLayout({
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" className="relative">
               <Bell className="h-5 w-5" />
-              <span className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full animate-pulse"></span>
+              {/* W-7 FIX: Removed hardcoded fake notification red dot */}
             </Button>
             <Button
               variant="ghost"
@@ -278,9 +275,9 @@ export default function DashboardLayout({
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" className="relative">
               <Bell className="h-5 w-5" />
-              <span className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full animate-pulse"></span>
+              {/* W-7 FIX: Removed hardcoded fake notification red dot */}
             </Button>
-            <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-400 to-purple-600 flex items-center justify-center shadow-lg">
+            <div className="h-8 w-8 rounded-full bg-linear-to-br from-blue-400 to-purple-600 flex items-center justify-center shadow-lg">
               <User className="h-4 w-4 text-white" />
             </div>
           </div>

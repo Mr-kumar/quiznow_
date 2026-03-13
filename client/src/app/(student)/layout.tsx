@@ -63,6 +63,7 @@ const NAV_ITEMS: NavItem[] = [
   },
   { href: "/dashboard/tests", label: "My Tests", icon: BookOpenIcon },
   { href: "/test/history", label: "History", icon: ClockIcon },
+  { href: "/leaderboard", label: "Leaderboard", icon: TrophyIcon }, // BUG-5 FIX: Added missing leaderboard nav item
   { href: "/profile", label: "Profile", icon: UserIcon },
 ];
 
@@ -235,7 +236,7 @@ export default function StudentLayout({
       <aside className="hidden lg:flex w-60 shrink-0 flex-col fixed inset-y-0 left-0 z-30 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-700">
         {/* Logo */}
         <div className="h-14 flex items-center gap-2.5 px-5 border-b border-slate-200 dark:border-slate-700">
-          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center shrink-0">
+          <div className="h-8 w-8 rounded-lg bg-linear-to-br from-blue-600 to-indigo-600 flex items-center justify-center shrink-0">
             <ZapIcon className="h-4 w-4 text-white" />
           </div>
           <span className="font-bold text-slate-900 dark:text-slate-100 text-base tracking-tight">
@@ -256,7 +257,7 @@ export default function StudentLayout({
         <div className="p-3 space-y-2">
           <div className="flex items-center gap-3 px-2 py-2">
             <Avatar>
-              <AvatarFallback className="bg-gradient-to-br from-blue-400 to-indigo-600 text-white text-xs font-bold">
+              <AvatarFallback className="bg-linear-to-br from-blue-400 to-indigo-600 text-white text-xs font-bold">
                 {initials}
               </AvatarFallback>
             </Avatar>
@@ -292,7 +293,7 @@ export default function StudentLayout({
             {/* Mobile sidebar header */}
             <div className="h-14 flex items-center justify-between px-5 border-b border-slate-200 dark:border-slate-700">
               <div className="flex items-center gap-2">
-                <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center">
+                <div className="h-7 w-7 rounded-lg bg-linear-to-br from-blue-600 to-indigo-600 flex items-center justify-center">
                   <ZapIcon className="h-3.5 w-3.5 text-white" />
                 </div>
                 <span className="font-bold text-slate-900 dark:text-slate-100">
@@ -326,7 +327,7 @@ export default function StudentLayout({
             <div className="p-3">
               <div className="flex items-center gap-3 px-2 py-2 mb-2">
                 <Avatar>
-                  <AvatarFallback className="bg-gradient-to-br from-blue-400 to-indigo-600 text-white text-xs font-bold">
+                  <AvatarFallback className="bg-linear-to-br from-blue-400 to-indigo-600 text-white text-xs font-bold">
                     {initials}
                   </AvatarFallback>
                 </Avatar>
@@ -367,7 +368,7 @@ export default function StudentLayout({
           </Button>
 
           <div className="flex items-center gap-2">
-            <div className="h-7 w-7 rounded-md bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center">
+            <div className="h-7 w-7 rounded-md bg-linear-to-br from-blue-600 to-indigo-600 flex items-center justify-center">
               <ZapIcon className="h-3.5 w-3.5 text-white" />
             </div>
             <span className="font-bold text-slate-900 dark:text-slate-100 text-sm">

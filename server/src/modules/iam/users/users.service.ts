@@ -8,10 +8,20 @@ import { UpdateUserDto } from './dto/update-user.dto';
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(): Promise<User[]> {
-    return this.prisma.user.findMany({
-      orderBy: { createdAt: 'desc' },
-    });
+  async findAll(
+    page: number = 1,
+    limit: number = 20,
+  ): Promise<{ data: User[]; total: number }> {
+    const skip = (page - 1) * limit;
+    const [data, total] = await Promise.all([
+      this.prisma.user.findMany({
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.user.count(),
+    ]);
+    return { data, total };
   }
 
   async findOne(id: string): Promise<User | null> {

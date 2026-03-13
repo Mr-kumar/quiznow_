@@ -233,7 +233,7 @@ export default function ResultPage() {
                 </Badge>
                 <Badge variant="outline">
                   {format(
-                    new Date(result.submittedAt || result.startTime),
+                    new Date(result.endTime || result.startTime),
                     "dd MMM yyyy, HH:mm",
                   )}
                 </Badge>

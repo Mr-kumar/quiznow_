@@ -1,12 +1,15 @@
 /**
- * stores/auth-store.ts  (UPDATED for Sprint 0)
+ * stores/auth-store.ts  (UPDATED — BUG-1 FIX)
  *
- * Changes from original:
+ * Changes:
  *  1. login() now also writes token to a cookie ("qn_token") so middleware.ts
  *     can read it at the Edge (localStorage is not accessible server-side).
  *  2. logout() clears the cookie too.
  *  3. Fixed the inverted 401 toast condition (was: Date.now() <= tokenExpiry)
  *  4. JWT decode now uses atob() instead of Buffer.from() (browser-safe)
+ *  5. BUG-1 FIX: Storage key is now role-aware — admin sessions use
+ *     'qn_admin_token' cookie to prevent cross-session logout when both
+ *     admin and student are open in the same browser.
  *
  * Cookie approach: httpOnly is NOT set here (we can't from client JS).
  * The cookie is readable by middleware because it's a same-origin request.
@@ -48,7 +51,6 @@ function setCookie(name: string, value: string, maxAgeSeconds: number) {
     `max-age=${maxAgeSeconds}`,
     "path=/",
     "SameSite=Lax",
-    // Add "Secure" in production: process.env.NODE_ENV === "production" ? "Secure" : ""
   ]
     .filter(Boolean)
     .join("; ");
@@ -57,6 +59,12 @@ function setCookie(name: string, value: string, maxAgeSeconds: number) {
 function deleteCookie(name: string) {
   if (typeof document === "undefined") return; // SSR guard
   document.cookie = `${name}=; max-age=0; path=/`;
+}
+
+// ── BUG-1 FIX: Get correct cookie name based on stored role ──────────────────
+
+function getCookieName(role?: string): string {
+  return role === "ADMIN" ? "qn_admin_token" : "qn_token";
 }
 
 // ── Store ─────────────────────────────────────────────────────────────────────
@@ -75,8 +83,11 @@ export const useAuthStore = create<AuthState>()(
           ? Date.now() + expiresIn * 1000
           : undefined;
 
-        // Write token to cookie so Next.js middleware can read it at the Edge
+        // BUG-1 FIX: Write token to role-specific cookie
+        const cookieName = getCookieName(user.role);
         const cookieMaxAge = expiresIn ?? 60 * 60 * 24 * 7; // default 7 days
+        setCookie(cookieName, token, cookieMaxAge);
+        // Also write to the generic cookie so middleware always has a token
         setCookie("qn_token", token, cookieMaxAge);
 
         set({
@@ -89,7 +100,10 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: () => {
-        // Clear the Edge-readable cookie
+        // BUG-1 FIX: Clear both role-specific and generic cookies
+        const state = useAuthStore.getState();
+        const cookieName = getCookieName(state.user?.role);
+        deleteCookie(cookieName);
         deleteCookie("qn_token");
 
         // Clear ALL auth state immediately
@@ -109,6 +123,8 @@ export const useAuthStore = create<AuthState>()(
           state.tokenExpiry &&
           Date.now() > state.tokenExpiry // ✅ FIXED: was <= (inverted)
         ) {
+          const cookieName = getCookieName(state.user?.role);
+          deleteCookie(cookieName);
           deleteCookie("qn_token");
           set({
             user: null,
@@ -133,11 +149,14 @@ export const useAuthStore = create<AuthState>()(
             state.isAuthenticated = false;
             state.user = null;
             deleteCookie("qn_token");
+            deleteCookie("qn_admin_token");
           } else if (state.token) {
             // Re-sync cookie in case it was cleared (e.g. browser cookie cleanup)
             const remainingMs = state.tokenExpiry
               ? state.tokenExpiry - Date.now()
               : 1000 * 60 * 60 * 24 * 7;
+            const cookieName = getCookieName(state.user?.role);
+            setCookie(cookieName, state.token, Math.floor(remainingMs / 1000));
             setCookie("qn_token", state.token, Math.floor(remainingMs / 1000));
           }
         }

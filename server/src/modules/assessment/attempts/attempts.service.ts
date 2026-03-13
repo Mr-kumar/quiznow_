@@ -6,6 +6,7 @@ import {
   ResourceNotFoundException,
   ValidationException,
 } from 'src/common/exceptions/app.exception';
+import { ForbiddenException } from '@nestjs/common';
 
 interface StartAttemptRequest {
   testId: string;
@@ -77,7 +78,7 @@ export class AttemptsService {
   // ─── 2. Submit & Score ────────────────────────────────────────────────────
   // Client saves answers individually via PATCH /attempts/:id/answers during the exam.
   // On submit, we read the already-saved AttemptAnswer records and score them.
-  async submit(attemptId: string | number | bigint) {
+  async submit(attemptId: string | number | bigint, userId?: string) {
     const whereId =
       typeof attemptId === 'string' ? BigInt(attemptId) : attemptId;
     const attempt: any = await this.prisma.attempt.findUnique({
@@ -87,6 +88,11 @@ export class AttemptsService {
 
     if (!attempt) {
       throw new ResourceNotFoundException('Attempt', String(attemptId));
+    }
+
+    // Ownership check: verify the calling user owns this attempt
+    if (userId && attempt.userId !== userId) {
+      throw new ForbiddenException('Access denied — this attempt does not belong to you');
     }
 
     if (attempt.status === 'SUBMITTED') {
@@ -255,6 +261,22 @@ export class AttemptsService {
           const topicAccuracy =
             total > 0 ? Math.round((correct / total) * 100) : 0;
 
+          // H-2 fix: Fetch existing stat to recalculate running accuracy on update
+          const existingStat = await tx.userTopicStat.findUnique({
+            where: {
+              userId_topicId: {
+                userId: attempt.userId,
+                topicId,
+              },
+            },
+          });
+
+          const newCorrect = (existingStat?.correct ?? 0) + correct;
+          const newWrong = (existingStat?.wrong ?? 0) + wrong;
+          const newTotal = newCorrect + newWrong;
+          const updatedAccuracy =
+            newTotal > 0 ? Math.round((newCorrect / newTotal) * 100) : 0;
+
           await tx.userTopicStat.upsert({
             where: {
               userId_topicId: {
@@ -274,9 +296,31 @@ export class AttemptsService {
               attempts: { increment: 1 },
               correct: { increment: correct },
               wrong: { increment: wrong },
+              accuracy: updatedAccuracy, // H-2 fix: recalculated running accuracy
             },
           });
         }
+
+        // H-1 fix: Write LeaderboardEntry inside the submit transaction
+        await tx.leaderboardEntry.upsert({
+          where: {
+            testId_userId: {
+              testId: attempt.testId,
+              userId: attempt.userId,
+            },
+          },
+          create: {
+            testId: attempt.testId,
+            userId: attempt.userId,
+            score,
+          },
+          update: {
+            // Keep best score only
+            score: {
+              set: Math.max(score, 0),
+            },
+          },
+        });
       });
     } catch (error) {
       this.logger.error(`Failed to submit attempt ${attemptId}`, error);
@@ -379,8 +423,9 @@ export class AttemptsService {
   }
 
   // ─── 3. Get Review / Solutions ────────────────────────────────────────────
-  async getReview(attemptId: string | number | bigint) {
-    const whereId: any = attemptId as any;
+  async getReview(attemptId: string | number | bigint, userId?: string) {
+    // M-3 fix: Proper BigInt conversion (was passing raw string before)
+    const whereId = typeof attemptId === 'string' ? BigInt(attemptId) : attemptId;
 
     const attempt: any = await this.prisma.attempt.findUnique({
       where: { id: whereId },
@@ -390,9 +435,13 @@ export class AttemptsService {
       },
     });
 
-    // FIX: use consistent custom exceptions instead of NestJS built-ins
     if (!attempt) {
       throw new ResourceNotFoundException('Attempt', String(attemptId));
+    }
+
+    // Ownership check: verify the calling user owns this attempt
+    if (userId && attempt.userId !== userId) {
+      throw new ForbiddenException('Access denied — this attempt does not belong to you');
     }
     if (attempt.status !== 'SUBMITTED') {
       throw new ValidationException(
@@ -662,8 +711,18 @@ export class AttemptsService {
 
   // ─── 5. Anti-cheating ───────────────────────────────────────────────────────
 
-  async incrementSuspicious(attemptId: string | number | bigint) {
+  async incrementSuspicious(attemptId: string | number | bigint, userId?: string) {
     const id = typeof attemptId === 'string' ? BigInt(attemptId) : attemptId;
+
+    // H-5 fix: Verify the attempt belongs to the calling user
+    if (userId) {
+      const attempt = await this.prisma.attempt.findFirst({
+        where: { id, userId },
+      });
+      if (!attempt) {
+        throw new ForbiddenException('Access denied — this attempt does not belong to you');
+      }
+    }
 
     return this.prisma.attempt.update({
       where: { id },
@@ -689,10 +748,24 @@ export class AttemptsService {
     // Verify attempt belongs to user
     const attempt = await this.prisma.attempt.findFirst({
       where: { id, userId },
+      include: { test: { include: { sections: { include: { questions: true } } } } },
     });
 
     if (!attempt) {
       throw new Error('Attempt not found or access denied');
+    }
+
+    // M-1 fix: Validate questionId belongs to the test
+    const validQuestionIds = new Set(
+      (attempt as any).test.sections.flatMap((s: any) =>
+        s.questions.map((sq: any) => sq.questionId),
+      ),
+    );
+    if (!validQuestionIds.has(questionId)) {
+      throw new ValidationException(
+        'This question does not belong to the test being attempted',
+        'INVALID_QUESTION',
+      );
     }
 
     this.logger.debug(
@@ -780,7 +853,8 @@ export class AttemptsService {
         }),
     );
 
-    const results = await Promise.all(operations);
+    // H-3 fix: Use $transaction instead of Promise.all for atomicity
+    const results = await this.prisma.$transaction(operations);
     this.logger.debug(
       `Batch save completed: ${results.length} answers processed`,
     );

@@ -15,6 +15,7 @@ import { CreateAttemptDto } from './dto/create-attempt.dto';
 
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../iam/auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../../iam/auth/guards/roles.guard';
 import { Roles } from '../../iam/auth/decorators/roles.decorator';
 import { Role } from '@prisma/client';
 
@@ -25,7 +26,7 @@ interface StartAttemptRequest {
 
 @ApiTags('Assessment (Attempts)')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard) // C-1 fix: Added RolesGuard — @Roles is now enforced
 @Roles(Role.STUDENT)
 @Controller('attempts')
 export class AttemptsController {
@@ -44,15 +45,16 @@ export class AttemptsController {
 
   @Post(':id/submit')
   @ApiOperation({ summary: 'Student submits answers & gets score' })
-  submit(@Param('id') id: string) {
+  submit(@Param('id') id: string, @Request() req: any) {
     // No body — answers are already saved in AttemptAnswer table during the exam
-    return this.attemptsService.submit(id);
+    // Ownership check: pass userId to verify the attempt belongs to the caller
+    return this.attemptsService.submit(id, req.user.userId);
   }
 
   @Get(':id/review')
   @ApiOperation({ summary: 'Get full solutions and analysis (After Submit)' })
-  getReview(@Param('id') id: string) {
-    return this.attemptsService.getReview(id);
+  getReview(@Param('id') id: string, @Request() req: any) {
+    return this.attemptsService.getReview(id, req.user.userId);
   }
 
   @Get(':id/result')
@@ -103,8 +105,9 @@ export class AttemptsController {
 
   @Patch(':id/suspicious')
   @ApiOperation({ summary: 'Increment suspicious activity score' })
-  incrementSuspicious(@Param('id') id: string) {
-    return this.attemptsService.incrementSuspicious(id);
+  incrementSuspicious(@Param('id') id: string, @Request() req: any) {
+    // H-5 fix: Pass userId for ownership verification
+    return this.attemptsService.incrementSuspicious(id, req.user.userId);
   }
 
   @Get()
@@ -112,3 +115,4 @@ export class AttemptsController {
     return this.attemptsService.findAll();
   }
 }
+

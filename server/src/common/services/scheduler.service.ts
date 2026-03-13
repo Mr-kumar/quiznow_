@@ -21,23 +21,22 @@ export class SchedulerService {
   @Cron(CronExpression.EVERY_5_MINUTES)
   async expireAttempts() {
     try {
-      const now = new Date();
-      const result = await this.prisma.attempt.updateMany({
-        where: {
-          status: Status.STARTED,
-          startTime: {
-            lt: new Date(now.getTime() - 24 * 60 * 60 * 1000), // Older than 24 hours
-          },
-        },
-        data: {
-          status: Status.EXPIRED,
-          endTime: now,
-        },
-      });
+      // M-2 fix: Use test.durationMins instead of flat 24-hour cutoff.
+      // Prisma updateMany doesn't support relation-based filters,
+      // so we use raw SQL to join Attempt with Test.
+      const result = await this.prisma.$executeRaw`
+        UPDATE "Attempt" a
+        SET "status" = 'EXPIRED'::"Status",
+            "endTime" = NOW()
+        FROM "Test" t
+        WHERE a."testId" = t."id"
+          AND a."status" = 'STARTED'
+          AND a."startTime" + (t."durationMins" * INTERVAL '1 minute') < NOW()
+      `;
 
-      if (result.count > 0) {
+      if (result > 0) {
         this.logger.log(
-          `Expired ${result.count} attempts older than 24 hours`,
+          `Expired ${result} attempts that exceeded their test duration`,
         );
       }
     } catch (error) {

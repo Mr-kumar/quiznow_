@@ -62,6 +62,15 @@ import { cn } from "@/lib/utils";
 import type { AttemptSummary } from "@/api/attempts";
 import type { UserTopicStat } from "@/api/leaderboard";
 
+// ── Types ─────────────────────────────────────────────────────────────────────
+interface UserProfile {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  createdAt: string;
+}
+
 // ── Edit name form ────────────────────────────────────────────────────────────
 
 interface EditNameFormValues {
@@ -185,19 +194,7 @@ function ProfileStat({
             </p>
             <p className="text-xs text-muted-foreground font-medium">{label}</p>
           </div>
-          {trend && (
-            <div
-              className={cn(
-                "flex items-center gap-1 text-xs",
-                trend === "up" && "text-green-600",
-                trend === "down" && "text-red-500",
-                trend === "neutral" && "text-muted-foreground",
-              )}
-            >
-              <TrendingUpIcon className="h-3 w-3" />
-              {trend === "up" ? "+8%" : trend === "down" ? "-3%" : "0%"}
-            </div>
-          )}
+          {/* W-5 FIX: Removed hardcoded trend percentages */}
         </div>
       </CardContent>
     </Card>
@@ -279,6 +276,16 @@ export default function ProfilePage() {
     queryKey: studentKeys.topicStats(),
     queryFn: () =>
       leaderboardApi.getMyTopicStats().then(unwrap<UserTopicStat[]>),
+    staleTime: 1000 * 60 * 10,
+  });
+
+  // BUG-6 FIX: Fetch user profile for actual createdAt
+  const profileQuery = useQuery({
+    queryKey: studentKeys.profile(),
+    queryFn: async () => {
+      const res = await api.get("/users/me");
+      return unwrap<UserProfile>(res);
+    },
     staleTime: 1000 * 60 * 10,
   });
 
@@ -388,7 +395,10 @@ export default function ProfilePage() {
                   </div>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <CalendarIcon className="h-4 w-4" />
-                    Member since {format(new Date(), "MMMM yyyy")}
+                    Member since{" "}
+                    {profileQuery.data?.createdAt
+                      ? format(new Date(profileQuery.data.createdAt), "MMMM yyyy")
+                      : "..."}
                   </div>
                 </div>
                 {!isEditingName && (

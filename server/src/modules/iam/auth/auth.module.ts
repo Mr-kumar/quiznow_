@@ -9,9 +9,20 @@ import { PrismaModule } from '../../../services/prisma/prisma.module';
 @Module({
   imports: [
     PassportModule,
-    JwtModule.register({
-      secret: process.env.JWT_SECRET || 'your-secret-key',
-      signOptions: { expiresIn: process.env.JWT_EXPIRES_IN || '7d' } as any,
+    // C-3 + M-8 fix: Use registerAsync to defer env reading and throw if JWT_SECRET is missing
+    JwtModule.registerAsync({
+      useFactory: () => {
+        const secret = process.env.JWT_SECRET;
+        if (!secret) {
+          throw new Error(
+            'JWT_SECRET environment variable is not set. Server cannot start without it.',
+          );
+        }
+        return {
+          secret,
+          signOptions: { expiresIn: process.env.JWT_EXPIRES_IN || '7d' } as any,
+        };
+      },
     }),
     PrismaModule,
   ],

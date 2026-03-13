@@ -8,6 +8,7 @@ import {
   Delete,
   UseGuards,
   Request,
+  Query,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -32,14 +33,20 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Get all users' })
+  @ApiOperation({ summary: 'Get all users (paginated)' })
   @ApiResponse({ status: 200, description: 'Users retrieved successfully' })
-  async findAll() {
-    const data = await this.usersService.findAll();
+  async findAll(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const result = await this.usersService.findAll(
+      page ? parseInt(page) : 1,
+      limit ? parseInt(limit) : 20,
+    );
     return {
       success: true,
       message: 'Users retrieved successfully',
-      data,
+      ...result,
     };
   }
 
@@ -58,44 +65,7 @@ export class UsersController {
     };
   }
 
-  // ✅ MOVED THESE 3 METHODS HERE (from lines 136-170):
-  @Get('me/attempts')
-  @ApiOperation({ summary: 'Get current user attempts' })
-  async getMyAttempts(@Request() req: any) {
-    const userId = req.user.userId;
-    const data = await this.usersService.getMyAttempts(userId);
-    return {
-      success: true,
-      message: 'User attempts retrieved successfully',
-      data,
-    };
-  }
-
-  @Get('me/topic-stats')
-  @ApiOperation({ summary: 'Get current user topic statistics' })
-  async getMyTopicStats(@Request() req: any) {
-    const userId = req.user.userId;
-    const data = await this.usersService.getMyTopicStats(userId);
-    return {
-      success: true,
-      message: 'User topic statistics retrieved successfully',
-      data,
-    };
-  }
-
-  @Get('me/subscription')
-  @ApiOperation({ summary: 'Get current user subscription' })
-  async getMySubscription(@Request() req: any) {
-    const userId = req.user.userId;
-    const data = await this.usersService.getMySubscription(userId);
-    return {
-      success: true,
-      message: 'User subscription retrieved successfully',
-      data,
-    };
-  }
-
-  // ← /me methods go ABOVE this line
+  // M-4 fix: Removed duplicate /me endpoints — they are already in StudentUsersController
   // ─── Admin Deep-Dive Endpoints ────────────────────────────────────────────────
   
   @Get(':id/profile')

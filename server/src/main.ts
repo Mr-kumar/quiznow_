@@ -4,6 +4,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { rateLimit } from 'express-rate-limit';
 import { BigIntInterceptor } from './common/interceptors/bigint.interceptor';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -23,9 +24,9 @@ async function bootstrap() {
     }),
   );
 
-  // 🛡️ Stricter rate limiting for auth endpoints
+  // 🛡️ Stricter rate limiting for auth endpoints (C-4 fix: include /api prefix)
   app.use(
-    '/auth',
+    '/api/auth',
     rateLimit({
       windowMs: 15 * 60 * 1000, // 15 minutes
       max: 100, // Increased from 10 to 100 for development
@@ -58,14 +59,19 @@ async function bootstrap() {
     }),
   );
 
-  // 🌐 Rule 2: CORS (Allow Frontend Access)
+  // 🌐 Rule 2: CORS (Allow Frontend Access) — L-4 fix: split comma-separated env var
   app.enableCors({
-    origin: process.env.FRONTEND_URL || ['http://localhost:3000'],
+    origin: process.env.FRONTEND_URL
+      ? process.env.FRONTEND_URL.split(',')
+      : ['http://localhost:3000'],
     credentials: true,
   });
 
   // 🔁 Global interceptor to serialize BigInt to string in all responses
   app.useGlobalInterceptors(new BigIntInterceptor());
+
+  // 🛡️ Global exception filter — prevents raw stack traces from leaking (L-5)
+  app.useGlobalFilters(new AllExceptionsFilter());
 
   // 📚 Rule 3: Swagger (Documentation)
   const config = new DocumentBuilder()
@@ -75,12 +81,12 @@ async function bootstrap() {
     .addBearerAuth() // Adds the "Token" button
     .build();
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, document);
+  SwaggerModule.setup('docs', app, document);  // C-5 fix: moved from 'api' to 'docs'
 
   // 🚀 Start
   const port = process.env.PORT || 4000;
   await app.listen(port);
   console.log(`🚀 Server running on http://localhost:${port}/api`);
-  console.log(`📚 Swagger docs available at http://localhost:${port}/api`);
+  console.log(`📚 Swagger docs available at http://localhost:${port}/docs`);
 }
 bootstrap();

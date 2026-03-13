@@ -6,8 +6,9 @@ import { UpdateSettingsDto } from './dto/update-settings.dto';
 export class SettingsService {
   constructor(private prisma: PrismaService) {}
 
+  // M-5 fix: Removed (this.prisma as any) casts — AdminSettings model exists in schema
   async getAllSettings() {
-    const settings = await (this.prisma as any).adminSettings.findMany();
+    const settings = await this.prisma.adminSettings.findMany();
     const result: any = {};
     settings.forEach((setting: any) => {
       result[setting.key] = setting.value;
@@ -16,13 +17,13 @@ export class SettingsService {
   }
 
   async getSetting(key: string) {
-    return (this.prisma as any).adminSettings.findUnique({
+    return this.prisma.adminSettings.findUnique({
       where: { key },
     });
   }
 
   async updateSetting(updateSettingsDto: UpdateSettingsDto) {
-    return (this.prisma as any).adminSettings.upsert({
+    return this.prisma.adminSettings.upsert({
       where: { key: updateSettingsDto.key },
       create: {
         key: updateSettingsDto.key,
@@ -44,7 +45,7 @@ export class SettingsService {
   }
 
   async deleteSetting(key: string) {
-    return (this.prisma as any).adminSettings.delete({
+    return this.prisma.adminSettings.delete({
       where: { key },
     });
   }

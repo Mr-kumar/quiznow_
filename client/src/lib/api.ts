@@ -26,15 +26,17 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // 🛡️ BETTER 401 HANDLING: Auto-logout with user feedback
+    // W-1 FIX: Check token expiry BEFORE logout (was checking after,
+    // which always returned false because logout clears tokenExpiry)
     if (error.response?.status === 401) {
       const authStore = useAuthStore.getState();
+      const isExpired =
+        authStore.tokenExpiry && Date.now() > authStore.tokenExpiry;
+
       authStore.logout(); // Use logout method for proper cleanup
 
-      // Only show toast if this wasn't an automatic logout due to expired token
-      if (authStore.tokenExpiry && Date.now() > authStore.tokenExpiry) {
-        console.warn("Session expired - logging out");
-        // You could add a toast here if needed
+      if (isExpired) {
+        console.warn("Session expired - logged out automatically");
       }
     }
     return Promise.reject(error);
