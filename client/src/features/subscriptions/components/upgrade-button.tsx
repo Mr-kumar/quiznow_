@@ -12,17 +12,30 @@ interface UpgradeButtonProps {
   className?: string;
 }
 
+import { useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
+
 export function UpgradeButton({
   planId,
   planName,
   price,
   className,
 }: UpgradeButtonProps) {
+  const queryClient = useQueryClient();
+  const router = useRouter();
+
   const { pay, loading } = usePayment({
-    onSuccess: () =>
-      toast("🎉 Subscribed!", {
-        description: `You are now subscribed to ${planName}.`,
-      }),
+    onSuccess: async () => {
+      // Invalidate the subscription cache instantly so the golden dashboard appears
+      await queryClient.invalidateQueries({ queryKey: ["subscription"] });
+      
+      toast.success("🎉 Subscribed!", {
+        description: `You are now subscribed to ${planName}. Redirecting to dashboard...`,
+      });
+      
+      // Auto-redirect to the dashboard so they can see their new premium UI
+      router.push("/dashboard");
+    },
     onError: (msg) => toast.error("Payment failed", { description: msg }),
   });
 

@@ -8,104 +8,47 @@
 import Link from "next/link";
 import {
   ZapIcon,
-  BookOpenIcon,
   BarChart3Icon,
   ShieldCheckIcon,
   ClockIcon,
   TrophyIcon,
-  UsersIcon,
-  CheckCircle2Icon,
+  StarIcon,
+  PlayCircleIcon,
+  SparkleIcon,
+  GlobeIcon,
   ArrowRightIcon,
   TargetIcon,
-  StarIcon,
-  BrainIcon,
-  PlayCircleIcon,
-  SearchIcon,
-  TrendingUpIcon,
-  AwardIcon,
-  SparkleIcon,
-  FlameIcon,
-  GlobeIcon,
-  ChevronRightIcon,
-  RocketIcon,
-  LightbulbIcon,
-  CodeIcon,
-  GraduationCapIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { HeroSearch } from "./HeroSearch";
-import { AnimatedFeatures } from "./AnimatedFeatures";
-import { AnimatedStatBlock } from "./AnimatedStatBlock";
 import { CategoryLanding } from "@/app/(public)/exams/page";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Sub-components
 // ─────────────────────────────────────────────────────────────────────────────
 
-function ExamCategoryCard({
-  name,
-  count,
-  emoji,
-  href,
-}: {
-  name: string;
-  count: string;
-  emoji: string;
-  href: string;
-}) {
-  return (
-    <Link href={href}>
-      <Card className="group hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-pointer border-0 bg-linear-to-br from-white to-gray-50">
-        <CardContent className="p-6">
-          <div className="flex items-center gap-4">
-            <div className="h-14 w-14 rounded-2xl bg-linear-to-br from-purple-100 to-blue-100 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform duration-300">
-              {emoji}
-            </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-foreground text-lg mb-1">
-                {name}
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                {count} tests available
-              </p>
-            </div>
-            <ChevronRightIcon className="h-5 w-5 text-muted-foreground group-hover:text-purple-600 transition-colors" />
-          </div>
-        </CardContent>
-      </Card>
-    </Link>
-  );
-}
-
 function Testimonial({
   quote,
   name,
   exam,
   rank,
-  avatar,
 }: {
   quote: string;
   name: string;
   exam: string;
   rank: string;
-  avatar: string;
 }) {
   return (
-    <Card className="group hover:border-primary/20 transition-all duration-300 border-border/50 bg-background/50 backdrop-blur-sm">
+    <Card className="group hover:border-primary/20 transition-all duration-300 border-border/50 bg-background/50 backdrop-blur-sm shadow-sm hover:shadow-md">
       <CardHeader className="pb-3">
         <div className="flex gap-0.5">
           {[1, 2, 3, 4, 5].map((i) => (
-            <StarIcon key={i} className="h-4 w-4 text-primary fill-current" />
+            <StarIcon
+              key={i}
+              className="h-4 w-4 text-yellow-500 fill-current"
+            />
           ))}
         </div>
       </CardHeader>
@@ -115,14 +58,16 @@ function Testimonial({
         </p>
         <Separator className="mb-4" />
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary text-sm font-black shrink-0">
+          <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 text-sm font-black shrink-0">
             {name[0]}
           </div>
           <div>
             <p className="text-sm font-bold text-foreground">{name}</p>
             <p className="text-xs text-muted-foreground">
               {exam} ·{" "}
-              <span className="text-primary font-semibold">{rank}</span>
+              <span className="text-blue-600 dark:text-blue-400 font-semibold">
+                {rank}
+              </span>
             </p>
           </div>
         </div>
@@ -143,17 +88,17 @@ function FeatureCard({
   accent: string;
 }) {
   return (
-    <Card className="group hover:shadow-lg transition-all duration-300 border-0 bg-linear-to-br from-white to-gray-50">
-      <CardContent className="p-6">
-        <div className="flex flex-col items-center text-center space-y-4">
+    <Card className="group hover:shadow-xl transition-all duration-300 border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
+      <CardContent className="p-8">
+        <div className="flex flex-col items-center text-center space-y-5">
           <div
-            className={`h-16 w-16 rounded-2xl bg-linear-to-br ${accent} flex items-center justify-center text-white group-hover:scale-110 transition-transform duration-300`}
+            className={`h-16 w-16 rounded-2xl bg-linear-to-br ${accent} flex items-center justify-center text-white group-hover:scale-110 transition-transform duration-500 shadow-lg`}
           >
             <Icon className="h-8 w-8" />
           </div>
           <div className="space-y-2">
-            <h3 className="text-xl font-semibold text-foreground">{title}</h3>
-            <p className="text-muted-foreground leading-relaxed">
+            <h3 className="text-xl font-bold text-foreground">{title}</h3>
+            <p className="text-sm text-muted-foreground leading-relaxed">
               {description}
             </p>
           </div>
@@ -169,115 +114,179 @@ function FeatureCard({
 
 export default function PublicLandingPage() {
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
       {/* ── Custom Styles ───────────────────────────────────────────────────── */}
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
-        .font-inter { font-family: 'Inter', sans-serif; }
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+        .font-jakarta { font-family: 'Plus Jakarta Sans', sans-serif; }
         @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-20px)} }
         @keyframes pulse-slow { 0%,100%{opacity:0.6} 50%{opacity:1} }
         .hero-gradient {
-          background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.8) 50%, hsl(var(--accent)) 100%);
+          background: linear-gradient(135deg, #2563eb 0%, #4f46e5 50%, #7c3aed 100%);
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
           background-clip: text;
         }
+        .bg-grid-pattern {
+          background-image: radial-gradient(circle at 1px 1px, #e2e8f0 1px, transparent 0);
+          background-size: 40px 40px;
+        }
+        .dark .bg-grid-pattern {
+          background-image: radial-gradient(circle at 1px 1px, #1e293b 1px, transparent 0);
+        }
       `}</style>
 
-      {/* ── EXAMS LANDING HERO (from /exams) ───────────────────────────────── */}
-      <CategoryLanding />
+      {/* ── ENHANCED HERO SECTION ────────────────────────────────────────── */}
+      <section className="relative pt-20 pb-16 md:pt-32 md:pb-24 bg-grid-pattern">
+        <div className="absolute top-0 left-0 w-full h-full bg-linear-to-b from-blue-50/50 to-transparent dark:from-blue-950/20 -z-10" />
 
-      {/* ── STATS ─────────────────────────────────────────────────────────── */}
-      <section className="relative py-16 md:py-20 bg-muted/30">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-foreground mb-4">
-              Trusted by Millions
-            </h2>
-            <p className="text-lg text-muted-foreground">
-              Join the community of successful aspirants
+            <Badge className="mb-6 bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 border-blue-200 dark:border-blue-800 px-4 py-1.5 rounded-full font-bold text-xs uppercase tracking-widest animate-in fade-in slide-in-from-top-4 duration-700">
+              <SparkleIcon className="h-3.5 w-3.5 mr-2 text-blue-600" />
+              India's Most Trusted Test Platform
+            </Badge>
+            <h1 className="text-5xl md:text-8xl font-black text-slate-900 dark:text-white mb-6 tracking-tighter leading-[0.9] animate-in fade-in slide-in-from-bottom-8 duration-700">
+              Your Exam Journey <br />
+              <span className="hero-gradient">Starts Here.</span>
+            </h1>
+            <p className="text-lg md:text-xl text-slate-500 dark:text-slate-400 max-w-2xl mx-auto mb-10 leading-relaxed animate-in fade-in slide-in-from-bottom-10 duration-1000">
+              Experience the future of exam preparation with NTA-style mock
+              tests, deep performance analytics, and personalized learning
+              paths.
             </p>
+
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-in fade-in slide-in-from-bottom-12 duration-1000">
+              <Link href="/login">
+                <Button className="h-14 px-10 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-black text-lg shadow-2xl shadow-blue-600/20 group">
+                  Start Learning Free
+                  <ArrowRightIcon className="h-5 w-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                </Button>
+              </Link>
+              <Link href="/exams">
+                <Button
+                  variant="outline"
+                  className="h-14 px-10 rounded-2xl border-slate-200 dark:border-slate-800 font-bold text-lg hover:bg-slate-50 dark:hover:bg-slate-900 transition-all"
+                >
+                  Browse 1500+ Tests
+                </Button>
+              </Link>
+            </div>
           </div>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
-            <AnimatedStatBlock
-              number={2}
-              suffix="M+"
-              label="Registered Students"
-            />
-            <AnimatedStatBlock
-              number={50}
-              suffix="K+"
-              label="Tests Available"
-            />
-            <AnimatedStatBlock number={98} suffix="%" label="Selection Rate" />
-            <AnimatedStatBlock number={5} suffix="★" label="App Rating" />
+
+          <div className="relative max-w-5xl mx-auto mt-16 animate-in fade-in zoom-in duration-1000">
+            <div className="absolute -inset-1 bg-linear-to-r from-blue-600 to-indigo-600 rounded-[2.5rem] blur opacity-20 -z-10" />
+            <div className="bg-white dark:bg-slate-950 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 p-4 shadow-2xl">
+              <div className="bg-slate-50 dark:bg-slate-900 rounded-[2rem] p-8 md:p-12">
+                <CategoryLanding />
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* ── FEATURES ──────────────────────────────────────────────────────── */}
-      <section className="py-16 md:py-24 bg-background">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
+      {/* ── TRUST & STATS ─────────────────────────────────────────────────── */}
+      <section className="py-20 bg-slate-50 dark:bg-slate-950 border-y border-slate-200 dark:border-slate-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-12 text-center">
+            <div className="space-y-2">
+              <p className="text-4xl md:text-6xl font-black text-blue-600">
+                2M+
+              </p>
+              <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">
+                Students
+              </p>
+            </div>
+            <div className="space-y-2">
+              <p className="text-4xl md:text-6xl font-black text-indigo-600">
+                50K+
+              </p>
+              <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">
+                Tests
+              </p>
+            </div>
+            <div className="space-y-2">
+              <p className="text-4xl md:text-6xl font-black text-purple-600">
+                98%
+              </p>
+              <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">
+                Success Rate
+              </p>
+            </div>
+            <div className="space-y-2">
+              <p className="text-4xl md:text-6xl font-black text-amber-500">
+                4.9/5
+              </p>
+              <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">
+                Rating
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── CORE FEATURES ─────────────────────────────────────────────────── */}
+      <section className="py-24 md:py-32">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-20">
             <Badge
-              variant="secondary"
-              className="mb-4 text-xs font-semibold uppercase tracking-widest"
+              variant="outline"
+              className="mb-6 rounded-full border-blue-200 text-blue-600 font-bold px-4 py-1"
             >
-              Why QuizNow?
+              PLATFORM FEATURES
             </Badge>
-            <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-4">
-              Everything you need to
-              <span className="hero-gradient ml-2">rank higher</span>
+            <h2 className="text-4xl md:text-6xl font-black text-slate-900 dark:text-white mb-6 tracking-tight">
+              Built for your <span className="hero-gradient">Success.</span>
             </h2>
-            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-              Comprehensive preparation tools designed by experts to help you
-              succeed
+            <p className="text-xl text-slate-500 dark:text-slate-400 max-w-2xl mx-auto">
+              We've combined expert content with cutting-edge technology to give
+              you the most authentic practice experience.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[
               {
                 icon: TargetIcon,
-                title: "NTA-Style Mock Tests",
+                title: "NTA-Style Interface",
                 description:
-                  "Pixel-perfect replicas of the actual exam interface. Practice exactly how you'll perform.",
-                accent: "from-purple-500 to-blue-500",
+                  "Practice on the exact same interface you'll use on exam day. Zero surprises, maximum confidence.",
+                accent: "from-blue-600 to-indigo-600",
               },
               {
                 icon: BarChart3Icon,
-                title: "Deep Analytics",
+                title: "Precision Analytics",
                 description:
-                  "Understand your weak areas with topic-wise accuracy, time analysis, and percentile tracking.",
-                accent: "from-blue-500 to-cyan-500",
-              },
-              {
-                icon: BrainIcon,
-                title: "AI-Powered Insights",
-                description:
-                  "Get personalized study plans based on your performance patterns and exam date.",
-                accent: "from-cyan-500 to-green-500",
+                  "Get granular insights into your speed, accuracy, and topic-wise performance to focus on what matters.",
+                accent: "from-indigo-600 to-purple-600",
               },
               {
                 icon: GlobeIcon,
-                title: "Bilingual Content",
+                title: "Truly Bilingual",
                 description:
-                  "Switch between Hindi and English seamlessly. Every question available in both languages.",
-                accent: "from-green-500 to-emerald-500",
+                  "Every test is available in both Hindi and English. Switch languages anytime with a single tap.",
+                accent: "from-purple-600 to-pink-600",
               },
               {
                 icon: ClockIcon,
-                title: "Previous Year Papers",
+                title: "PYQ Collections",
                 description:
-                  "10+ years of solved papers with detailed explanations and video walkthroughs.",
-                accent: "from-emerald-500 to-yellow-500",
+                  "Exhaustive collection of previous year papers with step-by-step solutions and video explanations.",
+                accent: "from-pink-600 to-rose-600",
               },
               {
                 icon: TrophyIcon,
                 title: "Live Leaderboards",
                 description:
-                  "Compete with lakhs of aspirants. Know your all-India rank after every test.",
-                accent: "from-yellow-500 to-red-500",
+                  "Know your standing among lakhs of students instantly. Real-time ranking after every test submission.",
+                accent: "from-rose-600 to-orange-600",
+              },
+              {
+                icon: ShieldCheckIcon,
+                title: "Expert Curated",
+                description:
+                  "Questions designed by top educators and previous year toppers to match the latest exam trends.",
+                accent: "from-orange-600 to-amber-600",
               },
             ].map((f) => (
               <FeatureCard key={f.title} {...f} />
@@ -286,280 +295,139 @@ export default function PublicLandingPage() {
         </div>
       </section>
 
-      {/* ── EXAM CATEGORIES ───────────────────────────────────────────────── */}
-      <section className="py-16 md:py-24 bg-muted/30">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <Badge
-              variant="secondary"
-              className="mb-4 text-xs font-semibold uppercase tracking-widest"
-            >
-              Popular Exams
-            </Badge>
-            <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-4">
-              Choose Your
-              <span className="hero-gradient ml-2">Exam Category</span>
-            </h2>
-            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-              Comprehensive test series for all major competitive exams
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[
-              {
-                name: "UPSC CSE",
-                count: "250+",
-                emoji: "🏛️",
-                href: "/exams?category=upsc",
-              },
-              {
-                name: "JEE Main",
-                count: "180+",
-                emoji: "�",
-                href: "/exams?category=jee",
-              },
-              {
-                name: "NEET PG",
-                count: "120+",
-                emoji: "⚕️",
-                href: "/exams?category=neet",
-              },
-              {
-                name: "IBPS PO",
-                count: "95+",
-                emoji: "🏦",
-                href: "/exams?category=ibps",
-              },
-              {
-                name: "SSC CGL",
-                count: "85+",
-                emoji: "📋",
-                href: "/exams?category=ssc",
-              },
-              {
-                name: "CAT MBA",
-                count: "65+",
-                emoji: "📊",
-                href: "/exams?category=cat",
-              },
-            ].map((exam) => (
-              <ExamCategoryCard key={exam.name} {...exam} />
-            ))}
-          </div>
-
-          <div className="text-center mt-12">
-            <Button size="lg" className="gap-2">
-              View All Exams
-              <ArrowRightIcon className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      </section>
-
-      {/* ── HOW IT WORKS ──────────────────────────────────────────────────── */}
-      <section className="py-16 md:py-24 bg-background">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <Badge
-              variant="secondary"
-              className="mb-4 text-xs font-semibold uppercase tracking-widest"
-            >
-              How It Works
-            </Badge>
-            <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-4">
-              Start Your Journey in
-              <span className="hero-gradient ml-2">3 Simple Steps</span>
-            </h2>
-            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-              From practice to perfection, we've got you covered every step of
-              the way
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              {
-                step: "01",
-                title: "Choose Your Exam",
-                desc: "Select from 50+ exam categories with comprehensive test series",
-                icon: TargetIcon,
-              },
-              {
-                step: "02",
-                title: "Practice & Analyze",
-                desc: "Take mock tests, get detailed analytics, and identify weak areas",
-                icon: BarChart3Icon,
-              },
-              {
-                step: "03",
-                title: "Improve & Rank Higher",
-                desc: "Follow personalized study plans and track your progress",
-                icon: TrophyIcon,
-              },
-            ].map(({ step, title, desc, icon: Icon }) => (
-              <Card
-                key={step}
-                className="text-center border-0 bg-linear-to-br from-white to-gray-50"
-              >
-                <CardContent className="p-8">
-                  <div className="space-y-4">
-                    <div className="h-16 w-16 rounded-2xl bg-linear-to-br from-primary to-primary/80 flex items-center justify-center text-white text-xl font-bold mx-auto">
-                      {step}
+      {/* ── HOW IT WORKS ─────────────────────────────────────────────────── */}
+      <section className="py-24 bg-slate-900 text-white overflow-hidden relative">
+        <div className="absolute top-0 right-0 w-1/2 h-full bg-blue-600/10 blur-3xl rounded-full translate-x-1/2" />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+            <div className="space-y-8">
+              <h2 className="text-4xl md:text-6xl font-black tracking-tight leading-[0.9]">
+                Three steps to <br />
+                <span className="text-blue-500">Excellence.</span>
+              </h2>
+              <div className="space-y-10">
+                {[
+                  {
+                    step: "01",
+                    title: "Select your Exam",
+                    desc: "Choose from 1500+ mock tests across various government and entrance exams.",
+                  },
+                  {
+                    step: "02",
+                    title: "Practice & Refine",
+                    desc: "Take NTA-style tests, analyze your performance, and improve your weak areas.",
+                  },
+                  {
+                    step: "03",
+                    title: "Get Exam Ready",
+                    desc: "Track your progress on live leaderboards and build the confidence to succeed.",
+                  },
+                ].map((item) => (
+                  <div key={item.step} className="flex gap-6 group">
+                    <div className="h-16 w-16 rounded-2xl bg-white/10 flex items-center justify-center text-2xl font-black text-blue-500 border border-white/10 group-hover:bg-blue-600 group-hover:text-white transition-all duration-300">
+                      {item.step}
                     </div>
-                    <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto">
-                      <Icon className="h-6 w-6 text-primary" />
-                    </div>
-                    <div className="space-y-2">
-                      <h3 className="text-xl font-semibold text-foreground">
-                        {title}
-                      </h3>
-                      <p className="text-muted-foreground">{desc}</p>
+                    <div className="space-y-2 flex-1 pt-1">
+                      <h3 className="text-2xl font-bold">{item.title}</h3>
+                      <p className="text-slate-400 leading-relaxed">
+                        {item.desc}
+                      </p>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-            ))}
+                ))}
+              </div>
+            </div>
+            <div className="relative group">
+              <div className="absolute -inset-4 bg-blue-600/30 rounded-[3rem] blur-2xl group-hover:bg-blue-600/40 transition-all" />
+              <div className="relative bg-slate-800 rounded-[3rem] border border-white/10 p-8 shadow-2xl">
+                <div className="aspect-video bg-slate-900 rounded-2xl flex items-center justify-center relative group/video cursor-pointer">
+                  <div className="h-20 w-20 rounded-full bg-blue-600 flex items-center justify-center shadow-2xl group-hover/video:scale-110 transition-transform">
+                    <PlayCircleIcon className="h-10 w-10 text-white" />
+                  </div>
+                  <p className="absolute bottom-6 left-1/2 -translate-x-1/2 font-bold text-sm text-slate-400">
+                    Watch Platform Tour
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* ── TESTIMONIALS ───────────────────────────────────────────────────── */}
-      <section className="py-16 md:py-24 bg-muted/30">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <Badge
-              variant="secondary"
-              className="mb-4 text-xs font-semibold uppercase tracking-widest"
-            >
+      {/* ── TESTIMONIALS ──────────────────────────────────────────────────── */}
+      <section className="py-24 md:py-32">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-20">
+            <h2 className="text-4xl md:text-5xl font-black text-slate-900 dark:text-white mb-6">
               Success Stories
-            </Badge>
-            <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-4">
-              What Our
-              <span className="hero-gradient ml-2">Students Say</span>
             </h2>
-            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-              Real stories from aspirants who achieved their dream ranks
+            <p className="text-xl text-slate-500 dark:text-slate-400">
+              Join the ranks of successful aspirants who cracked their dream
+              exams with QuizNow.
             </p>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[
               {
                 quote:
-                  "QuizNow helped me crack UPSC CSE in my first attempt. The mock tests were exactly like the real exam!",
-                name: "Rahul Sharma",
-                exam: "UPSC CSE",
-                rank: "AIR 127",
-                avatar: "RS",
+                  "QuizNow's mock tests are a mirror image of the actual exam. The analytics helped me identify my speed issues in Quant, and I improved from 60 to 95 percentile in just 2 months.",
+                name: "Anjali Deshmukh",
+                exam: "UPSC CSE Aspirant",
+                rank: "Rank 42 (Mock)",
+                avatar: "AD",
               },
               {
                 quote:
-                  "The detailed analytics showed my weak areas. After following the study plan, I improved my score by 45%.",
-                name: "Priya Patel",
-                exam: "JEE Main",
-                rank: "99.2 Percentile",
-                avatar: "PP",
+                  "The bilingual feature is a lifesaver. Being a Hindi medium student, I found the translations to be very accurate. The PYQ collection is simply the best in the market.",
+                name: "Rohit Kumar",
+                exam: "SSC CGL Topper",
+                rank: "Selected 2023",
+                avatar: "RK",
               },
               {
                 quote:
-                  "Previous year papers with video solutions were game-changers. I cleared NEET PG with ease.",
-                name: "Amit Kumar",
-                exam: "NEET PG",
-                rank: "AIR 89",
-                avatar: "AK",
+                  "I used to struggle with time management in Banking exams. The section-wise timer and deep analytics in QuizNow helped me shave off 10 minutes from my overall time.",
+                name: "Ishita Gupta",
+                exam: "IBPS PO Aspirant",
+                rank: "99.8 Percentile",
+                avatar: "IG",
               },
-            ].map((testimonial) => (
-              <Card
-                key={testimonial.name}
-                className="border-0 bg-linear-to-br from-white to-gray-50"
-              >
-                <CardContent className="p-6">
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-1">
-                      {[...Array(5)].map((_, i) => (
-                        <StarIcon
-                          key={i}
-                          className="h-4 w-4 fill-yellow-400 text-yellow-400"
-                        />
-                      ))}
-                    </div>
-                    <p className="text-muted-foreground italic leading-relaxed">
-                      "{testimonial.quote}"
-                    </p>
-                    <div className="flex items-center gap-3 pt-4 border-t">
-                      <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                        <span className="text-sm font-semibold text-primary">
-                          {testimonial.avatar}
-                        </span>
-                      </div>
-                      <div>
-                        <p className="font-semibold text-foreground">
-                          {testimonial.name}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {testimonial.exam} • {testimonial.rank}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+            ].map((t) => (
+              <Testimonial key={t.name} {...t} />
             ))}
           </div>
         </div>
       </section>
 
       {/* ── FINAL CTA ─────────────────────────────────────────────────────── */}
-      <section className="py-16 md:py-24 bg-background">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <Card className="border-0 bg-linear-to-br from-primary/5 to-primary/10">
-            <CardContent className="p-12">
-              <div className="space-y-6">
-                <Badge
-                  variant="secondary"
-                  className="text-xs font-semibold uppercase tracking-widest"
-                >
-                  Ready to Start?
-                </Badge>
-                <h2 className="text-4xl md:text-5xl font-bold text-foreground">
-                  Begin Your Journey to
-                  <span className="hero-gradient ml-2">Exam Success</span>
-                </h2>
-                <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-                  Join 2 Million+ aspirants and start practicing with the best
-                  exam preparation platform
-                </p>
-                <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
-                  <Link href="/login">
-                    <Button size="lg" className="w-full sm:w-auto gap-2 px-8">
-                      <PlayCircleIcon className="h-5 w-5" />
-                      Start Practicing
-                    </Button>
-                  </Link>
-                  <Link href="/login">
-                    <Button
-                      size="lg"
-                      variant="outline"
-                      className="w-full sm:w-auto gap-2 px-8"
-                    >
-                      <BookOpenIcon className="h-5 w-5" />
-                      Browse Tests
-                    </Button>
-                  </Link>
-                </div>
-                <div className="flex items-center justify-center gap-8 pt-6 text-sm text-muted-foreground">
-                  {[
-                    "✓ Free Registration",
-                    "✓ 50+ Free Tests",
-                    "✓ No Credit Card Required",
-                  ].map((text) => (
-                    <span key={text}>{text}</span>
-                  ))}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+      <section className="py-24 bg-linear-to-br from-blue-600 to-indigo-700 relative overflow-hidden mx-4 sm:mx-8 md:mx-16 rounded-[4rem] mb-24">
+        <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10" />
+        <div className="relative z-10 max-w-4xl mx-auto text-center px-6">
+          <h2 className="text-4xl md:text-7xl font-black text-white mb-8 tracking-tighter">
+            Ready to top <br /> your next exam?
+          </h2>
+          <p className="text-xl text-blue-100 mb-12 max-w-2xl mx-auto">
+            Don't leave your success to chance. Start practicing with the most
+            authentic mock tests available today.
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
+            <Link href="/login">
+              <Button className="h-16 px-12 rounded-2xl bg-white text-blue-600 hover:bg-blue-50 font-black text-xl shadow-2xl">
+                Get Started Now
+              </Button>
+            </Link>
+            <Link href="/plans">
+              <Button
+                variant="outline"
+                className="h-16 px-12 rounded-2xl border-white/30 text-white hover:bg-white/10 font-bold text-xl backdrop-blur-md"
+              >
+                View Pricing
+              </Button>
+            </Link>
+          </div>
+          <p className="mt-8 text-blue-200 text-sm font-medium">
+            No credit card required · Free tests included
+          </p>
         </div>
       </section>
     </div>

@@ -40,6 +40,7 @@ import {
   BellIcon,
   CrownIcon,
   SearchIcon,
+  SettingsIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -68,17 +69,23 @@ export const NAV_GROUPS = [
       },
       { href: "/dashboard/tests", label: "My Tests", icon: BookOpenIcon },
       { href: "/exams", label: "Browse Exams", icon: SearchIcon },
+      { href: "/practice", label: "Practice", icon: ZapIcon },
+      { href: "/pyq", label: "PYQ Papers", icon: ClockIcon },
       { href: "/test/history", label: "History", icon: ClockIcon },
     ],
   },
   {
     label: "COMPETE",
-    items: [{ href: "/leaderboard", label: "Leaderboard", icon: TrophyIcon }],
+    items: [
+      { href: "/leaderboard", label: "Leaderboard", icon: TrophyIcon },
+      { href: "/rankings", label: "Global Ranks", icon: CrownIcon },
+    ],
   },
   {
     label: "ACCOUNT",
     items: [
       { href: "/profile", label: "Profile", icon: UserIcon },
+      { href: "/settings", label: "Settings", icon: SettingsIcon },
       { href: "/upgrade", label: "Upgrade", icon: CrownIcon },
     ],
   },
@@ -101,7 +108,7 @@ function getInitials(name: string): string {
 function isNavActive(
   href: string,
   pathname: string,
-  matchExact = false,
+  matchExact = false
 ): boolean {
   if (matchExact) return pathname === href;
   return pathname === href || pathname.startsWith(href + "/");
@@ -129,7 +136,7 @@ function SidebarLink({
         "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150",
         active
           ? "bg-blue-600 text-white shadow-md shadow-blue-500/20"
-          : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100",
+          : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100"
       )}
     >
       <Icon
@@ -160,7 +167,7 @@ function BottomNavItem({
         "flex flex-col items-center gap-0.5 py-2 px-3 rounded-lg transition-colors min-w-0 flex-1",
         active
           ? "text-blue-600 dark:text-blue-400"
-          : "text-slate-500 dark:text-slate-400",
+          : "text-slate-500 dark:text-slate-400"
       )}
     >
       <Icon className="h-5 w-5 shrink-0" />
@@ -255,14 +262,17 @@ export default function StudentLayout({
       {/* ── Desktop sidebar ──────────────────────────────────────────────── */}
       <aside className="hidden lg:flex w-60 shrink-0 flex-col fixed inset-y-0 left-0 z-30 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-700">
         {/* Logo */}
-        <div className="h-14 flex items-center gap-2.5 px-5 border-b border-slate-200 dark:border-slate-700">
+        <Link
+          href="/"
+          className="h-14 flex items-center gap-2.5 px-5 border-b border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+        >
           <div className="h-8 w-8 rounded-lg bg-linear-to-br from-blue-600 to-indigo-600 flex items-center justify-center shrink-0">
             <ZapIcon className="h-4 w-4 text-white" />
           </div>
           <span className="font-bold text-slate-900 dark:text-slate-100 text-base tracking-tight">
             QuizNow
           </span>
-        </div>
+        </Link>
 
         {/* Nav links */}
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
@@ -325,14 +335,18 @@ export default function StudentLayout({
           <aside className="fixed inset-y-0 left-0 z-50 w-72 bg-white dark:bg-slate-900 flex flex-col shadow-2xl lg:hidden">
             {/* Mobile sidebar header */}
             <div className="h-14 flex items-center justify-between px-5 border-b border-slate-200 dark:border-slate-700">
-              <div className="flex items-center gap-2">
+              <Link
+                href="/"
+                className="flex items-center gap-2"
+                onClick={() => setMobileSidebarOpen(false)}
+              >
                 <div className="h-7 w-7 rounded-lg bg-linear-to-br from-blue-600 to-indigo-600 flex items-center justify-center">
                   <ZapIcon className="h-3.5 w-3.5 text-white" />
                 </div>
                 <span className="font-bold text-slate-900 dark:text-slate-100">
                   QuizNow
                 </span>
-              </div>
+              </Link>
               <Button
                 variant="ghost"
                 size="icon"
@@ -409,14 +423,14 @@ export default function StudentLayout({
             <MenuIcon className="h-5 w-5" />
           </Button>
 
-          <div className="flex items-center gap-2">
+          <Link href="/" className="flex items-center gap-2">
             <div className="h-7 w-7 rounded-md bg-linear-to-br from-blue-600 to-indigo-600 flex items-center justify-center">
               <ZapIcon className="h-3.5 w-3.5 text-white" />
             </div>
             <span className="font-bold text-slate-900 dark:text-slate-100 text-sm">
               QuizNow
             </span>
-          </div>
+          </Link>
 
           <Button variant="ghost" size="icon" className="h-9 w-9">
             <BellIcon

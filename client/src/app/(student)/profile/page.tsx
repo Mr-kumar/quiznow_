@@ -42,7 +42,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import {
   Card,
   CardContent,
@@ -368,6 +368,9 @@ export default function ProfilePage() {
             {/* Avatar */}
             <div className="relative">
               <Avatar className="h-20 w-20 text-xl">
+                {user?.image ? (
+                  <AvatarImage src={user.image} alt={user.name} />
+                ) : null}
                 <AvatarFallback className="bg-linear-to-br from-blue-500 to-indigo-600 text-white font-bold text-lg">
                   {initials}
                 </AvatarFallback>

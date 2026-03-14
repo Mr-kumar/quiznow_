@@ -179,7 +179,7 @@ export default function DashboardLayout({
         <div className="h-full flex flex-col">
           {/* 🎨 Dynamic Logo */}
           <div className="h-16 flex items-center px-6 border-b border-zinc-200/60 dark:border-zinc-800/60 bg-linear-to-r from-blue-500/10 to-purple-500/10 dark:from-blue-500/5 dark:to-purple-500/5">
-            <div className="flex items-center gap-3">
+            <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
               <div
                 className={`h-8 w-8 rounded-xl ${user.role === "ADMIN" ? "bg-linear-to-br from-red-500 to-orange-600" : "bg-linear-to-br from-blue-500 to-purple-600"} flex items-center justify-center text-white font-bold text-lg shadow-lg`}
               >
@@ -188,7 +188,7 @@ export default function DashboardLayout({
               <span className="text-xl font-bold tracking-tight bg-linear-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                 {user.role === "ADMIN" ? "QuizNow Admin" : "QuizNow"}
               </span>
-            </div>
+            </Link>
           </div>
 
           {/* 🚀 Dynamic Nav Links */}

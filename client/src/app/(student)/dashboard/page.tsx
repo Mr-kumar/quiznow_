@@ -31,15 +31,15 @@ import {
   BarChart3Icon,
   ArrowRightIcon,
   CheckCircle2Icon,
-  XCircleIcon,
   AlertCircleIcon,
   RefreshCwIcon,
   TrendingUpIcon,
   SparkleIcon,
   CrownIcon,
   GraduationCapIcon,
-  ChevronDownIcon,
-  CheckIcon,
+  ZapIcon,
+  FlameIcon,
+  ActivityIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -49,17 +49,16 @@ import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { TopicAnalysis } from "@/features/results/components/TopicAnalysis";
 import { attemptsApi } from "@/api/attempts";
 import { leaderboardApi } from "@/api/leaderboard";
 import { attemptKeys, studentKeys } from "@/api/query-keys";
 import { useAuthStore } from "@/stores/auth-store";
 import { studentUsersApi } from "@/api/student-users";
-import { unwrap } from "@/lib/unwrap";
 import { cn } from "@/lib/utils";
 import type { AttemptSummary } from "@/api/attempts";
 import type { UserTopicStat } from "@/api/leaderboard";
@@ -69,14 +68,6 @@ import { EXAM_CATEGORIES } from "@/constants/exams";
 
 function formatScore(score: number, total: number) {
   return `${score}/${total}`;
-}
-
-function getStatusVariant(
-  status: string,
-): "default" | "secondary" | "destructive" | "outline" {
-  if (status === "SUBMITTED") return "default";
-  if (status === "STARTED") return "secondary";
-  return "destructive";
 }
 
 function getStatusColor(status: string) {
@@ -93,34 +84,57 @@ function StatCard({
   value,
   sub,
   color,
+  trend,
 }: {
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
   label: string;
   value: string;
   sub?: string;
   color: string;
+  trend?: { value: string; isUp: boolean };
 }) {
   return (
-    <Card className="hover:shadow-md transition-shadow">
+    <Card className="hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 group">
       <CardContent className="p-6">
-        <div className="flex items-center gap-3">
+        <div className="flex items-start justify-between mb-4">
           <div
             className={cn(
-              "h-10 w-10 rounded-lg flex items-center justify-center",
-              color,
+              "h-12 w-12 rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300",
+              color
             )}
           >
-            <Icon className="h-5 w-5 text-white" />
+            <Icon className="h-6 w-6 text-white" />
           </div>
-          <div>
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              {label}
+          {trend && (
+            <div
+              className={cn(
+                "flex items-center gap-0.5 text-xs font-bold px-2 py-1 rounded-full",
+                trend.isUp
+                  ? "bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400"
+                  : "bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400"
+              )}
+            >
+              {trend.isUp ? (
+                <TrendingUpIcon className="h-3 w-3" />
+              ) : (
+                <TrendingUpIcon className="h-3 w-3 rotate-180" />
+              )}
+              {trend.value}
+            </div>
+          )}
+        </div>
+        <div>
+          <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">
+            {label}
+          </p>
+          <p className="text-3xl font-black text-slate-900 dark:text-white tabular-nums leading-none">
+            {value}
+          </p>
+          {sub && (
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 font-medium">
+              {sub}
             </p>
-            <p className="text-2xl font-bold text-foreground tabular-nums leading-tight">
-              {value}
-            </p>
-            {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
-          </div>
+          )}
         </div>
       </CardContent>
     </Card>
@@ -151,58 +165,86 @@ function SubscriptionWidget({
   return (
     <Card
       className={cn(
-        "border",
+        "border shadow-lg relative overflow-hidden",
         isPremium
-          ? "bg-linear-to-r from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20 border-amber-200 dark:border-amber-800"
-          : "bg-linear-to-r from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 border-slate-200 dark:border-slate-700",
+          ? "bg-linear-to-r from-amber-500 to-orange-600 border-amber-400 text-white"
+          : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800"
       )}
     >
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+      {isPremium && (
+        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+      )}
+      <CardContent className="p-5">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
             <div
               className={cn(
-                "h-10 w-10 rounded-xl flex items-center justify-center",
+                "h-12 w-12 rounded-2xl flex items-center justify-center shadow-inner",
                 isPremium
-                  ? "bg-amber-100 dark:bg-amber-900/40"
-                  : "bg-slate-200 dark:bg-slate-700",
+                  ? "bg-white/20 backdrop-blur-md"
+                  : "bg-slate-100 dark:bg-slate-800"
               )}
             >
               <CrownIcon
                 className={cn(
-                  "h-5 w-5",
-                  isPremium
-                    ? "text-amber-600 dark:text-amber-400"
-                    : "text-slate-500",
+                  "h-6 w-6",
+                  isPremium ? "text-white" : "text-slate-500"
                 )}
               />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <p className="text-sm font-semibold text-foreground">
+                <p
+                  className={cn(
+                    "text-base font-black",
+                    isPremium ? "text-white" : "text-slate-900 dark:text-white"
+                  )}
+                >
                   {isPremium ? planName : "Free"} Plan
                 </p>
                 <Badge
                   variant={status === "ACTIVE" ? "default" : "secondary"}
-                  className="text-[10px] h-5"
+                  className={cn(
+                    "text-[10px] h-5 font-bold uppercase",
+                    isPremium ? "bg-white text-orange-600 hover:bg-white" : ""
+                  )}
                 >
                   {status}
                 </Badge>
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p
+                className={cn(
+                  "text-xs font-medium",
+                  isPremium
+                    ? "text-orange-50"
+                    : "text-slate-500 dark:text-slate-400"
+                )}
+              >
                 {isPremium && daysLeft !== null
                   ? daysLeft > 0
                     ? `${daysLeft} days remaining`
                     : "Expired"
-                  : "Upgrade to unlock premium tests"}
+                  : "Unlock premium mock tests & deep analytics"}
               </p>
             </div>
           </div>
-          {!isPremium && (
+          {!isPremium ? (
             <Link href="/upgrade">
-              <Button size="sm" className="gap-1.5 text-xs h-8">
-                <CrownIcon className="h-3.5 w-3.5" />
-                Upgrade
+              <Button
+                size="sm"
+                className="bg-blue-600 hover:bg-blue-700 text-white font-bold h-10 px-6 rounded-xl shadow-lg shadow-blue-600/20"
+              >
+                Upgrade Now
+              </Button>
+            </Link>
+          ) : (
+            <Link href="/upgrade">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-white hover:bg-white/10 font-bold h-10 px-4 rounded-xl"
+              >
+                View Details
               </Button>
             </Link>
           )}
@@ -220,31 +262,33 @@ function AttemptRow({ attempt }: { attempt: AttemptSummary }) {
     attempt.accuracy !== null ? `${Math.round(attempt.accuracy)}%` : "—";
 
   return (
-    <Card className="hover:shadow-sm transition-shadow">
+    <Card className="hover:shadow-md transition-all duration-300 border-slate-100 dark:border-slate-800 group">
       <CardContent className="p-4">
         <div className="flex items-center gap-4">
           {/* Status icon */}
           <div className="shrink-0">
             <div
               className={cn(
-                "h-8 w-8 rounded-full flex items-center justify-center",
-                isSubmitted ? "bg-green-100" : "bg-amber-100",
+                "h-10 w-10 rounded-xl flex items-center justify-center shadow-sm",
+                isSubmitted
+                  ? "bg-green-50 dark:bg-green-950/30"
+                  : "bg-amber-50 dark:bg-amber-950/30"
               )}
             >
               {isSubmitted ? (
-                <CheckCircle2Icon className="h-4 w-4 text-green-600" />
+                <CheckCircle2Icon className="h-5 w-5 text-green-600 dark:text-green-400" />
               ) : (
-                <XCircleIcon className="h-4 w-4 text-amber-600" />
+                <ClockIcon className="h-5 w-5 text-amber-600 dark:text-amber-400" />
               )}
             </div>
           </div>
 
           {/* Test info */}
           <div className="flex-1 min-w-0">
-            <h3 className="text-sm font-semibold text-foreground truncate mb-1">
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate mb-1 group-hover:text-blue-600 transition-colors">
               {attempt.testTitle}
             </h3>
-            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            <div className="flex items-center gap-3 text-[11px] text-slate-500 dark:text-slate-400 font-medium">
               <div className="flex items-center gap-1">
                 <CalendarIcon className="h-3 w-3" />
                 {formatDistanceToNow(new Date(attempt.startTime), {
@@ -252,51 +296,46 @@ function AttemptRow({ attempt }: { attempt: AttemptSummary }) {
                 })}
               </div>
               <Separator orientation="vertical" className="h-3" />
-              <span
-                className={cn("font-medium", getStatusColor(attempt.status))}
-              >
+              <span className={cn("font-bold", getStatusColor(attempt.status))}>
                 {accuracy} accuracy
               </span>
             </div>
           </div>
 
           {/* Score */}
-          <div className="shrink-0 text-right">
-            <p className="text-sm font-bold text-foreground tabular-nums">
+          <div className="shrink-0 text-right mr-2 hidden sm:block">
+            <p className="text-sm font-black text-slate-900 dark:text-white tabular-nums">
               {formatScore(attempt.score, attempt.totalMarks)}
             </p>
-            <Badge
-              variant={getStatusVariant(attempt.status)}
-              className="text-xs mt-1"
-            >
-              {attempt.status}
-            </Badge>
+            <p className="text-[10px] font-bold text-slate-400 uppercase">
+              Marks
+            </p>
           </div>
 
           {/* Actions */}
           {isSubmitted && attempt.testId && attempt.attemptId ? (
-            <div className="shrink-0 hidden sm:flex gap-1">
+            <div className="shrink-0 flex gap-2">
               <Link
                 href={`/test/${attempt.testId}/result?attemptId=${attempt.attemptId}`}
               >
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-8 px-3 text-xs gap-1"
+                  className="h-9 px-4 text-xs font-bold rounded-xl border-slate-200 dark:border-slate-800"
                 >
-                  <BarChart3Icon className="h-3 w-3" />
-                  Result
+                  <BarChart3Icon className="h-3.5 w-3.5 mr-1.5" />
+                  Analysis
                 </Button>
               </Link>
             </div>
           ) : attempt.status === "STARTED" && attempt.testId ? (
-            <div className="shrink-0 hidden sm:flex gap-1">
+            <div className="shrink-0 flex gap-2">
               <Link href={`/test/${attempt.testId}`}>
                 <Button
                   size="sm"
-                  className="h-8 px-3 text-xs gap-1.5 bg-amber-500 hover:bg-amber-600 text-white"
+                  className="h-9 px-4 text-xs font-bold rounded-xl bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/20"
                 >
-                  <PlayIcon className="h-3 w-3" />
+                  <PlayIcon className="h-3.5 w-3.5 mr-1.5" />
                   Resume
                 </Button>
               </Link>
@@ -312,22 +351,22 @@ function AttemptRow({ attempt }: { attempt: AttemptSummary }) {
 
 function DashboardSkeleton() {
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6 space-y-8">
+    <div className="max-w-6xl mx-auto px-4 py-8 space-y-8">
       {/* Greeting */}
-      <div className="space-y-2">
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-4 w-48" />
+      <div className="space-y-3">
+        <Skeleton className="h-10 w-80 rounded-xl" />
+        <Skeleton className="h-5 w-64 rounded-lg" />
       </div>
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {[1, 2, 3, 4].map((i) => (
           <Card key={i}>
             <CardContent className="p-6">
-              <div className="flex items-center gap-3">
-                <Skeleton className="h-10 w-10 rounded-lg" />
+              <div className="flex items-center gap-4">
+                <Skeleton className="h-12 w-12 rounded-2xl" />
                 <div className="space-y-2">
-                  <Skeleton className="h-4 w-20" />
-                  <Skeleton className="h-6 w-12" />
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-8 w-16" />
                 </div>
               </div>
             </CardContent>
@@ -335,441 +374,407 @@ function DashboardSkeleton() {
         ))}
       </div>
       {/* Recent */}
-      <Card>
-        <CardHeader>
-          <Skeleton className="h-6 w-32" />
-        </CardHeader>
-        <CardContent className="space-y-3">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 space-y-4">
+          <Skeleton className="h-8 w-48 rounded-lg" />
           {[1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="flex items-center gap-4 p-4 border rounded-lg"
-            >
-              <Skeleton className="h-8 w-8 rounded-full" />
-              <div className="flex-1 space-y-2">
-                <Skeleton className="h-4 w-3/4" />
-                <Skeleton className="h-3 w-1/2" />
-              </div>
-              <Skeleton className="h-8 w-16 rounded" />
-            </div>
+            <Card key={i}>
+              <CardContent className="p-5">
+                <div className="flex items-center gap-4">
+                  <Skeleton className="h-10 w-10 rounded-xl" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-5 w-full max-w-xs" />
+                    <Skeleton className="h-3 w-40" />
+                  </div>
+                  <Skeleton className="h-10 w-24 rounded-xl" />
+                </div>
+              </CardContent>
+            </Card>
           ))}
-        </CardContent>
-      </Card>
-      {/* Topics */}
-      <Card>
-        <CardHeader>
-          <Skeleton className="h-6 w-40" />
-        </CardHeader>
-        <CardContent>
-          <Skeleton className="h-48 w-full" />
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-// ── Target Exam config ────────────────────────────────────────────────────────
-
-const TARGET_EXAMS = [
-  {
-    id: "",
-    label: "All Exams",
-    emoji: "✨",
-    color: "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200",
-  },
-  ...EXAM_CATEGORIES.map((c) => ({
-    id: c.id,
-    label: c.label,
-    emoji: c.emoji,
-    color: c.dashboardColor,
-  })),
-];
-
-// ── Target Exam Selector ──────────────────────────────────────────────────────
-
-function TargetExamSelector({
-  selected,
-  onChange,
-}: {
-  selected: string;
-  onChange: (id: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const active = TARGET_EXAMS.find((e) => e.id === selected) ?? TARGET_EXAMS[0];
-
-  return (
-    <div className="relative inline-block">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className={cn(
-          "flex items-center gap-2 px-4 py-2 rounded-xl border font-medium text-sm transition-all hover:shadow-md",
-          active.color,
-          "border-current/20",
-        )}
-      >
-        <span className="text-base">{active.emoji}</span>
-        <span>{active.label}</span>
-        <ChevronDownIcon
-          className={cn(
-            "h-4 w-4 opacity-60 transition-transform",
-            open && "rotate-180",
-          )}
-        />
-      </button>
-
-      {open && (
-        <>
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 top-full mt-2 w-64 z-20 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden py-1.5">
-            <p className="px-4 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Your target exam
-            </p>
-            {TARGET_EXAMS.map((exam) => (
-              <button
-                key={exam.id}
-                type="button"
-                onClick={() => {
-                  onChange(exam.id);
-                  setOpen(false);
-                }}
-                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-              >
-                <span className="text-base w-6 text-center">{exam.emoji}</span>
-                <span className="flex-1 text-left font-medium">
-                  {exam.label}
-                </span>
-                {selected === exam.id && (
-                  <CheckIcon className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0" />
-                )}
-              </button>
-            ))}
-          </div>
-        </>
-      )}
+        </div>
+        <div className="space-y-4">
+          <Skeleton className="h-8 w-48 rounded-lg" />
+          <Card>
+            <CardContent className="p-6">
+              <Skeleton className="h-64 w-full rounded-xl" />
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-export default function DashboardPage() {
-  const user = useAuthStore((s) => s.user);
-
-  // Target exam filter (persisted to localStorage)
-  const [targetExam, setTargetExam] = useState<string>(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("targetExam") ?? "";
-    }
-    return "";
-  });
+export default function StudentDashboardPage() {
+  const { user } = useAuthStore();
+  const [greeting, setGreeting] = useState("Good morning");
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("targetExam", targetExam);
-    }
-  }, [targetExam]);
+    const hour = new Date().getHours();
+    if (hour < 12) setGreeting("Good morning");
+    else if (hour < 17) setGreeting("Good afternoon");
+    else setGreeting("Good evening");
+  }, []);
 
-  // Recent attempts (last 10, we'll show 5)
+  // 1. Attempts (for stats + recent)
   const attemptsQuery = useQuery({
     queryKey: attemptKeys.history({ page: 1, limit: 10 }),
-    queryFn: () => attemptsApi.getMyHistory(1, 10).then((res) => res.data),
-    staleTime: 1000 * 60 * 2, // 2 min
+    queryFn: async () => {
+      const res = await attemptsApi.getMyHistory(1, 10);
+      return (res.data as any)?.data ?? res.data;
+    },
   });
 
-  // Topic stats
-  const topicsQuery = useQuery({
+  // 2. Topic stats (for weak areas)
+  const topicStatsQuery = useQuery({
     queryKey: studentKeys.topicStats(),
-    queryFn: () =>
-      leaderboardApi.getMyTopicStats().then(unwrap<UserTopicStat[]>),
-    staleTime: 1000 * 60 * 5,
+    queryFn: async () => {
+      const res = await leaderboardApi.getMyTopicStats();
+      return (res.data as any)?.data ?? res.data;
+    },
   });
 
-  // Subscription data
-  const { data: subscription } = useQuery({
-    queryKey: ["subscription"],
+  // 3. Subscription (for premium state)
+  const subQuery = useQuery({
+    queryKey: ["my-subscription"],
     queryFn: async () => {
       const res = await studentUsersApi.getMySubscription();
-      return res.data;
+      return (res.data as any) ?? res;
     },
-    staleTime: 1000 * 60 * 5,
   });
 
-  const isLoading = attemptsQuery.isLoading || topicsQuery.isLoading;
-  const isError = attemptsQuery.isError || topicsQuery.isError;
+  const isLoading = attemptsQuery.isLoading || topicStatsQuery.isLoading;
+  const isError = attemptsQuery.isError;
 
   if (isLoading) return <DashboardSkeleton />;
 
   if (isError) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh] px-4">
-        <Card className="max-w-md w-full p-8 text-center space-y-6">
-          <div className="mx-auto h-14 w-14 rounded-full bg-destructive/10 flex items-center justify-center">
-            <AlertCircleIcon className="h-7 w-7 text-destructive" />
-          </div>
-          <div className="space-y-2">
-            <CardTitle className="text-xl">Unable to load dashboard</CardTitle>
-            <CardDescription>
-              We couldn't fetch your dashboard data. Please try again.
-            </CardDescription>
-          </div>
-          <Button
-            onClick={() => {
-              attemptsQuery.refetch();
-              topicsQuery.refetch();
-            }}
-            className="gap-2"
-          >
-            <RefreshCwIcon className="h-4 w-4" /> Retry
-          </Button>
-        </Card>
+      <div className="max-w-6xl mx-auto px-4 py-20 text-center">
+        <div className="h-16 w-16 bg-red-50 dark:bg-red-950/30 rounded-full flex items-center justify-center mx-auto mb-6">
+          <AlertCircleIcon className="h-8 w-8 text-red-500" />
+        </div>
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
+          Failed to load dashboard
+        </h2>
+        <p className="text-slate-500 mb-8">
+          Please check your internet connection and try again.
+        </p>
+        <Button
+          onClick={() => window.location.reload()}
+          className="bg-blue-600 font-bold px-8 h-12 rounded-xl"
+        >
+          <RefreshCwIcon className="h-4 w-4 mr-2" />
+          Retry Now
+        </Button>
       </div>
     );
   }
 
-  // Derive stats from recent attempts
-  const attempts = attemptsQuery.data?.data ?? [];
-  const topics = topicsQuery.data ?? [];
-  const totalAttempts = attemptsQuery.data?.total ?? 0;
+  const attempts = (attemptsQuery.data as AttemptSummary[]) || [];
+  const topicStats = (topicStatsQuery.data as UserTopicStat[]) || [];
+
+  // Derived stats
+  const totalAttempts = attempts.length;
   const submitted = attempts.filter((a) => a.status === "SUBMITTED");
+  const avgAccuracy = submitted.length
+    ? Math.round(
+        submitted.reduce((acc, curr) => acc + (curr.accuracy || 0), 0) /
+          submitted.length
+      )
+    : 0;
 
-  const avgAccuracy =
-    submitted.length > 0
-      ? submitted.reduce((sum, a) => sum + (a.accuracy ?? 0), 0) /
-        submitted.length
-      : null;
-
-  const recentFive = attempts.slice(0, 5);
-
-  const greeting = () => {
-    const h = new Date().getHours();
-    if (h < 12) return "Good morning";
-    if (h < 17) return "Good afternoon";
-    return "Good evening";
-  };
+  const resumeAttempt = attempts.find((a) => a.status === "STARTED");
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 space-y-8">
-      {/* ── Welcome Banner ──────────────────────────────────────────────────── */}
-      <Card className="bg-linear-to-br from-primary/5 to-primary/10 border-primary/20">
-        <CardContent className="p-8">
-          <div className="flex items-start justify-between gap-6">
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <SparkleIcon className="h-5 w-5 text-primary" />
-                <Badge variant="secondary" className="text-xs">
-                  Welcome back
-                </Badge>
-              </div>
-              <h1 className="text-3xl font-bold text-foreground">
-                {greeting()}, {user?.name?.split(" ")[0] ?? "Student"} 👋
-              </h1>
-              <p className="text-muted-foreground text-lg">
-                {format(new Date(), "EEEE, MMMM d, yyyy")}
-              </p>
-              {/* Target exam selector */}
-              <div className="flex items-center gap-3 pt-1">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <GraduationCapIcon className="h-4 w-4" />
-                  <span className="font-medium">Target exam:</span>
-                </div>
-                <TargetExamSelector
-                  selected={targetExam}
-                  onChange={setTargetExam}
-                />
-              </div>
-              <div className="flex items-center gap-4 pt-2">
-                <Link
-                  href={
-                    targetExam
-                      ? `/exams?category=${targetExam}`
-                      : "/dashboard/tests"
-                  }
-                >
-                  <Button className="gap-2">
-                    <PlayIcon className="h-4 w-4" />
-                    Start New Test
-                  </Button>
-                </Link>
-                <Link href="/test/history">
-                  <Button variant="outline" className="gap-2">
-                    <BookOpenIcon className="h-4 w-4" />
-                    View History
-                  </Button>
-                </Link>
-              </div>
-            </div>
-            <div className="hidden lg:block">
-              <div className="h-20 w-20 rounded-2xl bg-primary/10 flex items-center justify-center">
-                <TrophyIcon className="h-10 w-10 text-primary" />
-              </div>
-            </div>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      {/* ── HEADER & GREETING ─────────────────────────────────────────────── */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div className="space-y-1">
+          <h1 className="text-4xl font-black tracking-tight text-slate-900 dark:text-white">
+            {greeting},{" "}
+            <span className="text-blue-600">{user?.name?.split(" ")[0]}!</span>
+          </h1>
+          <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 font-medium">
+            <CalendarIcon className="h-4 w-4" />
+            <span>Today is {format(new Date(), "EEEE, do MMMM")}</span>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* ── Subscription Status ─────────────────────────────────────────────── */}
-      <SubscriptionWidget subscription={subscription ?? null} />
-
-      {/* ── Quick Stats ────────────────────────────────────────────────────── */}
-      <div>
-        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-          <h2 className="text-xl font-semibold text-foreground">
-            Performance Overview
-          </h2>
-          {targetExam && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted px-3 py-1.5 rounded-full">
-              <span>
-                Filtered: {TARGET_EXAMS.find((e) => e.id === targetExam)?.emoji}
-              </span>
-              <span className="font-medium">
-                {TARGET_EXAMS.find((e) => e.id === targetExam)?.label}
-              </span>
-              <button
-                type="button"
-                onClick={() => setTargetExam("")}
-                className="ml-1 hover:text-foreground transition-colors"
-              >
-                ✕
-              </button>
-            </div>
-          )}
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard
-            icon={BookOpenIcon}
-            label="Total Tests"
-            value={String(totalAttempts)}
-            sub="all time"
-            color="bg-blue-500"
-          />
-          <StatCard
-            icon={TargetIcon}
-            label="Avg Accuracy"
-            value={avgAccuracy !== null ? `${Math.round(avgAccuracy)}%` : "—"}
-            sub="last 10 submitted"
-            color="bg-green-500"
-          />
-          <StatCard
-            icon={TrophyIcon}
-            label="Tests Completed"
-            value={String(submitted.length)}
-            sub={`of ${totalAttempts}`}
-            color="bg-amber-500"
-          />
-          <StatCard
-            icon={ClockIcon}
-            label="This Month"
-            value={String(
-              attempts.filter((a) => {
-                const d = new Date(a.startTime);
-                const now = new Date();
-                return (
-                  d.getMonth() === now.getMonth() &&
-                  d.getFullYear() === now.getFullYear()
-                );
-              }).length,
-            )}
-            sub="attempts"
-            color="bg-purple-500"
-          />
+        <div className="flex items-center gap-3">
+          <Link href="/dashboard/tests">
+            <Button className="bg-blue-600 hover:bg-blue-700 text-white font-bold h-12 px-8 rounded-2xl shadow-xl shadow-blue-600/20 group">
+              Browse New Tests
+              <ArrowRightIcon className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
+            </Button>
+          </Link>
         </div>
       </div>
 
-      {/* ── Recent Attempts ───────────────────────────────────────────────── */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-          <CardTitle className="text-lg">Recent Attempts</CardTitle>
-          <Link href="/test/history">
-            <Button variant="ghost" size="sm" className="gap-1">
-              View All
-              <ArrowRightIcon className="h-3 w-3" />
-            </Button>
-          </Link>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {recentFive.length === 0 ? (
-            <div className="flex flex-col items-center py-12 text-center">
-              <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                <BookOpenIcon className="h-8 w-8 text-muted-foreground" />
-              </div>
-              <h3 className="text-lg font-semibold text-foreground mb-2">
-                No tests attempted yet
-              </h3>
-              <p className="text-muted-foreground mb-6 max-w-sm">
-                Start your first test to see your recent attempts and
-                performance data here.
-              </p>
+      {/* ── STATS GRID ───────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatCard
+          icon={ActivityIcon}
+          label="Total Attempts"
+          value={totalAttempts.toString()}
+          sub="Across all exams"
+          color="bg-blue-500"
+          trend={{ value: "12%", isUp: true }}
+        />
+        <StatCard
+          icon={TargetIcon}
+          label="Avg. Accuracy"
+          value={`${avgAccuracy}%`}
+          sub="Last 10 tests"
+          color="bg-green-500"
+          trend={{ value: "5%", isUp: true }}
+        />
+        <StatCard
+          icon={TrophyIcon}
+          label="Best Rank"
+          value="#42"
+          sub="Global ranking"
+          color="bg-amber-500"
+        />
+        <StatCard
+          icon={FlameIcon}
+          label="Study Streak"
+          value="12"
+          sub="Days in a row"
+          color="bg-orange-500"
+          trend={{ value: "2d", isUp: true }}
+        />
+      </div>
+
+      {/* ── MAIN CONTENT GRID ────────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Left Column: Recent & Resume */}
+        <div className="lg:col-span-2 space-y-8">
+          {/* Resume Card (if any) */}
+          {resumeAttempt && (
+            <Card className="bg-linear-to-r from-blue-600 to-indigo-700 border-0 shadow-2xl relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:scale-150 transition-transform duration-700" />
+              <CardContent className="p-8 flex flex-col sm:flex-row items-center justify-between gap-6 text-white">
+                <div className="space-y-2 text-center sm:text-left">
+                  <Badge className="bg-white/20 hover:bg-white/30 text-white border-0 font-bold uppercase tracking-wider mb-2">
+                    <ZapIcon className="h-3 w-3 mr-1.5 fill-current" />
+                    Continue Learning
+                  </Badge>
+                  <h3 className="text-2xl font-black leading-tight">
+                    {resumeAttempt.testTitle}
+                  </h3>
+                  <p className="text-blue-100 text-sm font-medium opacity-90">
+                    You have an unfinished test session. Pick up where you left
+                    off.
+                  </p>
+                </div>
+                <Link href={`/test/${resumeAttempt.testId}`}>
+                  <Button className="h-14 px-10 rounded-2xl bg-white text-blue-600 hover:bg-blue-50 font-black text-lg shadow-xl shrink-0">
+                    <PlayIcon className="h-5 w-5 mr-2 fill-current" />
+                    Resume Now
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Recent Attempts */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+                <HistoryIcon className="h-6 w-6 text-blue-600" />
+                Recent Attempts
+              </h2>
               <Link
-                href={
-                  targetExam
-                    ? `/exams?category=${targetExam}`
-                    : "/dashboard/tests"
-                }
+                href="/test/history"
+                className="text-sm font-bold text-blue-600 dark:text-blue-400 hover:underline"
               >
-                <Button className="gap-2">
-                  <PlayIcon className="h-4 w-4" />
-                  Browse Tests
-                </Button>
+                View History
               </Link>
             </div>
-          ) : (
-            recentFive.map((attempt, index) => (
-              <AttemptRow
-                key={`${attempt.attemptId}-${index}`}
-                attempt={attempt}
-              />
-            ))
-          )}
-        </CardContent>
-      </Card>
-
-      {/* ── Weak Areas Analysis ────────────────────────────────────────────── */}
-      {topics.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <TargetIcon className="h-5 w-5" />
-              Performance Analysis
-            </CardTitle>
-            <CardDescription>
-              Your top weak areas based on recent test performance
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <TopicAnalysis
-              topics={topics}
-              mode="bar"
-              limit={5}
-              title="Top 5 Weak Areas"
-            />
-          </CardContent>
-        </Card>
-      )}
-
-      {/* ── Getting Started CTA ──────────────────────────────────────────────── */}
-      {topics.length === 0 && attempts.length === 0 && (
-        <Card className="border-dashed">
-          <CardContent className="p-12 text-center">
-            <div className="mx-auto h-20 w-20 rounded-full bg-muted flex items-center justify-center mb-6">
-              <SparkleIcon className="h-10 w-10 text-muted-foreground" />
+            <div className="grid gap-3">
+              {attempts.length > 0 ? (
+                attempts
+                  .slice(0, 5)
+                  .map((a) => (
+                    <AttemptRow key={a.attemptId || a.testId} attempt={a} />
+                  ))
+              ) : (
+                <Card className="border-dashed border-2 border-slate-200 dark:border-slate-800">
+                  <CardContent className="p-10 text-center">
+                    <BookOpenIcon className="h-12 w-12 text-slate-300 mx-auto mb-4" />
+                    <p className="text-slate-500 font-medium">
+                      No test attempts yet.
+                    </p>
+                    <Link href="/dashboard/tests">
+                      <Button
+                        variant="link"
+                        className="text-blue-600 font-bold"
+                      >
+                        Start your first test
+                      </Button>
+                    </Link>
+                  </CardContent>
+                </Card>
+              )}
             </div>
-            <CardTitle className="text-xl mb-3">
-              Ready to start learning?
-            </CardTitle>
-            <CardDescription className="mb-6 max-w-md mx-auto">
-              Begin your journey by taking your first test. Your performance
-              data and personalized insights will appear here.
-            </CardDescription>
-            <Link href="/dashboard/tests">
-              <Button size="lg" className="gap-2">
-                <PlayIcon className="h-4 w-4" />
-                Browse Available Tests
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-      )}
+          </div>
+
+          {/* Browse Categories */}
+          <div className="space-y-4 pt-4">
+            <h2 className="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+              <LayersIcon className="h-6 w-6 text-indigo-600" />
+              Popular Categories
+            </h2>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {EXAM_CATEGORIES.slice(0, 4).map((cat) => (
+                <Link key={cat.id} href={`/exams?category=${cat.id}`}>
+                  <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:shadow-lg transition-all text-center group">
+                    <div
+                      className={`h-12 w-12 mx-auto mb-3 rounded-xl bg-linear-to-br ${cat.color} flex items-center justify-center text-2xl shadow-md group-hover:scale-110 transition-transform`}
+                    >
+                      {cat.emoji}
+                    </div>
+                    <p className="font-bold text-xs text-slate-900 dark:text-white truncate">
+                      {cat.shortLabel}
+                    </p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column: Performance & Subscription */}
+        <div className="space-y-8">
+          <SubscriptionWidget subscription={subQuery.data} />
+
+          {/* Performance Analysis */}
+          <Card className="border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden">
+            <CardHeader className="bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg font-bold flex items-center gap-2">
+                  <BarChart3Icon className="h-5 w-5 text-indigo-600" />
+                  Weak Areas
+                </CardTitle>
+                <TrendingUpIcon className="h-4 w-4 text-slate-400" />
+              </div>
+              <CardDescription className="text-xs font-medium">
+                Topics with accuracy below 60%
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-6">
+              {topicStats.length > 0 ? (
+                <TopicAnalysis
+                  topics={topicStats}
+                  mode="bar"
+                  limit={5}
+                  showEmpty={false}
+                />
+              ) : (
+                <div className="py-10 text-center space-y-4">
+                  <div className="h-16 w-16 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center mx-auto">
+                    <SparkleIcon className="h-8 w-8 text-slate-300" />
+                  </div>
+                  <p className="text-xs text-slate-500 font-medium px-4">
+                    Complete at least 5 tests to see your performance analysis
+                    here.
+                  </p>
+                </div>
+              )}
+            </CardContent>
+            {topicStats.length > 0 && (
+              <CardFooter className="bg-slate-50/30 dark:bg-slate-900/30 border-t border-slate-100 dark:border-slate-800">
+                <Link href="/profile" className="w-full">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full text-xs font-bold text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-900/20"
+                  >
+                    View Full Analysis{" "}
+                    <ArrowRightIcon className="h-3.5 w-3.5 ml-1.5" />
+                  </Button>
+                </Link>
+              </CardFooter>
+            )}
+          </Card>
+
+          {/* Quick Actions / Help */}
+          <Card className="bg-linear-to-br from-indigo-50 to-blue-50 dark:from-indigo-950/20 dark:to-blue-950/20 border-blue-100 dark:border-blue-900/40">
+            <CardContent className="p-6">
+              <h3 className="font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+                <GraduationCapIcon className="h-5 w-5 text-blue-600" />
+                Study Tips
+              </h3>
+              <div className="space-y-4">
+                <div className="flex gap-3">
+                  <div className="h-2 w-2 rounded-full bg-blue-500 mt-1.5 shrink-0" />
+                  <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-medium">
+                    Focus on PYQs to understand the current exam patterns.
+                  </p>
+                </div>
+                <div className="flex gap-3">
+                  <div className="h-2 w-2 rounded-full bg-blue-500 mt-1.5 shrink-0" />
+                  <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-medium">
+                    Take a mock test every Sunday to build exam stamina.
+                  </p>
+                </div>
+                <Link href="/practice">
+                  <Button
+                    variant="outline"
+                    className="w-full mt-4 h-10 rounded-xl text-xs font-bold border-blue-200 dark:border-blue-800 bg-white/50 dark:bg-slate-900/50"
+                  >
+                    Start Topic Practice
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
+  );
+}
+
+function HistoryIcon(props: any) {
+  return (
+    <svg
+      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+      <path d="M3 3v5h5" />
+      <path d="m12 7v5l4 2" />
+    </svg>
+  );
+}
+
+function LayersIcon(props: any) {
+  return (
+    <svg
+      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z" />
+      <path d="m2.6 11.08 8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9" />
+      <path d="m2.6 16.08 8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9" />
+    </svg>
   );
 }

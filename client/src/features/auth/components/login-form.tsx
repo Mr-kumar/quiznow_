@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuthStore } from "@/stores/auth-store";
 import api from "@/lib/api";
@@ -57,7 +57,17 @@ const OAUTH_ERRORS: Record<string, string> = {
 export default function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const login = useAuthStore((state) => state.login);
+  const { login, isAuthenticated, user } = useAuthStore();
+
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      if (user.role === "ADMIN") {
+        router.push("/dashboard/admin");
+      } else {
+        router.push("/dashboard");
+      }
+    }
+  }, [isAuthenticated, user, router]);
 
   const [email, setEmail] = useState("");
   const [isEmailLoading, setIsEmailLoading] = useState(false);

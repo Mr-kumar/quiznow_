@@ -5,6 +5,7 @@ export interface AuthUser {
   id: string;
   email: string;
   name: string;
+  image?: string;
   role: "ADMIN" | "STUDENT" | "INSTRUCTOR";
   status?: "ACTIVE" | "SUSPENDED" | "BANNED";
   preferredLang?: "EN" | "HI";
