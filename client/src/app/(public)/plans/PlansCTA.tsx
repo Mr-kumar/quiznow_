@@ -28,11 +28,11 @@ export function PlansCTA({ planId, planName, price, ctaClass }: PlansCTAProps) {
   }
 
   return (
-    <UpgradeButton 
-      planId={planId} 
-      planName={planName} 
-      price={price} 
-      className={`w-full mb-5 mt-2 ${ctaClass}`} 
+    <UpgradeButton
+      planId={planId}
+      planName={planName}
+      price={price}
+      className={`w-full mb-5 mt-2 ${ctaClass}`}
     />
   );
 }

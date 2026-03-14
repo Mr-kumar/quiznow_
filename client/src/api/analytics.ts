@@ -51,15 +51,13 @@ export interface RevenueStats {
 export const adminAnalyticsApi = {
   getDashboardMetrics: () =>
     api.get<ApiResponse<DashboardMetrics>>("/admin/analytics/dashboard"),
-  getUserStats: () => 
-    api.get<ApiResponse<UserStats>>("/admin/analytics/users"),
-  getTestStats: () => 
-    api.get<ApiResponse<TestStats>>("/admin/analytics/tests"),
+  getUserStats: () => api.get<ApiResponse<UserStats>>("/admin/analytics/users"),
+  getTestStats: () => api.get<ApiResponse<TestStats>>("/admin/analytics/tests"),
   getAttemptStats: () =>
     api.get<ApiResponse<AttemptStats>>("/admin/analytics/attempts"),
   getRevenueStats: async (): Promise<ApiResponse<RevenueStats>> => {
     const response = await api.get<ApiResponse<RevenueStats>>(
-      "/admin/analytics/revenue"
+      "/admin/analytics/revenue",
     );
     return response.data;
   },

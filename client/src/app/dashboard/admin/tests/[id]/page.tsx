@@ -197,7 +197,7 @@ function StatChip({
 
 export default function TestAssemblyPage() {
   const params = useParams();
-const testId = params.id as string;
+  const testId = params.id as string;
 
   const [testData, setTestData] = useState<TestData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -285,7 +285,10 @@ const testId = params.id as string;
         );
       }
     } catch (err: any) {
-      toast.error("Failed to load test", { description: err?.response?.data?.message ?? "An unexpected error occurred" });
+      toast.error("Failed to load test", {
+        description:
+          err?.response?.data?.message ?? "An unexpected error occurred",
+      });
     } finally {
       setLoading(false);
     }
@@ -306,7 +309,10 @@ const testId = params.id as string;
       setTestData({ ...testData, isLive: next });
       toast(next ? "Test is now Live 🟢" : "Test moved to Draft");
     } catch (err: any) {
-      toast.error("Failed", { description: err?.response?.data?.message ?? "An unexpected error occurred" });
+      toast.error("Failed", {
+        description:
+          err?.response?.data?.message ?? "An unexpected error occurred",
+      });
     } finally {
       setTogglingPublish(false);
     }
@@ -333,7 +339,10 @@ const testId = params.id as string;
       await fetchTest();
       toast("Section created");
     } catch (err: any) {
-      toast.error("Failed to create section", { description: err?.response?.data?.message ?? "An unexpected error occurred" });
+      toast.error("Failed to create section", {
+        description:
+          err?.response?.data?.message ?? "An unexpected error occurred",
+      });
     } finally {
       setCreatingSection(false);
     }
@@ -360,7 +369,10 @@ const testId = params.id as string;
       setEditSection(null);
       await fetchTest();
     } catch (err: any) {
-      toast.error("Failed to update section", { description: err?.response?.data?.message ?? "An unexpected error occurred" });
+      toast.error("Failed to update section", {
+        description:
+          err?.response?.data?.message ?? "An unexpected error occurred",
+      });
     } finally {
       setUpdatingSection(false);
     }
@@ -376,7 +388,10 @@ const testId = params.id as string;
       setDeleteTarget(null);
       await fetchTest(false);
     } catch (err: any) {
-      toast.error("Failed to delete section", { description: err?.response?.data?.message ?? "An unexpected error occurred" });
+      toast.error("Failed to delete section", {
+        description:
+          err?.response?.data?.message ?? "An unexpected error occurred",
+      });
     } finally {
       setDeletingSection(false);
     }
@@ -397,7 +412,9 @@ const testId = params.id as string;
       questionIds,
     });
     await fetchTest();
-    toast(`${questionIds.length} question${questionIds.length !== 1 ? "s" : ""} added to ${bankSectionName}`);
+    toast(
+      `${questionIds.length} question${questionIds.length !== 1 ? "s" : ""} added to ${bankSectionName}`,
+    );
   };
 
   // ── Unlink question ────────────────────────────────────────────────────────
@@ -412,7 +429,10 @@ const testId = params.id as string;
       setUnlinkTarget(null);
       await fetchTest();
     } catch (err: any) {
-      toast.error("Failed to remove question", { description: err?.response?.data?.message ?? "An unexpected error occurred" });
+      toast.error("Failed to remove question", {
+        description:
+          err?.response?.data?.message ?? "An unexpected error occurred",
+      });
     } finally {
       setUnlinking(false);
     }
@@ -610,582 +630,605 @@ const testId = params.id as string;
           <TabsContent value="assembly" className="mt-0">
             {/* ── Main layout: sidebar sections + content ── */}
             <div className="flex gap-5 items-start">
-          {/* Sections sidebar */}
-          <div className="w-56 shrink-0 hidden md:block">
-            <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden sticky top-20">
-              <div className="px-3.5 py-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
-                  Sections
-                </span>
-                <button
-                  onClick={() => setAddSectionOpen(true)}
-                  className="h-6 w-6 rounded-md flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors"
-                  aria-label="Add new section"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                </button>
-              </div>
-
-              <div className="p-2 space-y-0.5">
-                {testData.sections?.map((section) => (
-                  <button
-                    key={section.id}
-                    onClick={() => setActiveSection(section.id)}
-                    className={cn(
-                      "w-full text-left flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs transition-all group",
-                      activeSection === section.id
-                        ? "bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400 font-semibold"
-                        : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50",
-                    )}
-                  >
-                    <Layers
-                      className={cn(
-                        "h-3.5 w-3.5 shrink-0",
-                        activeSection === section.id
-                          ? "text-indigo-500"
-                          : "text-slate-300 dark:text-slate-600",
-                      )}
-                    />
-                    <span className="truncate flex-1">{section.name}</span>
-                    <span
-                      className={cn(
-                        "shrink-0 px-1.5 py-0.5 rounded-full text-[10px] font-bold",
-                        activeSection === section.id
-                          ? "bg-indigo-200/60 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300"
-                          : "bg-slate-100 dark:bg-slate-800 text-slate-400",
-                      )}
-                    >
-                      {section.questions?.length ?? 0}
+              {/* Sections sidebar */}
+              <div className="w-56 shrink-0 hidden md:block">
+                <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden sticky top-20">
+                  <div className="px-3.5 py-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
+                      Sections
                     </span>
-                  </button>
-                ))}
-
-                {testData.sections?.length === 0 && (
-                  <div className="py-6 text-center">
-                    <p className="text-xs text-slate-400">No sections yet</p>
                     <button
                       onClick={() => setAddSectionOpen(true)}
-                      className="mt-2 text-xs text-indigo-600 dark:text-indigo-400 hover:underline"
+                      className="h-6 w-6 rounded-md flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors"
+                      aria-label="Add new section"
                     >
-                      Add one
+                      <Plus className="h-3.5 w-3.5" />
                     </button>
                   </div>
+
+                  <div className="p-2 space-y-0.5">
+                    {testData.sections?.map((section) => (
+                      <button
+                        key={section.id}
+                        onClick={() => setActiveSection(section.id)}
+                        className={cn(
+                          "w-full text-left flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs transition-all group",
+                          activeSection === section.id
+                            ? "bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400 font-semibold"
+                            : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50",
+                        )}
+                      >
+                        <Layers
+                          className={cn(
+                            "h-3.5 w-3.5 shrink-0",
+                            activeSection === section.id
+                              ? "text-indigo-500"
+                              : "text-slate-300 dark:text-slate-600",
+                          )}
+                        />
+                        <span className="truncate flex-1">{section.name}</span>
+                        <span
+                          className={cn(
+                            "shrink-0 px-1.5 py-0.5 rounded-full text-[10px] font-bold",
+                            activeSection === section.id
+                              ? "bg-indigo-200/60 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300"
+                              : "bg-slate-100 dark:bg-slate-800 text-slate-400",
+                          )}
+                        >
+                          {section.questions?.length ?? 0}
+                        </span>
+                      </button>
+                    ))}
+
+                    {testData.sections?.length === 0 && (
+                      <div className="py-6 text-center">
+                        <p className="text-xs text-slate-400">
+                          No sections yet
+                        </p>
+                        <button
+                          onClick={() => setAddSectionOpen(true)}
+                          className="mt-2 text-xs text-indigo-600 dark:text-indigo-400 hover:underline"
+                        >
+                          Add one
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Section content ── */}
+              <div className="flex-1 min-w-0 space-y-4">
+                {!currentSection ? (
+                  <div className="rounded-xl border border-dashed border-slate-200 dark:border-slate-700 py-20 flex flex-col items-center text-center">
+                    <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700 flex items-center justify-center mb-4">
+                      <Layers className="h-7 w-7 text-slate-300 dark:text-slate-600" />
+                    </div>
+                    <p className="text-sm font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                      No sections yet
+                    </p>
+                    <p className="text-xs text-slate-400 mb-4">
+                      Add a section to start building your exam paper
+                    </p>
+                    <Button
+                      size="sm"
+                      onClick={() => setAddSectionOpen(true)}
+                      className="gap-1.5 bg-indigo-600 hover:bg-indigo-700"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      Add First Section
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    {/* Section header */}
+                    <div className="flex items-center justify-between gap-3 flex-wrap">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h2 className="text-base font-bold text-slate-800 dark:text-slate-100">
+                            {currentSection.name}
+                          </h2>
+                          {currentSection.durationMins && (
+                            <span className="flex items-center gap-1 text-xs text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
+                              <Clock className="h-3 w-3" />
+                              {currentSection.durationMins}m
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          {currentSection.questions?.length ?? 0} question
+                          {(currentSection.questions?.length ?? 0) !== 1
+                            ? "s"
+                            : ""}{" "}
+                          in this section
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => openEditSection(currentSection)}
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-lg hover:border-slate-300 transition-colors bg-white dark:bg-slate-900"
+                        >
+                          <Pencil className="h-3 w-3" />
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => setDeleteTarget(currentSection)}
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-red-400 hover:text-red-600 border border-red-100 dark:border-red-900/50 hover:border-red-200 rounded-lg transition-colors bg-white dark:bg-slate-900"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Add questions row */}
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      <button
+                        onClick={() => openBankForSection(currentSection)}
+                        className="flex items-center gap-3 px-4 py-3.5 rounded-xl border-2 border-dashed border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-950/10 hover:border-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/20 transition-all group text-left"
+                      >
+                        <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-sm shrink-0">
+                          <Database className="h-4 w-4 text-white" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-indigo-700 dark:text-indigo-400">
+                            Add from Vault
+                          </p>
+                          <p className="text-xs text-indigo-500/70 dark:text-indigo-500/70">
+                            Browse &amp; pick from all existing questions
+                          </p>
+                        </div>
+                        <ChevronRight className="ml-auto h-4 w-4 text-indigo-300 group-hover:text-indigo-500 transition-colors shrink-0" />
+                      </button>
+
+                      <button
+                        onClick={() =>
+                          setUploadSectionId((prev) =>
+                            prev === currentSection.id
+                              ? null
+                              : currentSection.id,
+                          )
+                        }
+                        className="flex items-center gap-3 px-4 py-3.5 rounded-xl border-2 border-dashed border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/10 hover:border-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 transition-all group text-left"
+                      >
+                        <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-sm shrink-0">
+                          <Upload className="h-4 w-4 text-white" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">
+                            Upload Excel
+                          </p>
+                          <p className="text-xs text-emerald-500/70 dark:text-emerald-500/70">
+                            Bulk import questions via spreadsheet
+                          </p>
+                        </div>
+                        <ChevronRight
+                          className={cn(
+                            "ml-auto h-4 w-4 transition-all shrink-0",
+                            uploadSectionId === currentSection.id
+                              ? "rotate-90 text-emerald-500"
+                              : "text-emerald-300 group-hover:text-emerald-500",
+                          )}
+                        />
+                      </button>
+                    </div>
+
+                    {/* Bulk upload panel */}
+                    {uploadSectionId === currentSection.id && (
+                      <div className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-white dark:bg-slate-900 p-4">
+                        <BulkQuestionUpload
+                          sectionId={currentSection.id}
+                          onSuccess={async () => {
+                            await fetchTest();
+                            setUploadSectionId(null);
+                          }}
+                        />
+                      </div>
+                    )}
+
+                    {/* Questions list */}
+                    <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
+                      <div className="px-5 py-3.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/60 dark:bg-slate-900">
+                        <div className="flex items-center gap-2">
+                          <Eye className="h-4 w-4 text-slate-400" />
+                          <span className="text-sm font-bold text-slate-700 dark:text-slate-300">
+                            Exam Paper
+                          </span>
+                        </div>
+                        <Badge className="bg-indigo-100 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-400 text-[11px] font-semibold border-0">
+                          {currentSection.questions?.length ?? 0} Qs
+                        </Badge>
+                      </div>
+
+                      {!currentSection.questions?.length ? (
+                        <div className="py-16 flex flex-col items-center text-slate-400">
+                          <div className="h-12 w-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-3">
+                            <BookOpen className="h-5 w-5 text-slate-300 dark:text-slate-600" />
+                          </div>
+                          <p className="text-sm font-medium">
+                            Section is empty
+                          </p>
+                          <p className="text-xs mt-1">
+                            Use the buttons above to add questions
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                          {currentSection.questions.map((lq, idx) => {
+                            const qId = getQuestionId(lq);
+                            const text = pickText(
+                              lq.question?.translations ?? [],
+                              lang,
+                            );
+                            const subjectName =
+                              lq.question?.topic?.subject?.name;
+                            const topicName = lq.question?.topic?.name;
+                            const correctOpt = lq.question?.options?.find(
+                              (o) => o.isCorrect,
+                            );
+                            const correctText = correctOpt
+                              ? pickText(
+                                  (correctOpt.translations ?? []).map((t) => ({
+                                    lang: t.lang,
+                                    content: t.text,
+                                  })),
+                                  lang,
+                                )
+                              : null;
+
+                            const hasEN = hasLang(
+                              lq.question?.translations ?? [],
+                              "EN",
+                            );
+                            const hasHI = hasLang(
+                              lq.question?.translations ?? [],
+                              "HI",
+                            );
+                            const isBilingual = hasEN && hasHI;
+                            const isFallback = !hasLang(
+                              lq.question?.translations ?? [],
+                              lang,
+                            );
+
+                            return (
+                              <div
+                                key={`${qId}-${idx}`}
+                                className="group flex items-start gap-3 px-4 py-3.5 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors"
+                              >
+                                <div className="shrink-0 flex items-center gap-1 mt-px">
+                                  <GripVertical className="h-4 w-4 text-slate-200 dark:text-slate-700 group-hover:text-slate-300 dark:group-hover:text-slate-600 cursor-grab" />
+                                  <span className="h-6 w-6 flex items-center justify-center rounded-md bg-slate-100 dark:bg-slate-800 text-[11px] font-bold text-slate-500">
+                                    {idx + 1}
+                                  </span>
+                                </div>
+
+                                <div className="flex-1 min-w-0">
+                                  {isFallback && (
+                                    <p className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 mb-1 flex items-center gap-1">
+                                      <Languages className="h-3 w-3" />
+                                      No {LANG_LABELS[lang]} translation —
+                                      showing{" "}
+                                      {lang === "EN"
+                                        ? LANG_LABELS["HI"]
+                                        : LANG_LABELS["EN"]}
+                                    </p>
+                                  )}
+                                  <p className="text-sm text-slate-800 dark:text-slate-200 leading-snug line-clamp-2">
+                                    {text || (
+                                      <span className="italic text-red-400 text-xs">
+                                        No content
+                                      </span>
+                                    )}
+                                  </p>
+
+                                  <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                                    {subjectName && (
+                                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-violet-50 dark:bg-violet-950/30 text-violet-600 dark:text-violet-400 border border-violet-100 dark:border-violet-800 font-semibold">
+                                        {subjectName}
+                                      </span>
+                                    )}
+                                    {topicName && (
+                                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950/30 text-blue-500 dark:text-blue-400 border border-blue-100 dark:border-blue-800">
+                                        {topicName}
+                                      </span>
+                                    )}
+                                    {isBilingual ? (
+                                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-teal-50 dark:bg-teal-950/30 text-teal-700 dark:text-teal-400 border border-teal-200 dark:border-teal-800">
+                                        <Languages className="h-2.5 w-2.5" />
+                                        EN + हि
+                                      </span>
+                                    ) : (
+                                      <>
+                                        {hasEN && !hasHI && (
+                                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-sky-50 dark:bg-sky-950/30 text-sky-600 dark:text-sky-400 border border-sky-200 dark:border-sky-800">
+                                            EN only
+                                          </span>
+                                        )}
+                                        {hasHI && !hasEN && (
+                                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-orange-50 dark:bg-orange-950/30 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-800">
+                                            हि only
+                                          </span>
+                                        )}
+                                      </>
+                                    )}
+                                    {correctText && (
+                                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800 max-w-[200px] truncate">
+                                        ✓ {correctText}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div className="shrink-0 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <button
+                                    className="h-7 w-7 flex items-center justify-center rounded text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors disabled:opacity-30"
+                                    onClick={() =>
+                                      handleReorder(
+                                        currentSection.id,
+                                        qId,
+                                        "up",
+                                      )
+                                    }
+                                    disabled={idx === 0}
+                                    aria-label="Move question up"
+                                  >
+                                    <ArrowUp className="h-3.5 w-3.5" />
+                                  </button>
+                                  <button
+                                    className="h-7 w-7 flex items-center justify-center rounded text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors disabled:opacity-30"
+                                    onClick={() =>
+                                      handleReorder(
+                                        currentSection.id,
+                                        qId,
+                                        "down",
+                                      )
+                                    }
+                                    disabled={
+                                      idx ===
+                                      (currentSection.questions?.length ?? 0) -
+                                        1
+                                    }
+                                    aria-label="Move question down"
+                                  >
+                                    <ArrowDown className="h-3.5 w-3.5" />
+                                  </button>
+                                  <button
+                                    className="h-7 w-7 flex items-center justify-center rounded text-red-300 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
+                                    onClick={() =>
+                                      setUnlinkTarget({
+                                        sectionId: currentSection.id,
+                                        questionId: qId,
+                                        title:
+                                          text.slice(0, 60) || "this question",
+                                      })
+                                    }
+                                    aria-label="Remove question"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </>
                 )}
               </div>
             </div>
-          </div>
+          </TabsContent>
 
-          {/* ── Section content ── */}
-          <div className="flex-1 min-w-0 space-y-4">
-            {!currentSection ? (
-              <div className="rounded-xl border border-dashed border-slate-200 dark:border-slate-700 py-20 flex flex-col items-center text-center">
-                <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700 flex items-center justify-center mb-4">
-                  <Layers className="h-7 w-7 text-slate-300 dark:text-slate-600" />
-                </div>
-                <p className="text-sm font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                  No sections yet
-                </p>
-                <p className="text-xs text-slate-400 mb-4">
-                  Add a section to start building your exam paper
-                </p>
+          {/* ── Submissions & Analytics Tab ── */}
+          <TabsContent value="analytics" className="mt-0">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 mb-5 shadow-sm">
+              <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+                Test Submissions
+              </h2>
+              <p className="text-sm text-slate-500 mb-6">
+                Review all student attempts, scores, and manage access for
+                fraudulent submissions.
+              </p>
+              <TestSubmissionsTable testId={testId} />
+            </div>
+          </TabsContent>
+        </Tabs>
+
+        {/* ── Question Bank Selector dialog ── */}
+        <QuestionBankSelector
+          open={bankOpen}
+          onOpenChange={setBankOpen}
+          alreadyLinkedIds={bankLinkedIds}
+          onConfirm={handleBankConfirm}
+          sectionName={bankSectionName}
+        />
+
+        {/* ── Add Section dialog ── */}
+        <Dialog open={addSectionOpen} onOpenChange={setAddSectionOpen}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="text-base font-bold">
+                Add Section
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 pt-1">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Section Name</Label>
+                <Input
+                  value={newSectionName}
+                  onChange={(e) => setNewSectionName(e.target.value)}
+                  placeholder="e.g. Quantitative Aptitude"
+                  className="h-9 text-sm"
+                  onKeyDown={(e) => e.key === "Enter" && handleCreateSection()}
+                  autoFocus
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                  Duration{" "}
+                  <span className="font-normal text-slate-400">
+                    (minutes, optional)
+                  </span>
+                </Label>
+                <Input
+                  type="number"
+                  value={newSectionDuration}
+                  onChange={(e) =>
+                    setNewSectionDuration(
+                      e.target.value === "" ? "" : Number(e.target.value),
+                    )
+                  }
+                  placeholder="Leave blank to use full test duration"
+                  className="h-9 text-sm"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setAddSectionOpen(false)}
+                >
+                  Cancel
+                </Button>
                 <Button
                   size="sm"
-                  onClick={() => setAddSectionOpen(true)}
-                  className="gap-1.5 bg-indigo-600 hover:bg-indigo-700"
+                  onClick={handleCreateSection}
+                  disabled={!newSectionName.trim() || creatingSection}
+                  className="bg-indigo-600 hover:bg-indigo-700"
                 >
-                  <Plus className="h-3.5 w-3.5" />
-                  Add First Section
+                  {creatingSection ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    "Create Section"
+                  )}
                 </Button>
               </div>
-            ) : (
-              <>
-                {/* Section header */}
-                <div className="flex items-center justify-between gap-3 flex-wrap">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h2 className="text-base font-bold text-slate-800 dark:text-slate-100">
-                        {currentSection.name}
-                      </h2>
-                      {currentSection.durationMins && (
-                        <span className="flex items-center gap-1 text-xs text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
-                          <Clock className="h-3 w-3" />
-                          {currentSection.durationMins}m
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                      {currentSection.questions?.length ?? 0} question
-                      {(currentSection.questions?.length ?? 0) !== 1
-                        ? "s"
-                        : ""}{" "}
-                      in this section
-                    </p>
-                  </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => openEditSection(currentSection)}
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-lg hover:border-slate-300 transition-colors bg-white dark:bg-slate-900"
-                    >
-                      <Pencil className="h-3 w-3" />
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => setDeleteTarget(currentSection)}
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-red-400 hover:text-red-600 border border-red-100 dark:border-red-900/50 hover:border-red-200 rounded-lg transition-colors bg-white dark:bg-slate-900"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                      Delete
-                    </button>
-                  </div>
-                </div>
-
-                {/* Add questions row */}
-                <div className="grid sm:grid-cols-2 gap-3">
-                  <button
-                    onClick={() => openBankForSection(currentSection)}
-                    className="flex items-center gap-3 px-4 py-3.5 rounded-xl border-2 border-dashed border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-950/10 hover:border-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/20 transition-all group text-left"
-                  >
-                    <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-sm shrink-0">
-                      <Database className="h-4 w-4 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-indigo-700 dark:text-indigo-400">
-                        Add from Vault
-                      </p>
-                      <p className="text-xs text-indigo-500/70 dark:text-indigo-500/70">
-                        Browse &amp; pick from all existing questions
-                      </p>
-                    </div>
-                    <ChevronRight className="ml-auto h-4 w-4 text-indigo-300 group-hover:text-indigo-500 transition-colors shrink-0" />
-                  </button>
-
-                  <button
-                    onClick={() =>
-                      setUploadSectionId((prev) =>
-                        prev === currentSection.id ? null : currentSection.id,
-                      )
-                    }
-                    className="flex items-center gap-3 px-4 py-3.5 rounded-xl border-2 border-dashed border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/10 hover:border-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 transition-all group text-left"
-                  >
-                    <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-sm shrink-0">
-                      <Upload className="h-4 w-4 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">
-                        Upload Excel
-                      </p>
-                      <p className="text-xs text-emerald-500/70 dark:text-emerald-500/70">
-                        Bulk import questions via spreadsheet
-                      </p>
-                    </div>
-                    <ChevronRight
-                      className={cn(
-                        "ml-auto h-4 w-4 transition-all shrink-0",
-                        uploadSectionId === currentSection.id
-                          ? "rotate-90 text-emerald-500"
-                          : "text-emerald-300 group-hover:text-emerald-500",
-                      )}
-                    />
-                  </button>
-                </div>
-
-                {/* Bulk upload panel */}
-                {uploadSectionId === currentSection.id && (
-                  <div className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-white dark:bg-slate-900 p-4">
-                    <BulkQuestionUpload
-                      sectionId={currentSection.id}
-                      onSuccess={async () => {
-                        await fetchTest();
-                        setUploadSectionId(null);
-                      }}
-                    />
-                  </div>
-                )}
-
-                {/* Questions list */}
-                <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
-                  <div className="px-5 py-3.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/60 dark:bg-slate-900">
-                    <div className="flex items-center gap-2">
-                      <Eye className="h-4 w-4 text-slate-400" />
-                      <span className="text-sm font-bold text-slate-700 dark:text-slate-300">
-                        Exam Paper
-                      </span>
-                    </div>
-                    <Badge className="bg-indigo-100 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-400 text-[11px] font-semibold border-0">
-                      {currentSection.questions?.length ?? 0} Qs
-                    </Badge>
-                  </div>
-
-                  {!currentSection.questions?.length ? (
-                    <div className="py-16 flex flex-col items-center text-slate-400">
-                      <div className="h-12 w-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-3">
-                        <BookOpen className="h-5 w-5 text-slate-300 dark:text-slate-600" />
-                      </div>
-                      <p className="text-sm font-medium">Section is empty</p>
-                      <p className="text-xs mt-1">
-                        Use the buttons above to add questions
-                      </p>
-                    </div>
+        {/* ── Edit Section dialog ── */}
+        <Dialog
+          open={!!editSection}
+          onOpenChange={(open) => !open && setEditSection(null)}
+        >
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="text-base font-bold">
+                Edit Section
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 pt-1">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Section Name</Label>
+                <Input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="h-9 text-sm"
+                  onKeyDown={(e) => e.key === "Enter" && handleUpdateSection()}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                  Duration{" "}
+                  <span className="font-normal text-slate-400">
+                    (minutes, optional)
+                  </span>
+                </Label>
+                <Input
+                  type="number"
+                  value={editDuration}
+                  onChange={(e) =>
+                    setEditDuration(
+                      e.target.value === "" ? "" : Number(e.target.value),
+                    )
+                  }
+                  className="h-9 text-sm"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setEditSection(null)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleUpdateSection}
+                  disabled={!editName.trim() || updatingSection}
+                  className="bg-indigo-600 hover:bg-indigo-700"
+                >
+                  {updatingSection ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   ) : (
-                    <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                      {currentSection.questions.map((lq, idx) => {
-                        const qId = getQuestionId(lq);
-                        const text = pickText(
-                          lq.question?.translations ?? [],
-                          lang,
-                        );
-                        const subjectName = lq.question?.topic?.subject?.name;
-                        const topicName = lq.question?.topic?.name;
-                        const correctOpt = lq.question?.options?.find(
-                          (o) => o.isCorrect,
-                        );
-                        const correctText = correctOpt
-                          ? pickText(
-                              (correctOpt.translations ?? []).map((t) => ({
-                                lang: t.lang,
-                                content: t.text,
-                              })),
-                              lang,
-                            )
-                          : null;
-
-                        const hasEN = hasLang(
-                          lq.question?.translations ?? [],
-                          "EN",
-                        );
-                        const hasHI = hasLang(
-                          lq.question?.translations ?? [],
-                          "HI",
-                        );
-                        const isBilingual = hasEN && hasHI;
-                        const isFallback = !hasLang(
-                          lq.question?.translations ?? [],
-                          lang,
-                        );
-
-                        return (
-                          <div
-                            key={`${qId}-${idx}`}
-                            className="group flex items-start gap-3 px-4 py-3.5 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors"
-                          >
-                            <div className="shrink-0 flex items-center gap-1 mt-px">
-                              <GripVertical className="h-4 w-4 text-slate-200 dark:text-slate-700 group-hover:text-slate-300 dark:group-hover:text-slate-600 cursor-grab" />
-                              <span className="h-6 w-6 flex items-center justify-center rounded-md bg-slate-100 dark:bg-slate-800 text-[11px] font-bold text-slate-500">
-                                {idx + 1}
-                              </span>
-                            </div>
-
-                            <div className="flex-1 min-w-0">
-                              {isFallback && (
-                                <p className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 mb-1 flex items-center gap-1">
-                                  <Languages className="h-3 w-3" />
-                                  No {LANG_LABELS[lang]} translation — showing{" "}
-                                  {lang === "EN"
-                                    ? LANG_LABELS["HI"]
-                                    : LANG_LABELS["EN"]}
-                                </p>
-                              )}
-                              <p className="text-sm text-slate-800 dark:text-slate-200 leading-snug line-clamp-2">
-                                {text || (
-                                  <span className="italic text-red-400 text-xs">
-                                    No content
-                                  </span>
-                                )}
-                              </p>
-
-                              <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                                {subjectName && (
-                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-violet-50 dark:bg-violet-950/30 text-violet-600 dark:text-violet-400 border border-violet-100 dark:border-violet-800 font-semibold">
-                                    {subjectName}
-                                  </span>
-                                )}
-                                {topicName && (
-                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950/30 text-blue-500 dark:text-blue-400 border border-blue-100 dark:border-blue-800">
-                                    {topicName}
-                                  </span>
-                                )}
-                                {isBilingual ? (
-                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-teal-50 dark:bg-teal-950/30 text-teal-700 dark:text-teal-400 border border-teal-200 dark:border-teal-800">
-                                    <Languages className="h-2.5 w-2.5" />
-                                    EN + हि
-                                  </span>
-                                ) : (
-                                  <>
-                                    {hasEN && !hasHI && (
-                                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-sky-50 dark:bg-sky-950/30 text-sky-600 dark:text-sky-400 border border-sky-200 dark:border-sky-800">
-                                        EN only
-                                      </span>
-                                    )}
-                                    {hasHI && !hasEN && (
-                                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-orange-50 dark:bg-orange-950/30 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-800">
-                                        हि only
-                                      </span>
-                                    )}
-                                  </>
-                                )}
-                                {correctText && (
-                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800 max-w-[200px] truncate">
-                                    ✓ {correctText}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-
-                            <div className="shrink-0 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button
-                                className="h-7 w-7 flex items-center justify-center rounded text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors disabled:opacity-30"
-                                onClick={() =>
-                                  handleReorder(currentSection.id, qId, "up")
-                                }
-                                disabled={idx === 0}
-                                aria-label="Move question up"
-                              >
-                                <ArrowUp className="h-3.5 w-3.5" />
-                              </button>
-                              <button
-                                className="h-7 w-7 flex items-center justify-center rounded text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors disabled:opacity-30"
-                                onClick={() =>
-                                  handleReorder(currentSection.id, qId, "down")
-                                }
-                                disabled={
-                                  idx ===
-                                  (currentSection.questions?.length ?? 0) - 1
-                                }
-                                aria-label="Move question down"
-                              >
-                                <ArrowDown className="h-3.5 w-3.5" />
-                              </button>
-                              <button
-                                className="h-7 w-7 flex items-center justify-center rounded text-red-300 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
-                                onClick={() =>
-                                  setUnlinkTarget({
-                                    sectionId: currentSection.id,
-                                    questionId: qId,
-                                    title: text.slice(0, 60) || "this question",
-                                  })
-                                }
-                                aria-label="Remove question"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
+                    "Save Changes"
                   )}
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      </TabsContent>
-
-      {/* ── Submissions & Analytics Tab ── */}
-      <TabsContent value="analytics" className="mt-0">
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 mb-5 shadow-sm">
-          <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-2 border-b border-slate-100 dark:border-slate-800 pb-3">Test Submissions</h2>
-          <p className="text-sm text-slate-500 mb-6">Review all student attempts, scores, and manage access for fraudulent submissions.</p>
-          <TestSubmissionsTable testId={testId} />
-        </div>
-      </TabsContent>
-      </Tabs>
-
-      {/* ── Question Bank Selector dialog ── */}
-      <QuestionBankSelector
-        open={bankOpen}
-        onOpenChange={setBankOpen}
-        alreadyLinkedIds={bankLinkedIds}
-        onConfirm={handleBankConfirm}
-        sectionName={bankSectionName}
-      />
-
-      {/* ── Add Section dialog ── */}
-      <Dialog open={addSectionOpen} onOpenChange={setAddSectionOpen}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="text-base font-bold">
-              Add Section
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 pt-1">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Section Name</Label>
-              <Input
-                value={newSectionName}
-                onChange={(e) => setNewSectionName(e.target.value)}
-                placeholder="e.g. Quantitative Aptitude"
-                className="h-9 text-sm"
-                onKeyDown={(e) => e.key === "Enter" && handleCreateSection()}
-                autoFocus
-              />
+                </Button>
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-slate-600 dark:text-slate-400">
-                Duration{" "}
-                <span className="font-normal text-slate-400">
-                  (minutes, optional)
+          </DialogContent>
+        </Dialog>
+
+        {/* ── Delete section confirmation ── */}
+        <AlertDialog
+          open={!!deleteTarget}
+          onOpenChange={(v) => !v && setDeleteTarget(null)}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete section?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will permanently delete{" "}
+                <strong>&ldquo;{deleteTarget?.name}&rdquo;</strong> and all its
+                question links. Questions remain in the Global Vault — this only
+                removes them from this section.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-red-600 hover:bg-red-700"
+                onClick={handleDeleteSection}
+                disabled={deletingSection}
+              >
+                {deletingSection ? "Deleting…" : "Delete Section"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* ── Unlink question confirmation ── */}
+        <AlertDialog
+          open={!!unlinkTarget}
+          onOpenChange={(v) => !v && setUnlinkTarget(null)}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Remove question?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This removes the question from this section only. It stays in
+                the Global Vault and can be re-added anytime.
+                <br />
+                <span className="text-slate-400 italic text-xs mt-1 block truncate">
+                  &ldquo;{unlinkTarget?.title}…&rdquo;
                 </span>
-              </Label>
-              <Input
-                type="number"
-                value={newSectionDuration}
-                onChange={(e) =>
-                  setNewSectionDuration(
-                    e.target.value === "" ? "" : Number(e.target.value),
-                  )
-                }
-                placeholder="Leave blank to use full test duration"
-                className="h-9 text-sm"
-              />
-            </div>
-            <div className="flex justify-end gap-2 pt-1">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setAddSectionOpen(false)}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-red-600 hover:bg-red-700"
+                onClick={handleUnlink}
+                disabled={unlinking}
               >
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                onClick={handleCreateSection}
-                disabled={!newSectionName.trim() || creatingSection}
-                className="bg-indigo-600 hover:bg-indigo-700"
-              >
-                {creatingSection ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  "Create Section"
-                )}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* ── Edit Section dialog ── */}
-      <Dialog
-        open={!!editSection}
-        onOpenChange={(open) => !open && setEditSection(null)}
-      >
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="text-base font-bold">
-              Edit Section
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 pt-1">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Section Name</Label>
-              <Input
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-                className="h-9 text-sm"
-                onKeyDown={(e) => e.key === "Enter" && handleUpdateSection()}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-slate-600 dark:text-slate-400">
-                Duration{" "}
-                <span className="font-normal text-slate-400">
-                  (minutes, optional)
-                </span>
-              </Label>
-              <Input
-                type="number"
-                value={editDuration}
-                onChange={(e) =>
-                  setEditDuration(
-                    e.target.value === "" ? "" : Number(e.target.value),
-                  )
-                }
-                className="h-9 text-sm"
-              />
-            </div>
-            <div className="flex justify-end gap-2 pt-1">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setEditSection(null)}
-              >
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                onClick={handleUpdateSection}
-                disabled={!editName.trim() || updatingSection}
-                className="bg-indigo-600 hover:bg-indigo-700"
-              >
-                {updatingSection ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  "Save Changes"
-                )}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* ── Delete section confirmation ── */}
-      <AlertDialog
-        open={!!deleteTarget}
-        onOpenChange={(v) => !v && setDeleteTarget(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete section?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently delete{" "}
-              <strong>&ldquo;{deleteTarget?.name}&rdquo;</strong> and all its
-              question links. Questions remain in the Global Vault — this only
-              removes them from this section.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-red-600 hover:bg-red-700"
-              onClick={handleDeleteSection}
-              disabled={deletingSection}
-            >
-              {deletingSection ? "Deleting…" : "Delete Section"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* ── Unlink question confirmation ── */}
-      <AlertDialog
-        open={!!unlinkTarget}
-        onOpenChange={(v) => !v && setUnlinkTarget(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remove question?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This removes the question from this section only. It stays in the
-              Global Vault and can be re-added anytime.
-              <br />
-              <span className="text-slate-400 italic text-xs mt-1 block truncate">
-                &ldquo;{unlinkTarget?.title}…&rdquo;
-              </span>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-red-600 hover:bg-red-700"
-              onClick={handleUnlink}
-              disabled={unlinking}
-            >
-              {unlinking ? "Removing…" : "Remove"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+                {unlinking ? "Removing…" : "Remove"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );

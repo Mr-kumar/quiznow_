@@ -306,7 +306,7 @@ function SubjectSidebar({
   onTopicAdded: (subjectId: string, t: Topic) => void;
   onTopicDeleted: (subjectId: string, topicId: string) => void;
 }) {
-const [sSearch, setSSearch] = useState("");
+  const [sSearch, setSSearch] = useState("");
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [newTopicFor, setNewTopicFor] = useState<string | null>(null); // subjectId
   const [newTopicName, setNewTopicName] = useState("");
@@ -360,7 +360,10 @@ const [sSearch, setSSearch] = useState("");
       setSubjectName("");
       toast(`Subject "${name}" created`);
     } catch (e: any) {
-      toast.error("Failed", { description: e?.response?.data?.message ?? "An unexpected error occurred" });
+      toast.error("Failed", {
+        description:
+          e?.response?.data?.message ?? "An unexpected error occurred",
+      });
     } finally {
       setSubmittingSubject(false);
     }
@@ -378,7 +381,10 @@ const [sSearch, setSSearch] = useState("");
       setSubjectName("");
       toast(`Renamed to "${name}"`);
     } catch (e: any) {
-      toast.error("Failed", { description: e?.response?.data?.message ?? "An unexpected error occurred" });
+      toast.error("Failed", {
+        description:
+          e?.response?.data?.message ?? "An unexpected error occurred",
+      });
     } finally {
       setSubmittingSubject(false);
     }
@@ -400,7 +406,10 @@ const [sSearch, setSSearch] = useState("");
       setDeleteSubjectTarget(null);
       toast(`"${deleteSubjectTarget.name}" deleted`);
     } catch (e: any) {
-      toast.error("Failed", { description: e?.response?.data?.message ?? "An unexpected error occurred" });
+      toast.error("Failed", {
+        description:
+          e?.response?.data?.message ?? "An unexpected error occurred",
+      });
     } finally {
       setDeletingSubject(false);
     }
@@ -419,7 +428,10 @@ const [sSearch, setSSearch] = useState("");
       setNewTopicFor(null);
       toast(`Topic "${name}" added`);
     } catch (e: any) {
-      toast.error("Failed to add topic", { description: e?.response?.data?.message ?? "An unexpected error occurred" });
+      toast.error("Failed to add topic", {
+        description:
+          e?.response?.data?.message ?? "An unexpected error occurred",
+      });
     } finally {
       setAddingTopic(false);
     }
@@ -436,7 +448,10 @@ const [sSearch, setSSearch] = useState("");
         onFilterChange({ topicId: null, topicName: null });
       toast(`"${topic.name}" removed`);
     } catch (e: any) {
-      toast.error("Failed", { description: e?.response?.data?.message ?? "An unexpected error occurred" });
+      toast.error("Failed", {
+        description:
+          e?.response?.data?.message ?? "An unexpected error occurred",
+      });
     } finally {
       setDeletingTopicId(null);
       setTopicToDelete(null);
@@ -798,7 +813,10 @@ const [sSearch, setSSearch] = useState("");
                                 </button>
                                 <button
                                   onClick={() =>
-                                    setTopicToDelete({ subjectId: subject.id, topic })
+                                    setTopicToDelete({
+                                      subjectId: subject.id,
+                                      topic,
+                                    })
                                   }
                                   className={cn(
                                     "shrink-0 h-5 w-5 flex items-center justify-center rounded opacity-0 group-hover/topic:opacity-100 transition-opacity mr-1",
@@ -1519,7 +1537,7 @@ function EditDialog({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function QuestionsPage() {
-// ── Taxonomy state ─────────────────────────────────────────────────────────
+  // ── Taxonomy state ─────────────────────────────────────────────────────────
   const [subjects, setSubjects] = useState<SubjectWithTopics[]>([]);
   const [allTopics, setAllTopics] = useState<Topic[]>([]);
   const [taxonomyLoading, setTaxonomyLoading] = useState(true);

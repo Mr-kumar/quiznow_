@@ -50,7 +50,7 @@ export default function BulkQuestionUpload({
   sectionId,
   onSuccess,
 }: BulkUploadProps) {
-const { handleError, errors, clearError } = useErrorHandler();
+  const { handleError, errors, clearError } = useErrorHandler();
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [selectedTopicId, setSelectedTopicId] = useState<string>("");
@@ -104,7 +104,9 @@ const { handleError, errors, clearError } = useErrorHandler();
       });
       setShowValidation(true);
 
-      toast("Validation Complete", { description: `${response.data.validCount ?? 0} valid rows, ${response.data.errors?.length ?? 0} errors` });
+      toast("Validation Complete", {
+        description: `${response.data.validCount ?? 0} valid rows, ${response.data.errors?.length ?? 0} errors`,
+      });
     } catch (error: any) {
       handleError(error, { showToast: true });
     } finally {
@@ -121,7 +123,9 @@ const { handleError, errors, clearError } = useErrorHandler();
 
     // Guard: warn if file changed after validation
     if (validation && file !== validation._file) {
-      toast.error("File Changed", { description: "Please re-validate before importing" });
+      toast.error("File Changed", {
+        description: "Please re-validate before importing",
+      });
       setShowValidation(false);
       setValidation(null);
       return;
@@ -135,7 +139,9 @@ const { handleError, errors, clearError } = useErrorHandler();
         sectionId,
         selectedTopicId || undefined,
       );
-      toast("Import Successful", { description: `${response.data.count} questions uploaded successfully` });
+      toast("Import Successful", {
+        description: `${response.data.count} questions uploaded successfully`,
+      });
       onSuccess?.(response.data.count);
       // Reset state
       setFile(null);
@@ -154,7 +160,9 @@ const { handleError, errors, clearError } = useErrorHandler();
     setIsUploading(true);
     try {
       const response = await adminQuestionsApi.bulkUpload(file, sectionId);
-      toast("Upload Successful", { description: `${response.data.count} questions uploaded successfully` });
+      toast("Upload Successful", {
+        description: `${response.data.count} questions uploaded successfully`,
+      });
       onSuccess?.(response.data.count);
       setFile(null);
     } catch (error: any) {

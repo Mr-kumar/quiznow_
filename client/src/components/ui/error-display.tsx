@@ -22,22 +22,26 @@ interface ErrorDisplayProps {
 const errorConfig = {
   error: {
     icon: AlertCircle,
-    className: "border-red-200 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200",
+    className:
+      "border-red-200 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200",
     titleClassName: "text-red-800 dark:text-red-200",
   },
   warning: {
     icon: AlertTriangle,
-    className: "border-orange-200 bg-orange-50 text-orange-800 dark:border-orange-800 dark:bg-orange-950 dark:text-orange-200",
+    className:
+      "border-orange-200 bg-orange-50 text-orange-800 dark:border-orange-800 dark:bg-orange-950 dark:text-orange-200",
     titleClassName: "text-orange-800 dark:text-orange-200",
   },
   info: {
     icon: Info,
-    className: "border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-200",
+    className:
+      "border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-200",
     titleClassName: "text-blue-800 dark:text-blue-200",
   },
   success: {
     icon: CheckCircle,
-    className: "border-green-200 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200",
+    className:
+      "border-green-200 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200",
     titleClassName: "text-green-800 dark:text-green-200",
   },
 };
@@ -102,7 +106,13 @@ export function ErrorDisplay({
 }
 
 // Specialized error components for common scenarios
-export function ValidationError({ errors, onRetry }: { errors: string[]; onRetry?: () => void }) {
+export function ValidationError({
+  errors,
+  onRetry,
+}: {
+  errors: string[];
+  onRetry?: () => void;
+}) {
   return (
     <ErrorDisplay
       type="warning"
@@ -126,22 +136,25 @@ export function NetworkError({ onRetry }: { onRetry?: () => void }) {
   );
 }
 
-export function ValidationErrorDisplay({ 
-  error, 
-  onRetry 
-}: { 
-  error: any; 
+export function ValidationErrorDisplay({
+  error,
+  onRetry,
+}: {
+  error: any;
   onRetry?: () => void;
 }) {
   const extractErrors = (err: any): string[] => {
-    if (Array.isArray(err)) return err.map(e => typeof e === 'string' ? e : e.message || String(e));
+    if (Array.isArray(err))
+      return err.map((e) =>
+        typeof e === "string" ? e : e.message || String(e),
+      );
     if (err?.message) return [err.message];
-    if (typeof err === 'string') return [err];
-    return ['An unknown error occurred'];
+    if (typeof err === "string") return [err];
+    return ["An unknown error occurred"];
   };
 
   const errors = extractErrors(error);
-  
+
   return (
     <ErrorDisplay
       type="warning"
@@ -153,18 +166,18 @@ export function ValidationErrorDisplay({
   );
 }
 
-export function ServerError({ 
-  error, 
-  onRetry 
-}: { 
-  error: any; 
+export function ServerError({
+  error,
+  onRetry,
+}: {
+  error: any;
   onRetry?: () => void;
 }) {
   const getMessage = (err: any): string => {
     if (err?.response?.data?.message) return err.response.data.message;
     if (err?.message) return err.message;
-    if (typeof err === 'string') return err;
-    return 'An unexpected server error occurred';
+    if (typeof err === "string") return err;
+    return "An unexpected server error occurred";
   };
 
   const getDetails = (err: any): string | undefined => {

@@ -49,7 +49,7 @@ interface SectionsEditorProps {
 }
 
 export function SectionsEditor({ testId, testTitle }: SectionsEditorProps) {
-const [sections, setSections] = useState<Section[]>([]);
+  const [sections, setSections] = useState<Section[]>([]);
   const [loading, setLoading] = useState(false);
 
   // Create dialog
@@ -76,7 +76,9 @@ const [sections, setSections] = useState<Section[]>([]);
       const filtered = (all as Section[]).filter((s) => s.testId === testId);
       setSections(filtered.sort((a, b) => a.order - b.order));
     } catch (error: any) {
-      toast.error("Failed to load sections", { description: error?.response?.data?.message ?? "Please try again." });
+      toast.error("Failed to load sections", {
+        description: error?.response?.data?.message ?? "Please try again.",
+      });
     } finally {
       setLoading(false);
     }
@@ -103,7 +105,9 @@ const [sections, setSections] = useState<Section[]>([]);
       setNewDuration("");
       await loadSections();
     } catch (error: any) {
-      toast.error("Failed to create section", { description: error?.response?.data?.message ?? "Please try again." });
+      toast.error("Failed to create section", {
+        description: error?.response?.data?.message ?? "Please try again.",
+      });
     } finally {
       setCreating(false);
     }
@@ -129,7 +133,9 @@ const [sections, setSections] = useState<Section[]>([]);
       setEditingSection(null);
       await loadSections();
     } catch (error: any) {
-      toast.error("Failed to update section", { description: error?.response?.data?.message ?? "Please try again." });
+      toast.error("Failed to update section", {
+        description: error?.response?.data?.message ?? "Please try again.",
+      });
     } finally {
       setUpdating(false);
     }
@@ -144,7 +150,9 @@ const [sections, setSections] = useState<Section[]>([]);
       setDeleteSection(null);
       await loadSections();
     } catch (error: any) {
-      toast.error("Failed to delete section", { description: error?.response?.data?.message ?? "Please try again." });
+      toast.error("Failed to delete section", {
+        description: error?.response?.data?.message ?? "Please try again.",
+      });
     } finally {
       setDeleting(false);
     }

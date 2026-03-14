@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { usePayment } from '@/hooks/use-payment';
-import { Button } from '@/components/ui/button';
-import { ZapIcon, Loader2Icon } from 'lucide-react';
+import { usePayment } from "@/hooks/use-payment";
+import { Button } from "@/components/ui/button";
+import { ZapIcon, Loader2Icon } from "lucide-react";
 import { toast } from "sonner";
 
 interface UpgradeButtonProps {
@@ -18,11 +18,12 @@ export function UpgradeButton({
   price,
   className,
 }: UpgradeButtonProps) {
-const { pay, loading } = usePayment({
+  const { pay, loading } = usePayment({
     onSuccess: () =>
-      toast('🎉 Subscribed!', { description: `You are now subscribed to ${planName}.` }),
-    onError: (msg) =>
-      toast.error('Payment failed', { description: msg }),
+      toast("🎉 Subscribed!", {
+        description: `You are now subscribed to ${planName}.`,
+      }),
+    onError: (msg) => toast.error("Payment failed", { description: msg }),
   });
 
   return (
@@ -36,7 +37,7 @@ const { pay, loading } = usePayment({
       ) : (
         <ZapIcon className="h-4 w-4 mr-2" />
       )}
-      {loading ? 'Processing…' : `Get ${planName} — ₹${price}`}
+      {loading ? "Processing…" : `Get ${planName} — ₹${price}`}
     </Button>
   );
 }

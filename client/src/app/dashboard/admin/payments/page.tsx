@@ -1,25 +1,32 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { paymentsApi, type PaymentRecord } from '@/api/payments';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { DataTable } from '@/components/admin/admin-data-table';
-import { ColumnDef } from '@tanstack/react-table';
-import { SearchIcon, CreditCardIcon, RefreshCwIcon } from 'lucide-react';
-import { format } from 'date-fns';
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { paymentsApi, type PaymentRecord } from "@/api/payments";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { DataTable } from "@/components/admin/admin-data-table";
+import { ColumnDef } from "@tanstack/react-table";
+import { SearchIcon, CreditCardIcon, RefreshCwIcon } from "lucide-react";
+import { format } from "date-fns";
 
 export default function AdminPaymentsPage() {
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState("");
 
   const { data, isLoading, refetch, isRefetching } = useQuery({
-    queryKey: ['admin-payments', page, limit, search],
-    queryFn: () => paymentsApi.getAdminPayments(page, limit, search).then(r => r.data),
+    queryKey: ["admin-payments", page, limit, search],
+    queryFn: () =>
+      paymentsApi.getAdminPayments(page, limit, search).then((r) => r.data),
   });
 
   const payments = data?.data || [];
@@ -28,37 +35,49 @@ export default function AdminPaymentsPage() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'SUCCESS': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
-      case 'PENDING': return 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400';
-      case 'FAILED': return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';
-      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400';
+      case "SUCCESS":
+        return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400";
+      case "PENDING":
+        return "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400";
+      case "FAILED":
+        return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
+      default:
+        return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400";
     }
   };
 
   const columns: ColumnDef<PaymentRecord>[] = [
     {
-      accessorKey: 'user',
-      header: 'User',
+      accessorKey: "user",
+      header: "User",
       cell: ({ row }) => (
         <div>
-          <p className="font-medium text-sm">{row.original.user?.name || 'Unknown'}</p>
-          <p className="text-xs text-muted-foreground">{row.original.user?.email}</p>
+          <p className="font-medium text-sm">
+            {row.original.user?.name || "Unknown"}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {row.original.user?.email}
+          </p>
         </div>
       ),
     },
     {
-      accessorKey: 'plan',
-      header: 'Plan',
+      accessorKey: "plan",
+      header: "Plan",
       cell: ({ row }) => (
         <div>
-          <p className="font-medium text-sm">{row.original.plan?.name || 'Unknown'}</p>
-          <p className="text-xs text-muted-foreground">₹{row.original.amount / 100}</p>
+          <p className="font-medium text-sm">
+            {row.original.plan?.name || "Unknown"}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            ₹{row.original.amount / 100}
+          </p>
         </div>
       ),
     },
     {
-      accessorKey: 'razorpayOrderId',
-      header: 'Razorpay Order ID',
+      accessorKey: "razorpayOrderId",
+      header: "Razorpay Order ID",
       cell: ({ row }) => (
         <span className="text-xs font-mono text-muted-foreground">
           {row.original.razorpayOrderId}
@@ -66,20 +85,23 @@ export default function AdminPaymentsPage() {
       ),
     },
     {
-      accessorKey: 'status',
-      header: 'Status',
+      accessorKey: "status",
+      header: "Status",
       cell: ({ row }) => (
-        <Badge className={getStatusColor(row.original.status)} variant="outline">
+        <Badge
+          className={getStatusColor(row.original.status)}
+          variant="outline"
+        >
           {row.original.status}
         </Badge>
       ),
     },
     {
-      accessorKey: 'createdAt',
-      header: 'Date',
+      accessorKey: "createdAt",
+      header: "Date",
       cell: ({ row }) => (
         <span className="text-sm">
-          {format(new Date(row.original.createdAt), 'MMM d, yyyy h:mm a')}
+          {format(new Date(row.original.createdAt), "MMM d, yyyy h:mm a")}
         </span>
       ),
     },
@@ -95,17 +117,20 @@ export default function AdminPaymentsPage() {
               Payments History
             </CardTitle>
             <CardDescription>
-              View all Razorpay transaction records, orders, and payment statuses.
+              View all Razorpay transaction records, orders, and payment
+              statuses.
             </CardDescription>
           </div>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => refetch()} 
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetch()}
             disabled={isRefetching}
             className="w-10 h-10 p-0"
           >
-            <RefreshCwIcon className={`h-4 w-4 ${isRefetching ? 'animate-spin' : ''}`} />
+            <RefreshCwIcon
+              className={`h-4 w-4 ${isRefetching ? "animate-spin" : ""}`}
+            />
           </Button>
         </CardHeader>
       </Card>
@@ -128,7 +153,9 @@ export default function AdminPaymentsPage() {
       <Card>
         <CardContent className="pt-6">
           {isLoading ? (
-            <div className="text-center py-12 text-muted-foreground">Loading payments...</div>
+            <div className="text-center py-12 text-muted-foreground">
+              Loading payments...
+            </div>
           ) : payments.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               No payments found matching your criteria.

@@ -96,7 +96,11 @@ type StatusFilter = "ALL" | "ACTIVE" | "SUSPENDED" | "BANNED";
 
 const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
   { key: "all", label: "All Users", icon: <Users className="h-3.5 w-3.5" /> },
-  { key: "students", label: "Students", icon: <UserIcon className="h-3.5 w-3.5" /> },
+  {
+    key: "students",
+    label: "Students",
+    icon: <UserIcon className="h-3.5 w-3.5" />,
+  },
   { key: "paid", label: "Paid", icon: <Crown className="h-3.5 w-3.5" /> },
   { key: "free", label: "Free", icon: <CreditCard className="h-3.5 w-3.5" /> },
   { key: "staff", label: "Staff", icon: <Shield className="h-3.5 w-3.5" /> },
@@ -106,7 +110,7 @@ const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
 
 function getActiveSubscription(user: UserType) {
   return (user.subscriptions ?? []).find(
-    (s) => s.status === "ACTIVE" && new Date(s.expiresAt) > new Date()
+    (s) => s.status === "ACTIVE" && new Date(s.expiresAt) > new Date(),
   );
 }
 
@@ -126,7 +130,11 @@ function formatRelativeDate(iso: string) {
   if (diffDays === 1) return "Yesterday";
   if (diffDays < 30) return `${diffDays}d ago`;
   if (diffDays < 365) return `${Math.floor(diffDays / 30)}mo ago`;
-  return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+  return d.toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 // ─── Stat Card ────────────────────────────────────────────────────────────────
@@ -143,12 +151,7 @@ function StatCard({
   gradient: string;
 }) {
   return (
-    <div
-      className={cn(
-        "rounded-xl p-4 border",
-        gradient,
-      )}
-    >
+    <div className={cn("rounded-xl p-4 border", gradient)}>
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-bold uppercase tracking-wider opacity-80">
           {label}
@@ -189,7 +192,9 @@ export default function UsersManagementPage() {
     const students = allUsers.filter((u) => u.role === "STUDENT");
     const paid = students.filter((u) => getSubscriptionStatus(u) === "active");
     const free = students.filter((u) => getSubscriptionStatus(u) !== "active");
-    const staff = allUsers.filter((u) => u.role === "ADMIN" || u.role === "INSTRUCTOR");
+    const staff = allUsers.filter(
+      (u) => u.role === "ADMIN" || u.role === "INSTRUCTOR",
+    );
     const suspended = allUsers.filter((u) => u.status === "SUSPENDED");
     const banned = allUsers.filter((u) => u.status === "BANNED");
 
@@ -213,15 +218,15 @@ export default function UsersManagementPage() {
       filtered = filtered.filter((u) => u.role === "STUDENT");
     } else if (activeTab === "paid") {
       filtered = filtered.filter(
-        (u) => u.role === "STUDENT" && getSubscriptionStatus(u) === "active"
+        (u) => u.role === "STUDENT" && getSubscriptionStatus(u) === "active",
       );
     } else if (activeTab === "free") {
       filtered = filtered.filter(
-        (u) => u.role === "STUDENT" && getSubscriptionStatus(u) !== "active"
+        (u) => u.role === "STUDENT" && getSubscriptionStatus(u) !== "active",
       );
     } else if (activeTab === "staff") {
       filtered = filtered.filter(
-        (u) => u.role === "ADMIN" || u.role === "INSTRUCTOR"
+        (u) => u.role === "ADMIN" || u.role === "INSTRUCTOR",
       );
     }
 
@@ -351,7 +356,10 @@ export default function UsersManagementPage() {
         };
         const c = cfg[role as keyof typeof cfg] ?? cfg.STUDENT;
         return (
-          <Badge variant="outline" className={cn("gap-1 text-[10px] font-semibold", c.cls)}>
+          <Badge
+            variant="outline"
+            className={cn("gap-1 text-[10px] font-semibold", c.cls)}
+          >
             {c.icon}
             {role}
           </Badge>
@@ -379,7 +387,10 @@ export default function UsersManagementPage() {
         };
         const c = cfg[status as keyof typeof cfg] ?? cfg.ACTIVE;
         return (
-          <Badge variant="outline" className={cn("gap-1 text-[10px] font-semibold", c.cls)}>
+          <Badge
+            variant="outline"
+            className={cn("gap-1 text-[10px] font-semibold", c.cls)}
+          >
             {c.icon}
             {status}
           </Badge>
@@ -392,19 +403,27 @@ export default function UsersManagementPage() {
       cell: ({ row }) => {
         const user = row.original;
         if (user.role !== "STUDENT") {
-          return <span className="text-xs text-slate-300 dark:text-slate-600">—</span>;
+          return (
+            <span className="text-xs text-slate-300 dark:text-slate-600">
+              —
+            </span>
+          );
         }
         const subStatus = getSubscriptionStatus(user);
         const activeSub = getActiveSubscription(user);
         if (subStatus === "active" && activeSub) {
           return (
             <div className="space-y-0.5">
-              <Badge variant="outline" className="gap-1 text-[10px] font-semibold bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400 border-amber-200 dark:border-amber-800">
+              <Badge
+                variant="outline"
+                className="gap-1 text-[10px] font-semibold bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400 border-amber-200 dark:border-amber-800"
+              >
                 <Crown className="h-3 w-3" />
                 {activeSub.plan.name}
               </Badge>
               <p className="text-[10px] text-slate-400">
-                Expires {new Date(activeSub.expiresAt).toLocaleDateString("en-IN", {
+                Expires{" "}
+                {new Date(activeSub.expiresAt).toLocaleDateString("en-IN", {
                   day: "numeric",
                   month: "short",
                 })}
@@ -414,13 +433,19 @@ export default function UsersManagementPage() {
         }
         if (subStatus === "expired") {
           return (
-            <Badge variant="outline" className="text-[10px] font-semibold text-slate-400 border-slate-200 dark:border-slate-700">
+            <Badge
+              variant="outline"
+              className="text-[10px] font-semibold text-slate-400 border-slate-200 dark:border-slate-700"
+            >
               Expired
             </Badge>
           );
         }
         return (
-          <Badge variant="outline" className="text-[10px] font-semibold text-slate-400 border-slate-200 dark:border-slate-700">
+          <Badge
+            variant="outline"
+            className="text-[10px] font-semibold text-slate-400 border-slate-200 dark:border-slate-700"
+          >
             Free
           </Badge>
         );
@@ -455,7 +480,9 @@ export default function UsersManagementPage() {
 
             {user.status !== "ACTIVE" && (
               <DropdownMenuItem
-                onClick={() => updateStatusMutation.mutate({ id: user.id, status: "ACTIVE" })}
+                onClick={() =>
+                  updateStatusMutation.mutate({ id: user.id, status: "ACTIVE" })
+                }
                 className="text-emerald-600 focus:text-emerald-600"
               >
                 <CheckCircle className="mr-2 h-4 w-4" />
@@ -465,7 +492,12 @@ export default function UsersManagementPage() {
 
             {user.status !== "SUSPENDED" && (
               <DropdownMenuItem
-                onClick={() => updateStatusMutation.mutate({ id: user.id, status: "SUSPENDED" })}
+                onClick={() =>
+                  updateStatusMutation.mutate({
+                    id: user.id,
+                    status: "SUSPENDED",
+                  })
+                }
                 className="text-amber-600 focus:text-amber-600"
               >
                 <AlertCircle className="mr-2 h-4 w-4" />
@@ -475,7 +507,9 @@ export default function UsersManagementPage() {
 
             {user.status !== "BANNED" && (
               <DropdownMenuItem
-                onClick={() => updateStatusMutation.mutate({ id: user.id, status: "BANNED" })}
+                onClick={() =>
+                  updateStatusMutation.mutate({ id: user.id, status: "BANNED" })
+                }
                 className="text-red-600 focus:text-red-600"
               >
                 <Ban className="mr-2 h-4 w-4" />
@@ -517,9 +551,15 @@ export default function UsersManagementPage() {
             </h1>
           </div>
           <div className="flex-1" />
-          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+          <Dialog
+            open={isCreateDialogOpen}
+            onOpenChange={setIsCreateDialogOpen}
+          >
             <DialogTrigger asChild>
-              <Button size="sm" className="h-8 text-xs gap-1.5 bg-indigo-600 hover:bg-indigo-700">
+              <Button
+                size="sm"
+                className="h-8 text-xs gap-1.5 bg-indigo-600 hover:bg-indigo-700"
+              >
                 <UserPlus className="h-3.5 w-3.5" />
                 Add User
               </Button>
@@ -529,7 +569,10 @@ export default function UsersManagementPage() {
                 <DialogTitle>Create New User</DialogTitle>
               </DialogHeader>
               <Form {...createForm}>
-                <form onSubmit={createForm.handleSubmit(handleCreateUser)} className="space-y-4">
+                <form
+                  onSubmit={createForm.handleSubmit(handleCreateUser)}
+                  className="space-y-4"
+                >
                   <FormField
                     control={createForm.control}
                     name="email"
@@ -562,7 +605,10 @@ export default function UsersManagementPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Role</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Select role" />
@@ -570,7 +616,9 @@ export default function UsersManagementPage() {
                           </FormControl>
                           <SelectContent>
                             <SelectItem value="STUDENT">Student</SelectItem>
-                            <SelectItem value="INSTRUCTOR">Instructor</SelectItem>
+                            <SelectItem value="INSTRUCTOR">
+                              Instructor
+                            </SelectItem>
                             <SelectItem value="ADMIN">Admin</SelectItem>
                           </SelectContent>
                         </Select>
@@ -579,10 +627,19 @@ export default function UsersManagementPage() {
                     )}
                   />
                   <div className="flex justify-end space-x-2">
-                    <Button type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setIsCreateDialogOpen(false)}
+                    >
                       Cancel
                     </Button>
-                    <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700">Create User</Button>
+                    <Button
+                      type="submit"
+                      className="bg-indigo-600 hover:bg-indigo-700"
+                    >
+                      Create User
+                    </Button>
                   </div>
                 </form>
               </Form>
@@ -652,7 +709,7 @@ export default function UsersManagementPage() {
                 "flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap",
                 activeTab === tab.key
                   ? "bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400 shadow-sm"
-                  : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                  : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50",
               )}
             >
               {tab.icon}
@@ -662,7 +719,7 @@ export default function UsersManagementPage() {
                   "ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold",
                   activeTab === tab.key
                     ? "bg-indigo-200/60 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300"
-                    : "bg-slate-100 dark:bg-slate-800 text-slate-400"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-400",
                 )}
               >
                 {tab.key === "all"
@@ -700,7 +757,10 @@ export default function UsersManagementPage() {
           </div>
 
           {activeTab === "all" && (
-            <Select value={roleFilter} onValueChange={(v) => setRoleFilter(v as RoleFilter)}>
+            <Select
+              value={roleFilter}
+              onValueChange={(v) => setRoleFilter(v as RoleFilter)}
+            >
               <SelectTrigger className="h-9 w-[140px] text-xs bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
                 <SelectValue />
               </SelectTrigger>
@@ -713,7 +773,10 @@ export default function UsersManagementPage() {
             </Select>
           )}
 
-          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
+          <Select
+            value={statusFilter}
+            onValueChange={(v) => setStatusFilter(v as StatusFilter)}
+          >
             <SelectTrigger className="h-9 w-[140px] text-xs bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
               <SelectValue />
             </SelectTrigger>
@@ -747,7 +810,10 @@ export default function UsersManagementPage() {
             <DialogTitle>Edit User</DialogTitle>
           </DialogHeader>
           <Form {...editForm}>
-            <form onSubmit={editForm.handleSubmit(handleUpdateUser)} className="space-y-4">
+            <form
+              onSubmit={editForm.handleSubmit(handleUpdateUser)}
+              className="space-y-4"
+            >
               <FormField
                 control={editForm.control}
                 name="email"
@@ -780,7 +846,10 @@ export default function UsersManagementPage() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Role</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select role" />
@@ -797,10 +866,17 @@ export default function UsersManagementPage() {
                 )}
               />
               <div className="flex justify-end space-x-2">
-                <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsEditDialogOpen(false)}
+                >
                   Cancel
                 </Button>
-                <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700">
+                <Button
+                  type="submit"
+                  className="bg-indigo-600 hover:bg-indigo-700"
+                >
                   Update User
                 </Button>
               </div>

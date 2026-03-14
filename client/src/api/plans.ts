@@ -63,7 +63,7 @@ export const adminPlansApi = {
 
   addAccess: async (
     planId: string,
-    data: AddPlanAccessDto
+    data: AddPlanAccessDto,
   ): Promise<PlanAccess> => {
     const res = await api.post(`/admin/plans/${planId}/access`, data);
     return res.data;

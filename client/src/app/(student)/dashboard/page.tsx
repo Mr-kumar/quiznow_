@@ -132,35 +132,50 @@ function StatCard({
 function SubscriptionWidget({
   subscription,
 }: {
-  subscription: { data?: { plan?: any; status?: string; currentPeriodEnd?: string } } | null;
+  subscription: {
+    data?: { plan?: any; status?: string; currentPeriodEnd?: string };
+  } | null;
 }) {
   const planObj = subscription?.data?.plan;
-  const planName = (typeof planObj === "object" && planObj !== null ? (planObj as any).name : planObj) || "Free";
+  const planName =
+    (typeof planObj === "object" && planObj !== null
+      ? (planObj as any).name
+      : planObj) || "Free";
   const status = subscription?.data?.status ?? "ACTIVE";
   const expiresAt = subscription?.data?.currentPeriodEnd;
   const isPremium = planName !== "Free" && planName !== "FREE";
-  const daysLeft = expiresAt ? differenceInDays(new Date(expiresAt), new Date()) : null;
+  const daysLeft = expiresAt
+    ? differenceInDays(new Date(expiresAt), new Date())
+    : null;
 
   return (
-    <Card className={cn(
-      "border",
-      isPremium
-        ? "bg-linear-to-r from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20 border-amber-200 dark:border-amber-800"
-        : "bg-linear-to-r from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 border-slate-200 dark:border-slate-700",
-    )}>
+    <Card
+      className={cn(
+        "border",
+        isPremium
+          ? "bg-linear-to-r from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20 border-amber-200 dark:border-amber-800"
+          : "bg-linear-to-r from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 border-slate-200 dark:border-slate-700",
+      )}
+    >
       <CardContent className="p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className={cn(
-              "h-10 w-10 rounded-xl flex items-center justify-center",
-              isPremium
-                ? "bg-amber-100 dark:bg-amber-900/40"
-                : "bg-slate-200 dark:bg-slate-700",
-            )}>
-              <CrownIcon className={cn(
-                "h-5 w-5",
-                isPremium ? "text-amber-600 dark:text-amber-400" : "text-slate-500",
-              )} />
+            <div
+              className={cn(
+                "h-10 w-10 rounded-xl flex items-center justify-center",
+                isPremium
+                  ? "bg-amber-100 dark:bg-amber-900/40"
+                  : "bg-slate-200 dark:bg-slate-700",
+              )}
+            >
+              <CrownIcon
+                className={cn(
+                  "h-5 w-5",
+                  isPremium
+                    ? "text-amber-600 dark:text-amber-400"
+                    : "text-slate-500",
+                )}
+              />
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -353,12 +368,21 @@ function DashboardSkeleton() {
   );
 }
 
-
 // ── Target Exam config ────────────────────────────────────────────────────────
 
 const TARGET_EXAMS = [
-  { id: "", label: "All Exams", emoji: "✨", color: "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200" },
-  ...EXAM_CATEGORIES.map(c => ({ id: c.id, label: c.label, emoji: c.emoji, color: c.dashboardColor }))
+  {
+    id: "",
+    label: "All Exams",
+    emoji: "✨",
+    color: "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200",
+  },
+  ...EXAM_CATEGORIES.map((c) => ({
+    id: c.id,
+    label: c.label,
+    emoji: c.emoji,
+    color: c.dashboardColor,
+  })),
 ];
 
 // ── Target Exam Selector ──────────────────────────────────────────────────────
@@ -412,7 +436,9 @@ function TargetExamSelector({
                 className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
               >
                 <span className="text-base w-6 text-center">{exam.emoji}</span>
-                <span className="flex-1 text-left font-medium">{exam.label}</span>
+                <span className="flex-1 text-left font-medium">
+                  {exam.label}
+                </span>
                 {selected === exam.id && (
                   <CheckIcon className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0" />
                 )}
@@ -510,7 +536,7 @@ export default function DashboardPage() {
   const avgAccuracy =
     submitted.length > 0
       ? submitted.reduce((sum, a) => sum + (a.accuracy ?? 0), 0) /
-      submitted.length
+        submitted.length
       : null;
 
   const recentFive = attempts.slice(0, 5);
@@ -553,7 +579,13 @@ export default function DashboardPage() {
                 />
               </div>
               <div className="flex items-center gap-4 pt-2">
-                <Link href={targetExam ? `/exams?category=${targetExam}` : "/dashboard/tests"}>
+                <Link
+                  href={
+                    targetExam
+                      ? `/exams?category=${targetExam}`
+                      : "/dashboard/tests"
+                  }
+                >
                   <Button className="gap-2">
                     <PlayIcon className="h-4 w-4" />
                     Start New Test
@@ -587,8 +619,12 @@ export default function DashboardPage() {
           </h2>
           {targetExam && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted px-3 py-1.5 rounded-full">
-              <span>Filtered: {TARGET_EXAMS.find((e) => e.id === targetExam)?.emoji}</span>
-              <span className="font-medium">{TARGET_EXAMS.find((e) => e.id === targetExam)?.label}</span>
+              <span>
+                Filtered: {TARGET_EXAMS.find((e) => e.id === targetExam)?.emoji}
+              </span>
+              <span className="font-medium">
+                {TARGET_EXAMS.find((e) => e.id === targetExam)?.label}
+              </span>
               <button
                 type="button"
                 onClick={() => setTargetExam("")}
@@ -664,7 +700,13 @@ export default function DashboardPage() {
                 Start your first test to see your recent attempts and
                 performance data here.
               </p>
-              <Link href={targetExam ? `/exams?category=${targetExam}` : "/dashboard/tests"}>
+              <Link
+                href={
+                  targetExam
+                    ? `/exams?category=${targetExam}`
+                    : "/dashboard/tests"
+                }
+              >
                 <Button className="gap-2">
                   <PlayIcon className="h-4 w-4" />
                   Browse Tests

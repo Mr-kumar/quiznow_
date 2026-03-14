@@ -588,7 +588,7 @@ function TestCard({
 
 export default function TestsPage() {
   const router = useRouter();
-const { refresh: refreshHierarchy } = useTestHierarchy();
+  const { refresh: refreshHierarchy } = useTestHierarchy();
 
   // ── Data state ─────────────────────────────────────────────────────────────
   const [tests, setTests] = useState<Test[]>([]);
@@ -601,9 +601,9 @@ const { refresh: refreshHierarchy } = useTestHierarchy();
   // ── UI state ───────────────────────────────────────────────────────────────
   const [selected, setSelected] = useState<SelectedNode | null>(null);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | "live" | "draft" | "premium">(
-    "all",
-  );
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "live" | "draft" | "premium"
+  >("all");
 
   // ── Dialog state ───────────────────────────────────────────────────────────
   const [createTestOpen, setCreateTestOpen] = useState(false);
@@ -750,13 +750,17 @@ const { refresh: refreshHierarchy } = useTestHierarchy();
     setSubmitting(true);
     try {
       await adminTestsApi.create(values);
-      toast("Test created", { description: `"${values.title}" is ready to assemble` });
+      toast("Test created", {
+        description: `"${values.title}" is ready to assemble`,
+      });
       setCreateTestOpen(false);
       createTestForm.reset();
       loadAll();
       refreshHierarchy();
     } catch (e: any) {
-      toast.error("Failed to create test", { description: e?.response?.data?.message ?? e?.message });
+      toast.error("Failed to create test", {
+        description: e?.response?.data?.message ?? e?.message,
+      });
     } finally {
       setSubmitting(false);
     }
@@ -777,13 +781,18 @@ const { refresh: refreshHierarchy } = useTestHierarchy();
         endAt: values.endAt || undefined,
         isPremium: values.isPremium,
         isActive: values.isActive,
-        maxAttempts: values.maxAttempts === "" ? undefined : (values.maxAttempts as number | undefined),
+        maxAttempts:
+          values.maxAttempts === ""
+            ? undefined
+            : (values.maxAttempts as number | undefined),
       });
       toast("Test updated");
       setEditTestTarget(null);
       loadAll();
     } catch (e: any) {
-      toast.error("Failed to update", { description: e?.response?.data?.message ?? e?.message });
+      toast.error("Failed to update", {
+        description: e?.response?.data?.message ?? e?.message,
+      });
     } finally {
       setSubmitting(false);
     }
@@ -800,7 +809,9 @@ const { refresh: refreshHierarchy } = useTestHierarchy();
       );
       toast(next ? "Test is now Live 🟢" : "Test moved to Draft");
     } catch (e: any) {
-      toast.error("Failed to update publish status", { description: e?.response?.data?.message ?? e?.message });
+      toast.error("Failed to update publish status", {
+        description: e?.response?.data?.message ?? e?.message,
+      });
     } finally {
       setPublishingId(null);
     }
@@ -815,7 +826,9 @@ const { refresh: refreshHierarchy } = useTestHierarchy();
       loadAll();
       refreshHierarchy();
     } catch (e: any) {
-      toast.error("Duplication failed", { description: e?.response?.data?.message ?? e?.message });
+      toast.error("Duplication failed", {
+        description: e?.response?.data?.message ?? e?.message,
+      });
     } finally {
       setDuplicatingId(null);
     }
@@ -831,7 +844,9 @@ const { refresh: refreshHierarchy } = useTestHierarchy();
       setTests((prev) => prev.filter((t) => t.id !== deleteTarget.id));
       refreshHierarchy();
     } catch (e: any) {
-      toast.error("Failed to delete", { description: e?.response?.data?.message ?? e?.message });
+      toast.error("Failed to delete", {
+        description: e?.response?.data?.message ?? e?.message,
+      });
     } finally {
       setDeleting(false);
     }
@@ -847,7 +862,10 @@ const { refresh: refreshHierarchy } = useTestHierarchy();
       loadAll();
       refreshHierarchy();
     } catch (e: any) {
-      toast.error("Failed", { description: e?.response?.data?.message ?? "An unexpected error occurred" });
+      toast.error("Failed", {
+        description:
+          e?.response?.data?.message ?? "An unexpected error occurred",
+      });
     } finally {
       setSubmitting(false);
     }
@@ -863,7 +881,10 @@ const { refresh: refreshHierarchy } = useTestHierarchy();
       loadAll();
       refreshHierarchy();
     } catch (e: any) {
-      toast.error("Failed", { description: e?.response?.data?.message ?? "An unexpected error occurred" });
+      toast.error("Failed", {
+        description:
+          e?.response?.data?.message ?? "An unexpected error occurred",
+      });
     } finally {
       setSubmitting(false);
     }
@@ -879,7 +900,10 @@ const { refresh: refreshHierarchy } = useTestHierarchy();
       loadAll();
       refreshHierarchy();
     } catch (e: any) {
-      toast.error("Failed", { description: e?.response?.data?.message ?? "An unexpected error occurred" });
+      toast.error("Failed", {
+        description:
+          e?.response?.data?.message ?? "An unexpected error occurred",
+      });
     } finally {
       setSubmitting(false);
     }
@@ -1236,7 +1260,11 @@ const { refresh: refreshHierarchy } = useTestHierarchy();
                           type="number"
                           min={1}
                           value={field.value}
-                          onChange={(e) => field.onChange(e.target.value === "" ? "" : +e.target.value)}
+                          onChange={(e) =>
+                            field.onChange(
+                              e.target.value === "" ? "" : +e.target.value,
+                            )
+                          }
                           className="h-9 text-sm"
                         />
                       </FormControl>
@@ -1257,7 +1285,11 @@ const { refresh: refreshHierarchy } = useTestHierarchy();
                           type="number"
                           min={1}
                           value={field.value}
-                          onChange={(e) => field.onChange(e.target.value === "" ? "" : +e.target.value)}
+                          onChange={(e) =>
+                            field.onChange(
+                              e.target.value === "" ? "" : +e.target.value,
+                            )
+                          }
                           className="h-9 text-sm"
                         />
                       </FormControl>
@@ -1282,7 +1314,11 @@ const { refresh: refreshHierarchy } = useTestHierarchy();
                           type="number"
                           min={0}
                           value={field.value}
-                          onChange={(e) => field.onChange(e.target.value === "" ? "" : +e.target.value)}
+                          onChange={(e) =>
+                            field.onChange(
+                              e.target.value === "" ? "" : +e.target.value,
+                            )
+                          }
                           className="h-9 text-sm"
                         />
                       </FormControl>
@@ -1303,7 +1339,11 @@ const { refresh: refreshHierarchy } = useTestHierarchy();
                           type="number"
                           min={0}
                           value={field.value}
-                          onChange={(e) => field.onChange(e.target.value === "" ? "" : +e.target.value)}
+                          onChange={(e) =>
+                            field.onChange(
+                              e.target.value === "" ? "" : +e.target.value,
+                            )
+                          }
                           className="h-9 text-sm"
                         />
                       </FormControl>
@@ -1325,7 +1365,11 @@ const { refresh: refreshHierarchy } = useTestHierarchy();
                           min={0}
                           step={0.25}
                           value={field.value}
-                          onChange={(e) => field.onChange(e.target.value === "" ? "" : +e.target.value)}
+                          onChange={(e) =>
+                            field.onChange(
+                              e.target.value === "" ? "" : +e.target.value,
+                            )
+                          }
                           className="h-9 text-sm"
                         />
                       </FormControl>
@@ -1398,7 +1442,11 @@ const { refresh: refreshHierarchy } = useTestHierarchy();
                         min={1}
                         placeholder="Unlimited"
                         value={field.value ?? ""}
-                        onChange={(e) => field.onChange(e.target.value === "" ? "" : +e.target.value)}
+                        onChange={(e) =>
+                          field.onChange(
+                            e.target.value === "" ? "" : +e.target.value,
+                          )
+                        }
                         className="h-9 text-sm"
                       />
                     </FormControl>
@@ -1601,7 +1649,9 @@ const { refresh: refreshHierarchy } = useTestHierarchy();
                   <FormItem>
                     <FormLabel className="text-xs font-semibold text-slate-600 uppercase tracking-wide">
                       Max Attempts{" "}
-                      <span className="font-normal normal-case text-slate-400">(blank = unlimited)</span>
+                      <span className="font-normal normal-case text-slate-400">
+                        (blank = unlimited)
+                      </span>
                     </FormLabel>
                     <FormControl>
                       <Input
@@ -1609,7 +1659,11 @@ const { refresh: refreshHierarchy } = useTestHierarchy();
                         min={1}
                         placeholder="Unlimited"
                         value={field.value ?? ""}
-                        onChange={(e) => field.onChange(e.target.value === "" ? "" : +e.target.value)}
+                        onChange={(e) =>
+                          field.onChange(
+                            e.target.value === "" ? "" : +e.target.value,
+                          )
+                        }
                         className="h-9 text-sm"
                       />
                     </FormControl>
@@ -1620,7 +1674,9 @@ const { refresh: refreshHierarchy } = useTestHierarchy();
 
               {/* Toggle switches for isPremium and isActive */}
               <div className="rounded-lg border border-slate-200 dark:border-slate-700 p-3 space-y-3">
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Flags</p>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                  Flags
+                </p>
                 <FormField
                   control={editTestForm.control}
                   name="isPremium"
@@ -1630,7 +1686,9 @@ const { refresh: refreshHierarchy } = useTestHierarchy();
                         <FormLabel className="text-sm font-medium text-slate-700 dark:text-slate-300">
                           ⭐ Premium Test
                         </FormLabel>
-                        <p className="text-[11px] text-slate-400">Only subscribed students can access</p>
+                        <p className="text-[11px] text-slate-400">
+                          Only subscribed students can access
+                        </p>
                       </div>
                       <FormControl>
                         <Switch
@@ -1651,7 +1709,9 @@ const { refresh: refreshHierarchy } = useTestHierarchy();
                         <FormLabel className="text-sm font-medium text-slate-700 dark:text-slate-300">
                           ✅ Active
                         </FormLabel>
-                        <p className="text-[11px] text-slate-400">Inactive tests are hidden from students</p>
+                        <p className="text-[11px] text-slate-400">
+                          Inactive tests are hidden from students
+                        </p>
                       </div>
                       <FormControl>
                         <Switch
@@ -1772,7 +1832,9 @@ const { refresh: refreshHierarchy } = useTestHierarchy();
                     </FormLabel>
                     <Select
                       value={field.value ?? "none"}
-                      onValueChange={(v) => field.onChange(v === "none" ? undefined : v)}
+                      onValueChange={(v) =>
+                        field.onChange(v === "none" ? undefined : v)
+                      }
                     >
                       <FormControl>
                         <SelectTrigger className="h-9 text-sm">

@@ -398,7 +398,10 @@ export default function ProfilePage() {
                     <CalendarIcon className="h-4 w-4" />
                     Member since{" "}
                     {profileQuery.data?.createdAt
-                      ? format(new Date(profileQuery.data.createdAt), "MMMM yyyy")
+                      ? format(
+                          new Date(profileQuery.data.createdAt),
+                          "MMMM yyyy",
+                        )
                       : "..."}
                   </div>
                 </div>
@@ -510,11 +513,14 @@ export default function ProfilePage() {
         <CardContent className="space-y-6">
           {(() => {
             const planObj = subscription?.data?.plan;
-            const planName = (typeof planObj === "object" && planObj !== null ? (planObj as any).name : planObj) || "Free";
+            const planName =
+              (typeof planObj === "object" && planObj !== null
+                ? (planObj as any).name
+                : planObj) || "Free";
             const status = subscription?.data?.status || "Active";
             const expiresAt = subscription?.data?.currentPeriodEnd;
             const isPremium = planName !== "Free" && planName !== "FREE";
-            
+
             return (
               <>
                 <div className="flex items-center justify-between">
@@ -534,7 +540,10 @@ export default function ProfilePage() {
                         ? "Access to free mock tests only"
                         : expiresAt
                           ? (() => {
-                              const daysLeft = differenceInDays(new Date(expiresAt), new Date());
+                              const daysLeft = differenceInDays(
+                                new Date(expiresAt),
+                                new Date(),
+                              );
                               return daysLeft > 0
                                 ? `${daysLeft} days remaining · Expires ${format(new Date(expiresAt), "MMM d, yyyy")}`
                                 : "Subscription expired";
@@ -552,7 +561,9 @@ export default function ProfilePage() {
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-foreground">
-                      {!isPremium ? "Upgrade to Premium" : "Manage Subscription"}
+                      {!isPremium
+                        ? "Upgrade to Premium"
+                        : "Manage Subscription"}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {!isPremium
@@ -580,7 +591,6 @@ export default function ProfilePage() {
             );
           })()}
         </CardContent>
-
       </Card>
     </div>
   );

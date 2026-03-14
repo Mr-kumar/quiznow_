@@ -178,7 +178,7 @@ function NumberField({
 
 export default function CreateTestPage() {
   const router = useRouter();
-const [step, setStep] = useState<1 | 2>(1);
+  const [step, setStep] = useState<1 | 2>(1);
   const [isLoading, setIsLoading] = useState(false);
   const [createdTestId, setCreatedTestId] = useState<string | null>(null);
   const [createdSectionId, setCreatedSectionId] = useState<string | null>(null);
@@ -284,7 +284,10 @@ const [step, setStep] = useState<1 | 2>(1);
         router.push(`/dashboard/admin/tests/${testId}`);
       }
     } catch (err: any) {
-      toast.error("Failed to create test", { description: err?.response?.data?.message ?? "An unexpected error occurred" });
+      toast.error("Failed to create test", {
+        description:
+          err?.response?.data?.message ?? "An unexpected error occurred",
+      });
     } finally {
       setIsLoading(false);
     }

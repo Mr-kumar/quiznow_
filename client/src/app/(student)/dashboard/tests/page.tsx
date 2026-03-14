@@ -88,7 +88,11 @@ function isLiveNow(test: Test): boolean {
 
 type TestCTA = "start" | "resume" | "result" | "locked" | "upcoming";
 
-function getTestCTA(test: Test, attempts: AttemptSummary[], hasActiveSubscription: boolean): TestCTA {
+function getTestCTA(
+  test: Test,
+  attempts: AttemptSummary[],
+  hasActiveSubscription: boolean,
+): TestCTA {
   if (test.isPremium && !hasActiveSubscription) return "locked";
   if (test.startAt && new Date(test.startAt) > new Date()) return "upcoming";
 
@@ -345,7 +349,10 @@ export default function DashboardTestsPage() {
   useEffect(() => {
     if (categories.length > 0 && activeCategoryId === null) {
       const savedCategory = localStorage.getItem("quiznow_target_category");
-      if (savedCategory && categories.some((c: any) => c.id === savedCategory)) {
+      if (
+        savedCategory &&
+        categories.some((c: any) => c.id === savedCategory)
+      ) {
         setActiveCategoryId(savedCategory);
       } else {
         // Default to the first category instead of showing ALL tests
@@ -386,14 +393,18 @@ export default function DashboardTestsPage() {
       const inner = outer?.data ?? outer;
       // inner may be { data: Test[], total } or Test[] directly
       if (inner && typeof inner === "object" && Array.isArray(inner.data)) {
-        return { 
-          tests: inner.data as Test[], 
+        return {
+          tests: inner.data as Test[],
           total: inner.total as number,
-          hasActiveSubscription: !!inner.hasActiveSubscription 
+          hasActiveSubscription: !!inner.hasActiveSubscription,
         };
       }
       // Fallback: direct array
-      return { tests: Array.isArray(inner) ? inner : [], total: 0, hasActiveSubscription: false };
+      return {
+        tests: Array.isArray(inner) ? inner : [],
+        total: 0,
+        hasActiveSubscription: false,
+      };
     },
     staleTime: 1000 * 60 * 2,
   });
@@ -576,7 +587,12 @@ export default function DashboardTestsPage() {
 
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredTests.map((test: Test) => (
-                <TestCard key={test.id} test={test} attempts={attempts} hasActiveSubscription={hasActiveSubscription} />
+                <TestCard
+                  key={test.id}
+                  test={test}
+                  attempts={attempts}
+                  hasActiveSubscription={hasActiveSubscription}
+                />
               ))}
             </div>
 

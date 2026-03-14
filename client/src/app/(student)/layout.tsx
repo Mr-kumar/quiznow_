@@ -73,9 +73,7 @@ export const NAV_GROUPS = [
   },
   {
     label: "COMPETE",
-    items: [
-      { href: "/leaderboard", label: "Leaderboard", icon: TrophyIcon },
-    ],
+    items: [{ href: "/leaderboard", label: "Leaderboard", icon: TrophyIcon }],
   },
   {
     label: "ACCOUNT",
@@ -87,7 +85,7 @@ export const NAV_GROUPS = [
 ];
 
 // Flat list for mobile bottom nav
-const NAV_ITEMS = NAV_GROUPS.flatMap(g => g.items);
+const NAV_ITEMS = NAV_GROUPS.flatMap((g) => g.items);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -275,7 +273,11 @@ export default function StudentLayout({
               </p>
               <div className="space-y-1">
                 {group.items.map((item) => (
-                  <SidebarLink key={item.href} item={item} pathname={pathname} />
+                  <SidebarLink
+                    key={item.href}
+                    item={item}
+                    pathname={pathname}
+                  />
                 ))}
               </div>
             </div>

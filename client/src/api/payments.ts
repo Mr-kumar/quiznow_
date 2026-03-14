@@ -58,8 +58,10 @@ export const paymentsApi = {
 
   // Admin endpoints
   getAdminPayments: (page = 1, limit = 10, search?: string) =>
-    api.get<{ data: PaymentRecord[]; total: number; page: number; limit: number }>(
-      "/admin/payments",
-      { params: { page, limit, search } },
-    ),
+    api.get<{
+      data: PaymentRecord[];
+      total: number;
+      page: number;
+      limit: number;
+    }>("/admin/payments", { params: { page, limit, search } }),
 };

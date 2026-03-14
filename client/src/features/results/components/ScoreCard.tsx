@@ -49,11 +49,23 @@ function ScoreRing({
     <div className="relative inline-flex items-center justify-center">
       <svg width="160" height="160" className="-rotate-90">
         <defs>
-          <linearGradient id="scoreGradientPass" x1="0%" y1="0%" x2="100%" y2="100%">
+          <linearGradient
+            id="scoreGradientPass"
+            x1="0%"
+            y1="0%"
+            x2="100%"
+            y2="100%"
+          >
             <stop offset="0%" stopColor="#22c55e" />
             <stop offset="100%" stopColor="#16a34a" />
           </linearGradient>
-          <linearGradient id="scoreGradientFail" x1="0%" y1="0%" x2="100%" y2="100%">
+          <linearGradient
+            id="scoreGradientFail"
+            x1="0%"
+            y1="0%"
+            x2="100%"
+            y2="100%"
+          >
             <stop offset="0%" stopColor="#ef4444" />
             <stop offset="100%" stopColor="#dc2626" />
           </linearGradient>

@@ -57,11 +57,9 @@ async function getTestData(testId: string): Promise<{
   isSubscribed: boolean;
 } | null> {
   try {
-
     // Read auth token from cookie (set by auth-store on login)
     const cookieStore = await cookies();
     const token = cookieStore.get("qn_token")?.value;
-
 
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
@@ -96,8 +94,8 @@ async function getTestData(testId: string): Promise<{
     const test: ExamTest = testJson?.data ?? testJson;
     const sections: ExamSection[] = (sectionsJson?.data ?? sectionsJson) || [];
     // Student API returns { success: true, data: subscription | null } structure for /me/subscription
-    const subscription = subJson?.data; 
-    
+    const subscription = subJson?.data;
+
     // Check if the returned subscription is active and not expired
     const hasActiveSubscription =
       subscription &&
@@ -399,7 +397,8 @@ export default async function TestInstructionsPage({ params }: PageProps) {
               Select Exam Language
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-[400px]">
-              Choose your preferred language for the questions. You can also switch languages dynamically anytime during the test.
+              Choose your preferred language for the questions. You can also
+              switch languages dynamically anytime during the test.
             </p>
           </div>
           <LanguageToggle />
@@ -423,7 +422,9 @@ export default async function TestInstructionsPage({ params }: PageProps) {
               testId={test.id}
               testTitle={test.title}
               durationMins={test.durationMins}
-              isDisabled={(!isSubscribed && test.isPremium) || isUpcoming || isExpired}
+              isDisabled={
+                (!isSubscribed && test.isPremium) || isUpcoming || isExpired
+              }
               disabledReason={
                 !isSubscribed && test.isPremium
                   ? "Requires Premium Subscription"

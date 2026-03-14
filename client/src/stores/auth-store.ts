@@ -1,25 +1,5 @@
-/**
- * stores/auth-store.ts  (UPDATED — BUG-1 FIX)
- *
- * Changes:
- *  1. login() now also writes token to a cookie ("qn_token") so middleware.ts
- *     can read it at the Edge (localStorage is not accessible server-side).
- *  2. logout() clears the cookie too.
- *  3. Fixed the inverted 401 toast condition (was: Date.now() <= tokenExpiry)
- *  4. JWT decode now uses atob() instead of Buffer.from() (browser-safe)
- *  5. BUG-1 FIX: Storage key is now role-aware — admin sessions use
- *     'qn_admin_token' cookie to prevent cross-session logout when both
- *     admin and student are open in the same browser.
- *
- * Cookie approach: httpOnly is NOT set here (we can't from client JS).
- * The cookie is readable by middleware because it's a same-origin request.
- * For production, move token to an httpOnly cookie set by the server on login.
- */
-
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-
-// ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface AuthUser {
   id: string;
@@ -33,7 +13,7 @@ export interface AuthUser {
 interface AuthState {
   user: AuthUser | null;
   token: string | null;
-  tokenExpiry?: number; // Unix ms timestamp — when the token expires
+  tokenExpiry?: number;
   isAuthenticated: boolean;
   isLoading: boolean;
 
@@ -42,10 +22,9 @@ interface AuthState {
   refreshToken: () => void;
 }
 
-// ── Cookie helpers (Edge-readable, NOT httpOnly) ──────────────────────────────
-
+// Helper to set cookie readable by edge middleware
 function setCookie(name: string, value: string, maxAgeSeconds: number) {
-  if (typeof document === "undefined") return; // SSR guard
+  if (typeof document === "undefined") return;
   document.cookie = [
     `${name}=${encodeURIComponent(value)}`,
     `max-age=${maxAgeSeconds}`,
@@ -57,17 +36,9 @@ function setCookie(name: string, value: string, maxAgeSeconds: number) {
 }
 
 function deleteCookie(name: string) {
-  if (typeof document === "undefined") return; // SSR guard
+  if (typeof document === "undefined") return;
   document.cookie = `${name}=; max-age=0; path=/`;
 }
-
-// ── BUG-1 FIX: Get correct cookie name based on stored role ──────────────────
-
-function getCookieName(role?: string): string {
-  return role === "ADMIN" ? "qn_admin_token" : "qn_token";
-}
-
-// ── Store ─────────────────────────────────────────────────────────────────────
 
 export const useAuthStore = create<AuthState>()(
   persist(
@@ -82,12 +53,9 @@ export const useAuthStore = create<AuthState>()(
         const tokenExpiry = expiresIn
           ? Date.now() + expiresIn * 1000
           : undefined;
-
-        // BUG-1 FIX: Write token to role-specific cookie
-        const cookieName = getCookieName(user.role);
         const cookieMaxAge = expiresIn ?? 60 * 60 * 24 * 7; // default 7 days
-        setCookie(cookieName, token, cookieMaxAge);
-        // Also write to the generic cookie so middleware always has a token
+
+        // Write to generic cookie so middleware always has a token
         setCookie("qn_token", token, cookieMaxAge);
 
         set({
@@ -100,13 +68,11 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: () => {
-        // BUG-1 FIX: Clear both role-specific and generic cookies
-        const state = useAuthStore.getState();
-        const cookieName = getCookieName(state.user?.role);
-        deleteCookie(cookieName);
+        // Clear cookie
         deleteCookie("qn_token");
+        // Clear legacy admin cookie if it exists
+        deleteCookie("qn_admin_token");
 
-        // Clear ALL auth state immediately
         set({
           user: null,
           token: null,
@@ -121,11 +87,11 @@ export const useAuthStore = create<AuthState>()(
         if (
           state.token &&
           state.tokenExpiry &&
-          Date.now() > state.tokenExpiry // ✅ FIXED: was <= (inverted)
+          Date.now() > state.tokenExpiry
         ) {
-          const cookieName = getCookieName(state.user?.role);
-          deleteCookie(cookieName);
           deleteCookie("qn_token");
+          deleteCookie("qn_admin_token");
+
           set({
             user: null,
             token: null,
@@ -155,8 +121,6 @@ export const useAuthStore = create<AuthState>()(
             const remainingMs = state.tokenExpiry
               ? state.tokenExpiry - Date.now()
               : 1000 * 60 * 60 * 24 * 7;
-            const cookieName = getCookieName(state.user?.role);
-            setCookie(cookieName, state.token, Math.floor(remainingMs / 1000));
             setCookie("qn_token", state.token, Math.floor(remainingMs / 1000));
           }
         }

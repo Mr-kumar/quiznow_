@@ -280,15 +280,18 @@ export default function AttemptPage() {
 
       try {
         const response: any = await attemptsApi.start(testId);
-        
+
         // Server wraps response in { success, data: attempt }
         // attempt has { id, status, ... }
         const outerData = response?.data || response;
         const attemptData = outerData?.data || outerData;
         const newAttemptId = attemptData?.id ?? attemptData?.attemptId;
-        
+
         if (!newAttemptId) {
-          console.error("Failed to extract attempt ID from response:", response);
+          console.error(
+            "Failed to extract attempt ID from response:",
+            response,
+          );
           router.replace(`/test/${testId}`);
           return;
         }

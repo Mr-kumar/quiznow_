@@ -60,7 +60,7 @@ export function useSolutions(attemptId: string | null): UseSolutionsReturn {
       // Handle both shapes: { questions: [...] } or flat array
       const data: ReviewQuestion[] = Array.isArray(raw)
         ? raw
-        : raw?.questions ?? [];
+        : (raw?.questions ?? []);
       // Sort by order within each section (defensive — server should pre-sort)
       return [...data].sort((a, b) =>
         a.sectionId === b.sectionId

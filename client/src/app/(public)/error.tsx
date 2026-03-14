@@ -23,23 +23,23 @@ export default function Error({
             <span className="text-2xl">⚠️</span>
           </div>
         </div>
-        
+
         <h1 className="text-xl font-semibold text-slate-900 dark:text-white mb-2">
           Something went wrong
         </h1>
-        
+
         <p className="text-slate-600 dark:text-slate-400 mb-6">
           {error.message || "An unexpected error occurred"}
         </p>
-        
+
         <div className="space-y-3">
           <button
-            onClick={() => window.location.href = "/"}
+            onClick={() => (window.location.href = "/")}
             className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
           >
             Go Home
           </button>
-          
+
           <button
             onClick={reset}
             className="w-full bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-900 dark:text-white px-4 py-2 rounded-lg transition-colors"

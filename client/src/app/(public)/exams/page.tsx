@@ -57,7 +57,10 @@ export const metadata: Metadata = {
 
 // ── Data fetching ─────────────────────────────────────────────────────────────
 
-async function getExamSeries(category?: string, q?: string): Promise<TestSeries[]> {
+async function getExamSeries(
+  category?: string,
+  q?: string,
+): Promise<TestSeries[]> {
   try {
     const params = new URLSearchParams();
     if (category) params.set("category", category);
@@ -77,9 +80,21 @@ async function getExamSeries(category?: string, q?: string): Promise<TestSeries[
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 const LEVEL_CONFIG = {
-  BEGINNER: { label: "Beginner", className: "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-300" },
-  INTERMEDIATE: { label: "Intermediate", className: "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300" },
-  ADVANCED: { label: "Advanced", className: "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-300" },
+  BEGINNER: {
+    label: "Beginner",
+    className:
+      "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-300",
+  },
+  INTERMEDIATE: {
+    label: "Intermediate",
+    className:
+      "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300",
+  },
+  ADVANCED: {
+    label: "Advanced",
+    className:
+      "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-300",
+  },
 } as const;
 
 function SeriesCard({ series }: { series: TestSeries }) {
@@ -99,25 +114,35 @@ function SeriesCard({ series }: { series: TestSeries }) {
                 Premium
               </Badge>
             )}
-            {typeof series.freeTestCount === "number" && series.freeTestCount > 0 && (
-              <Badge variant="outline" className="text-green-600 border-green-200 dark:border-green-800 text-xs">
-                {series.freeTestCount} free
-              </Badge>
-            )}
+            {typeof series.freeTestCount === "number" &&
+              series.freeTestCount > 0 && (
+                <Badge
+                  variant="outline"
+                  className="text-green-600 border-green-200 dark:border-green-800 text-xs"
+                >
+                  {series.freeTestCount} free
+                </Badge>
+              )}
           </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
         <div>
-          <CardTitle className="text-base leading-snug mb-1">{series.title}</CardTitle>
-          <CardDescription className="text-xs">{series.examName}</CardDescription>
+          <CardTitle className="text-base leading-snug mb-1">
+            {series.title}
+          </CardTitle>
+          <CardDescription className="text-xs">
+            {series.examName}
+          </CardDescription>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <div className="flex items-center gap-1 text-xs text-muted-foreground">
             <BookOpenIcon className="h-3.5 w-3.5" />
             <span>{series.testCount} tests</span>
           </div>
-          <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${level.className}`}>
+          <span
+            className={`text-xs px-2 py-0.5 rounded-full border font-medium ${level.className}`}
+          >
             {level.label}
           </span>
         </div>
@@ -129,9 +154,15 @@ function SeriesCard({ series }: { series: TestSeries }) {
         <Link href={`/series/${series.id}`} className="w-full">
           <Button size="sm" className="w-full gap-2 text-xs">
             {series.isPremium ? (
-              <><LockIcon className="h-3.5 w-3.5" />Unlock Series</>
+              <>
+                <LockIcon className="h-3.5 w-3.5" />
+                Unlock Series
+              </>
             ) : (
-              <><PlayCircleIcon className="h-3.5 w-3.5" />Start Practicing</>
+              <>
+                <PlayCircleIcon className="h-3.5 w-3.5" />
+                Start Practicing
+              </>
             )}
             <ArrowRightIcon className="h-3.5 w-3.5 ml-auto" />
           </Button>
@@ -154,15 +185,21 @@ export function CategoryLanding({ q }: { q?: string }) {
             1500+ Tests · NTA-Style · Bilingual · Instant Results
           </Badge>
           <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-4 leading-tight">
-            Which exam are you<br />
+            Which exam are you
+            <br />
             <span className="bg-linear-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
               preparing for?
             </span>
           </h1>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
-            Select your exam category below to see tailored test series, previous year papers, and study material.
+            Select your exam category below to see tailored test series,
+            previous year papers, and study material.
           </p>
-          <Suspense fallback={<div className="max-w-xl mx-auto h-12 bg-muted rounded-xl animate-pulse" />}>
+          <Suspense
+            fallback={
+              <div className="max-w-xl mx-auto h-12 bg-muted rounded-xl animate-pulse" />
+            }
+          >
             <ExamSearchBar defaultValue={q} />
           </Suspense>
         </div>
@@ -172,7 +209,9 @@ export function CategoryLanding({ q }: { q?: string }) {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
         <div className="flex items-center gap-2 mb-8">
           <FilterIcon className="h-5 w-5 text-muted-foreground" />
-          <h2 className="text-xl font-bold text-foreground">Choose your exam category</h2>
+          <h2 className="text-xl font-bold text-foreground">
+            Choose your exam category
+          </h2>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -190,7 +229,9 @@ export function CategoryLanding({ q }: { q?: string }) {
                 </div>
 
                 {/* Title */}
-                <h3 className={`font-bold text-slate-800 dark:text-slate-100 mb-1 group-hover:${cat.accent} transition-colors leading-tight`}>
+                <h3
+                  className={`font-bold text-slate-800 dark:text-slate-100 mb-1 group-hover:${cat.accent} transition-colors leading-tight`}
+                >
                   {cat.label}
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mb-3 leading-relaxed">
@@ -261,7 +302,9 @@ function CategoryPage({
 }) {
   // Data-driven level filters based on actual series.level values
   const availableLevels = Array.from(
-    new Set(seriesList.map((s) => s.level).filter((l): l is string => Boolean(l))),
+    new Set(
+      seriesList.map((s) => s.level).filter((l): l is string => Boolean(l)),
+    ),
   );
   const filteredSeries =
     level && availableLevels.includes(level)
@@ -298,11 +341,19 @@ function CategoryPage({
 
               {/* Stats row */}
               <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mt-3">
-                <span className={`font-semibold ${cat.accent}`}>{cat.count} test series</span>
+                <span className={`font-semibold ${cat.accent}`}>
+                  {cat.count} test series
+                </span>
                 <span>·</span>
-                <span className="flex items-center gap-1"><UsersIcon className="h-3.5 w-3.5" />{cat.students} enrolled</span>
+                <span className="flex items-center gap-1">
+                  <UsersIcon className="h-3.5 w-3.5" />
+                  {cat.students} enrolled
+                </span>
                 <span>·</span>
-                <span className="flex items-center gap-1"><StarIcon className="h-3.5 w-3.5 text-yellow-500 fill-yellow-500" />4.8 rating</span>
+                <span className="flex items-center gap-1">
+                  <StarIcon className="h-3.5 w-3.5 text-yellow-500 fill-yellow-500" />
+                  4.8 rating
+                </span>
               </div>
             </div>
 
@@ -343,13 +394,19 @@ function CategoryPage({
         <div className="flex flex-col gap-4 mb-6">
           <div className="flex flex-col sm:flex-row sm:items-center gap-4">
             <div className="flex-1">
-              <Suspense fallback={<div className="h-11 bg-muted rounded-xl animate-pulse" />}>
+              <Suspense
+                fallback={
+                  <div className="h-11 bg-muted rounded-xl animate-pulse" />
+                }
+              >
                 <ExamSearchBar defaultValue={q} defaultCategory={cat.id} />
               </Suspense>
             </div>
             <p className="text-sm text-muted-foreground shrink-0">
-              <span className="font-semibold text-foreground">{filteredSeries.length}</span> series
-              found
+              <span className="font-semibold text-foreground">
+                {filteredSeries.length}
+              </span>{" "}
+              series found
               {q && <span className="text-muted-foreground"> for "{q}"</span>}
               {level && availableLevels.includes(level) && (
                 <span className="text-muted-foreground">
@@ -402,25 +459,28 @@ function CategoryPage({
                 <div className="h-14 w-14 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
                   <SearchIcon className="h-7 w-7 text-muted-foreground" />
                 </div>
-              <CardTitle className="text-lg mb-2">
-                {q ? `No results for "${q}"` : "No series yet"}
-              </CardTitle>
+                <CardTitle className="text-lg mb-2">
+                  {q ? `No results for "${q}"` : "No series yet"}
+                </CardTitle>
                 <CardDescription className="mb-5">
-                  Try searching for a specific sub-exam or browse all categories.
+                  Try searching for a specific sub-exam or browse all
+                  categories.
                 </CardDescription>
                 <Link href={`/exams?category=${cat.id}`}>
-                  <Button variant="outline" className="w-full">Clear search</Button>
+                  <Button variant="outline" className="w-full">
+                    Clear search
+                  </Button>
                 </Link>
               </CardContent>
             </Card>
           </div>
         ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-              {filteredSeries.map((series) => (
-                <SeriesCard key={series.id} series={series} />
-              ))}
-            </div>
-          )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            {filteredSeries.map((series) => (
+              <SeriesCard key={series.id} series={series} />
+            ))}
+          </div>
+        )}
 
         {/* Premium CTA */}
         {seriesList.length > 0 && (
@@ -435,10 +495,14 @@ function CategoryPage({
                   Unlock all {cat.count} {cat.shortLabel} test series
                 </h3>
                 <p className="text-blue-100 max-w-md mx-auto">
-                  Get unlimited tests, PDF solutions, video explanations, and priority support.
+                  Get unlimited tests, PDF solutions, video explanations, and
+                  priority support.
                 </p>
                 <Link href="/plans">
-                  <Button size="lg" className="bg-white text-blue-600 hover:bg-blue-50 font-bold gap-2 mt-2">
+                  <Button
+                    size="lg"
+                    className="bg-white text-blue-600 hover:bg-blue-50 font-bold gap-2 mt-2"
+                  >
                     View Pricing Plans
                     <ArrowRightIcon className="h-4 w-4" />
                   </Button>
@@ -473,27 +537,40 @@ export default async function ExamsPage({ searchParams }: PageProps) {
       <div className="min-h-screen bg-background">
         <section className="py-12 bg-muted/30 border-b border-slate-200 dark:border-slate-800">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <Link href="/exams" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors">
-              <ArrowLeftIcon className="h-4 w-4" />All Exams
+            <Link
+              href="/exams"
+              className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors"
+            >
+              <ArrowLeftIcon className="h-4 w-4" />
+              All Exams
             </Link>
             <h1 className="text-3xl font-bold text-foreground mb-4">
               Search results for "<span className="text-blue-600">{q}</span>"
             </h1>
-            <Suspense fallback={<div className="h-11 bg-muted rounded-xl animate-pulse" />}>
+            <Suspense
+              fallback={
+                <div className="h-11 bg-muted rounded-xl animate-pulse" />
+              }
+            >
               <ExamSearchBar defaultValue={q} />
             </Suspense>
           </div>
         </section>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <p className="text-sm text-muted-foreground mb-6">
-            <span className="font-semibold text-foreground">{seriesList.length}</span> series found
+            <span className="font-semibold text-foreground">
+              {seriesList.length}
+            </span>{" "}
+            series found
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
             {seriesList.length === 0 ? (
               <div className="col-span-full flex flex-col items-center py-20 text-center">
                 <SearchIcon className="h-10 w-10 text-muted-foreground mb-3" />
                 <p className="font-semibold text-lg">No results found</p>
-                <Link href="/exams" className="mt-4"><Button variant="outline">Browse all exams</Button></Link>
+                <Link href="/exams" className="mt-4">
+                  <Button variant="outline">Browse all exams</Button>
+                </Link>
               </div>
             ) : (
               seriesList.map((s) => <SeriesCard key={s.id} series={s} />)

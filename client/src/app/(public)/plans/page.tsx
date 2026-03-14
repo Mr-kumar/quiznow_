@@ -31,46 +31,51 @@ const STYLE_PROFILES = [
     color: "text-slate-600 dark:text-slate-400",
     bgColor: "bg-slate-100 dark:bg-slate-800",
     borderColor: "border-slate-200 dark:border-slate-700",
-    ctaClass: "bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-slate-200 dark:text-slate-900 text-white",
+    ctaClass:
+      "bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-slate-200 dark:text-slate-900 text-white",
   },
   {
     icon: ZapIcon,
     color: "text-blue-600 dark:text-blue-400",
     bgColor: "bg-blue-100 dark:bg-blue-950",
     borderColor: "border-blue-300 dark:border-blue-700",
-    ctaClass: "bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/25",
+    ctaClass:
+      "bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/25",
   },
   {
     icon: CrownIcon,
     color: "text-amber-600 dark:text-amber-400",
     bgColor: "bg-amber-100 dark:bg-amber-950",
     borderColor: "border-amber-300 dark:border-amber-700",
-    ctaClass: "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-lg shadow-amber-500/25",
-  }
+    ctaClass:
+      "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-lg shadow-amber-500/25",
+  },
 ];
 
 const DEFAULT_FEATURES = [
-  'Unlimited premium tests',
-  'Detailed performance analytics',
-  'Personalised weak area insights',
-  'Priority support',
+  "Unlimited premium tests",
+  "Detailed performance analytics",
+  "Personalised weak area insights",
+  "Priority support",
 ];
 
 function formatDuration(days: number): string {
   if (days >= 365) {
     const years = Math.floor(days / 365);
-    return years === 1 ? '1 Year' : `${years} Years`;
+    return years === 1 ? "1 Year" : `${years} Years`;
   }
   if (days >= 30) {
     const months = Math.floor(days / 30);
-    return months === 1 ? '1 Month' : `${months} Months`;
+    return months === 1 ? "1 Month" : `${months} Months`;
   }
   return `${days} Days`;
 }
 
 function CheckOrX({ value }: { value: boolean | string }) {
   if (value === false)
-    return <XIcon className="h-4 w-4 text-slate-300 dark:text-slate-600 mx-auto" />;
+    return (
+      <XIcon className="h-4 w-4 text-slate-300 dark:text-slate-600 mx-auto" />
+    );
   if (value === true)
     return <CheckIcon className="h-4 w-4 text-green-500 mx-auto" />;
   return (
@@ -102,11 +107,11 @@ const FAQS = [
 async function getPlans() {
   try {
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/plans/public`, {
-      next: { revalidate: 60 }
+      next: { revalidate: 60 },
     });
     if (!res.ok) return [];
     const json = await res.json();
-    return Array.isArray(json) ? json : json.data ?? [];
+    return Array.isArray(json) ? json : (json.data ?? []);
   } catch (error) {
     return [];
   }
@@ -118,7 +123,9 @@ export default async function PlansPage() {
 
   const allFeatures = new Set<string>();
   plans.forEach((p: any) => {
-    (p.features?.length > 0 ? p.features : DEFAULT_FEATURES).forEach((f: string) => allFeatures.add(f));
+    (p.features?.length > 0 ? p.features : DEFAULT_FEATURES).forEach(
+      (f: string) => allFeatures.add(f),
+    );
   });
   const comparisonFeatures = Array.from(allFeatures);
 
@@ -145,11 +152,14 @@ export default async function PlansPage() {
         {/* Plans Grid */}
         <div className="grid md:grid-cols-3 justify-center gap-6 items-start">
           {plans.map((plan: any, index: number) => {
-            const style = STYLE_PROFILES[Math.min(index, STYLE_PROFILES.length - 1)];
+            const style =
+              STYLE_PROFILES[Math.min(index, STYLE_PROFILES.length - 1)];
             const Icon = style.icon;
-            const features = plan.features?.length > 0 ? plan.features : DEFAULT_FEATURES;
+            const features =
+              plan.features?.length > 0 ? plan.features : DEFAULT_FEATURES;
             const showPopular = plan.isPopular || plan.durationDays > 30;
-            const badgeText = plan.badge || (showPopular ? 'Most Popular' : null);
+            const badgeText =
+              plan.badge || (showPopular ? "Most Popular" : null);
 
             return (
               <div
@@ -166,7 +176,9 @@ export default async function PlansPage() {
                 )}
 
                 <div className="space-y-3 mb-5">
-                  <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${style.bgColor}`}>
+                  <div
+                    className={`h-10 w-10 rounded-xl flex items-center justify-center ${style.bgColor}`}
+                  >
                     <Icon className={`h-5 w-5 ${style.color}`} />
                   </div>
                   <div>
@@ -187,7 +199,7 @@ export default async function PlansPage() {
                   </div>
                 </div>
 
-                <PlansCTA 
+                <PlansCTA
                   planId={plan.id}
                   planName={plan.name}
                   price={plan.price}
@@ -198,7 +210,10 @@ export default async function PlansPage() {
 
                 <ul className="space-y-3 flex-1">
                   {features.map((f: string) => (
-                    <li key={f} className="flex items-start gap-2.5 text-sm text-slate-700 dark:text-slate-300 leading-snug">
+                    <li
+                      key={f}
+                      className="flex items-start gap-2.5 text-sm text-slate-700 dark:text-slate-300 leading-snug"
+                    >
                       <CheckIcon className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />
                       {f}
                     </li>
@@ -211,8 +226,12 @@ export default async function PlansPage() {
           {plans.length === 0 && (
             <div className="col-span-full py-20 text-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
               <CrownIcon className="mx-auto h-10 w-10 text-slate-300 mb-3" />
-              <h3 className="text-lg font-medium text-slate-900 dark:text-white">No plans available</h3>
-              <p className="text-sm text-slate-500 mt-1">Check back later for new premium subscriptions!</p>
+              <h3 className="text-lg font-medium text-slate-900 dark:text-white">
+                No plans available
+              </h3>
+              <p className="text-sm text-slate-500 mt-1">
+                Check back later for new premium subscriptions!
+              </p>
             </div>
           )}
         </div>
@@ -243,22 +262,41 @@ export default async function PlansPage() {
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
                     <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
-                      <td className="px-5 py-3 text-slate-700 dark:text-slate-300 font-medium tracking-wide text-xs uppercase">Price</td>
+                      <td className="px-5 py-3 text-slate-700 dark:text-slate-300 font-medium tracking-wide text-xs uppercase">
+                        Price
+                      </td>
                       {plans.map((p: any) => (
-                        <td key={p.id} className="px-5 py-3 text-center font-bold">₹{p.price}</td>
+                        <td
+                          key={p.id}
+                          className="px-5 py-3 text-center font-bold"
+                        >
+                          ₹{p.price}
+                        </td>
                       ))}
                     </tr>
                     <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
-                      <td className="px-5 py-3 text-slate-700 dark:text-slate-300 font-medium tracking-wide text-xs uppercase">Duration</td>
+                      <td className="px-5 py-3 text-slate-700 dark:text-slate-300 font-medium tracking-wide text-xs uppercase">
+                        Duration
+                      </td>
                       {plans.map((p: any) => (
-                        <td key={p.id} className="px-5 py-3 text-center">{formatDuration(p.durationDays)}</td>
+                        <td key={p.id} className="px-5 py-3 text-center">
+                          {formatDuration(p.durationDays)}
+                        </td>
                       ))}
                     </tr>
                     {comparisonFeatures.map((feature: string) => (
-                      <tr key={feature} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
-                        <td className="px-5 py-3 text-slate-700 dark:text-slate-300">{feature}</td>
+                      <tr
+                        key={feature}
+                        className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors"
+                      >
+                        <td className="px-5 py-3 text-slate-700 dark:text-slate-300">
+                          {feature}
+                        </td>
                         {plans.map((p: any) => {
-                          const pFeatures = p.features?.length > 0 ? p.features : DEFAULT_FEATURES;
+                          const pFeatures =
+                            p.features?.length > 0
+                              ? p.features
+                              : DEFAULT_FEATURES;
                           return (
                             <td key={p.id} className="px-5 py-3 text-center">
                               <CheckOrX value={pFeatures.includes(feature)} />

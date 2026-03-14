@@ -2,9 +2,13 @@
 
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
-import { 
-  TargetIcon, BrainIcon, BarChart3Icon, 
-  BookOpenIcon, TrophyIcon, ShieldCheckIcon 
+import {
+  TargetIcon,
+  BrainIcon,
+  BarChart3Icon,
+  BookOpenIcon,
+  TrophyIcon,
+  ShieldCheckIcon,
 } from "lucide-react";
 
 function FeatureCard({
@@ -19,7 +23,7 @@ function FeatureCard({
   color: string;
 }) {
   return (
-    <motion.div 
+    <motion.div
       whileHover={{ y: -5, scale: 1.02 }}
       transition={{ duration: 0.2 }}
       className="group p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-xl transition-all duration-200"
@@ -56,7 +60,7 @@ export function AnimatedFeatures() {
               Why QuizNow
             </Badge>
           </motion.div>
-          <motion.h2 
+          <motion.h2
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
@@ -65,19 +69,18 @@ export function AnimatedFeatures() {
           >
             Everything you need to succeed
           </motion.h2>
-          <motion.p 
+          <motion.p
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ delay: 0.2 }}
             className="text-slate-500 dark:text-slate-400 max-w-xl mx-auto text-base"
           >
-            Built by exam toppers and educators. Designed for serious
-            aspirants.
+            Built by exam toppers and educators. Designed for serious aspirants.
           </motion.p>
         </div>
 
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}

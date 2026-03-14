@@ -4,7 +4,12 @@ import type { User } from "./users";
 
 export interface Subscription {
   id: string;
-  plan: { id: string; name: string; price: number; [key: string]: any } | "FREE" | "PRO" | "PREMIUM" | string;
+  plan:
+    | { id: string; name: string; price: number; [key: string]: any }
+    | "FREE"
+    | "PRO"
+    | "PREMIUM"
+    | string;
   status: "ACTIVE" | "CANCELLED" | "EXPIRED" | string;
   currentPeriodStart: string;
   currentPeriodEnd: string;

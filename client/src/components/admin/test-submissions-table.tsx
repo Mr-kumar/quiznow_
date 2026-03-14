@@ -49,13 +49,14 @@ interface SubmissionsTableProps {
 }
 
 export function TestSubmissionsTable({ testId }: SubmissionsTableProps) {
-const queryClient = useQueryClient();
+  const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin-attempts", testId, page],
-    queryFn: () => adminAttemptsApi.getByTest(testId, page, 10).then((res) => res.data),
+    queryFn: () =>
+      adminAttemptsApi.getByTest(testId, page, 10).then((res) => res.data),
   });
 
   const deleteMutation = useMutation({
@@ -66,7 +67,12 @@ const queryClient = useQueryClient();
       setDeleteTarget(null);
     },
     onError: (err: any) => {
-      toast.error("Delete failed", { description: err?.response?.data?.message || err.message || "An unexpected error occurred" });
+      toast.error("Delete failed", {
+        description:
+          err?.response?.data?.message ||
+          err.message ||
+          "An unexpected error occurred",
+      });
     },
   });
 
@@ -98,7 +104,10 @@ const queryClient = useQueryClient();
           <TableBody>
             {attempts.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-32 text-center text-slate-500">
+                <TableCell
+                  colSpan={7}
+                  className="h-32 text-center text-slate-500"
+                >
                   No submissions recorded yet.
                 </TableCell>
               </TableRow>
@@ -107,47 +116,60 @@ const queryClient = useQueryClient();
                 <TableRow key={attempt.attemptId}>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                       <div className="h-8 w-8 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center shrink-0">
-                         <User className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-                       </div>
-                       <div className="min-w-0">
-                         <p className="font-semibold text-slate-800 dark:text-slate-200 text-sm truncate">
-                           {attempt.studentName}
-                         </p>
-                         <p className="text-xs text-slate-400 truncate">
-                           {attempt.studentEmail}
-                         </p>
-                       </div>
+                      <div className="h-8 w-8 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center shrink-0">
+                        <User className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-slate-800 dark:text-slate-200 text-sm truncate">
+                          {attempt.studentName}
+                        </p>
+                        <p className="text-xs text-slate-400 truncate">
+                          {attempt.studentEmail}
+                        </p>
+                      </div>
                     </div>
                   </TableCell>
                   <TableCell>
                     {attempt.status === "SUBMITTED" ? (
-                      <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
+                      <Badge
+                        variant="outline"
+                        className="bg-emerald-50 text-emerald-700 border-emerald-200"
+                      >
                         <CheckCircle2 className="h-3 w-3 mr-1" /> Submitted
                       </Badge>
                     ) : attempt.status === "STARTED" ? (
-                      <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
-                        <Clock className="h-3 w-3 mr-1 animate-pulse" /> In Progress
+                      <Badge
+                        variant="outline"
+                        className="bg-amber-50 text-amber-700 border-amber-200"
+                      >
+                        <Clock className="h-3 w-3 mr-1 animate-pulse" /> In
+                        Progress
                       </Badge>
                     ) : (
-                      <Badge variant="outline" className="bg-slate-100 text-slate-600">
+                      <Badge
+                        variant="outline"
+                        className="bg-slate-100 text-slate-600"
+                      >
                         {attempt.status}
                       </Badge>
                     )}
                   </TableCell>
                   <TableCell>
                     <div className="font-bold text-slate-800 dark:text-slate-200">
-                       {attempt.score !== null ? attempt.score.toFixed(2) : "-"} <span className="text-xs font-normal text-slate-400">/ {attempt.totalMarks}</span>
+                      {attempt.score !== null ? attempt.score.toFixed(2) : "-"}{" "}
+                      <span className="text-xs font-normal text-slate-400">
+                        / {attempt.totalMarks}
+                      </span>
                     </div>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
                       {attempt.accuracy !== null ? (
                         <>
-                           <Target className="h-3.5 w-3.5 text-slate-400" />
-                           <span className="font-medium text-slate-700 dark:text-slate-300">
-                             {attempt.accuracy}%
-                           </span>
+                          <Target className="h-3.5 w-3.5 text-slate-400" />
+                          <span className="font-medium text-slate-700 dark:text-slate-300">
+                            {attempt.accuracy}%
+                          </span>
                         </>
                       ) : (
                         <span className="text-slate-400">-</span>
@@ -156,7 +178,9 @@ const queryClient = useQueryClient();
                   </TableCell>
                   <TableCell>
                     <div className="text-sm text-slate-600 dark:text-slate-400">
-                       {attempt.timeTaken ? (attempt.timeTaken / 60).toFixed(1) + "m" : "-"}
+                      {attempt.timeTaken
+                        ? (attempt.timeTaken / 60).toFixed(1) + "m"
+                        : "-"}
                     </div>
                   </TableCell>
                   <TableCell>
@@ -165,7 +189,10 @@ const queryClient = useQueryClient();
                       {new Date(attempt.startTime).toLocaleDateString()}
                     </div>
                     <div className="text-[10px] text-slate-400 ml-5">
-                      {new Date(attempt.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {new Date(attempt.startTime).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
                     </div>
                   </TableCell>
                   <TableCell>
@@ -178,14 +205,16 @@ const queryClient = useQueryClient();
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem disabled>
-                           <BarChart className="h-4 w-4 mr-2 text-indigo-500" /> View Analytics
+                          <BarChart className="h-4 w-4 mr-2 text-indigo-500" />{" "}
+                          View Analytics
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem 
+                        <DropdownMenuItem
                           className="text-red-600 dark:text-red-400 focus:bg-red-50 dark:focus:bg-red-950/30"
                           onClick={() => setDeleteTarget(attempt.attemptId)}
                         >
-                          <Trash2 className="h-4 w-4 mr-2" /> Invalidate / Delete
+                          <Trash2 className="h-4 w-4 mr-2" /> Invalidate /
+                          Delete
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -196,35 +225,45 @@ const queryClient = useQueryClient();
           </TableBody>
         </Table>
 
-        {/* Pagination */ }
+        {/* Pagination */}
         {(data?.total ?? 0) > (data?.limit ?? 10) && (
-           <div className="py-3 px-4 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50">
-             <div className="text-xs text-slate-500">
-               Showing {(((data?.page ?? 1) - 1) * (data?.limit ?? 10)) + 1} to {Math.min((data?.page ?? 1) * (data?.limit ?? 10), data?.total ?? 0)} of {data?.total} attempts
-             </div>
-             <div className="space-x-2">
-               <Button
-                 size="sm"
-                 variant="outline"
-                 disabled={(data?.page ?? 1) === 1}
-                 onClick={() => setPage(p => p - 1)}
-               >
-                 Previous
-               </Button>
-               <Button
-                 size="sm"
-                 variant="outline"
-                 disabled={(data?.page ?? 1) * (data?.limit ?? 10) >= (data?.total ?? 0)}
-                 onClick={() => setPage(p => p + 1)}
-               >
-                 Next
-               </Button>
-             </div>
-           </div>
+          <div className="py-3 px-4 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50">
+            <div className="text-xs text-slate-500">
+              Showing {((data?.page ?? 1) - 1) * (data?.limit ?? 10) + 1} to{" "}
+              {Math.min(
+                (data?.page ?? 1) * (data?.limit ?? 10),
+                data?.total ?? 0,
+              )}{" "}
+              of {data?.total} attempts
+            </div>
+            <div className="space-x-2">
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={(data?.page ?? 1) === 1}
+                onClick={() => setPage((p) => p - 1)}
+              >
+                Previous
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={
+                  (data?.page ?? 1) * (data?.limit ?? 10) >= (data?.total ?? 0)
+                }
+                onClick={() => setPage((p) => p + 1)}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
         )}
       </div>
 
-      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2 text-red-600">
@@ -232,7 +271,10 @@ const queryClient = useQueryClient();
               Delete Attempt Permanently?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently remove the student's submission from the leaderboard and erase all their answer timings for this specific attempt. The student can retake the test if they have attempts remaining.
+              This action cannot be undone. This will permanently remove the
+              student's submission from the leaderboard and erase all their
+              answer timings for this specific attempt. The student can retake
+              the test if they have attempts remaining.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -243,7 +285,9 @@ const queryClient = useQueryClient();
                 if (deleteTarget) deleteMutation.mutate(deleteTarget);
               }}
             >
-              {deleteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              {deleteMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : null}
               Confirm Invalidation
             </AlertDialogAction>
           </AlertDialogFooter>

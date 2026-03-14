@@ -15,7 +15,12 @@ export function useTests(params: UseTestsParams = {}) {
   return useQuery({
     queryKey: testKeys.list({ page, limit, search, seriesId }),
     queryFn: async () => {
-      const res = await adminTestsApi.getAll(page, limit, search || undefined, seriesId);
+      const res = await adminTestsApi.getAll(
+        page,
+        limit,
+        search || undefined,
+        seriesId,
+      );
       return (res.data as any)?.data ?? res.data;
     },
     placeholderData: (prev) => prev,

@@ -79,7 +79,7 @@ const subscriptionFormSchema = z.object({
 type SubscriptionFormValues = z.infer<typeof subscriptionFormSchema>;
 
 export default function SubscriptionsPage() {
-const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [subscriptionToDelete, setSubscriptionToDelete] =
     useState<Subscription | null>(null);
@@ -228,7 +228,10 @@ const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
       cell: ({ row }) => {
         const pOrderId = row.original.paymentOrderId;
         return pOrderId ? (
-          <span className="text-xs font-mono text-muted-foreground" title={row.original.paymentId || "No Payment ID"}>
+          <span
+            className="text-xs font-mono text-muted-foreground"
+            title={row.original.paymentId || "No Payment ID"}
+          >
             {pOrderId.replace("order_", "")}
           </span>
         ) : (
@@ -424,8 +427,11 @@ const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
             <AlertDialogDescription>
               Are you sure you want to cancel the subscription for{" "}
               <strong>{subscriptionToDelete?.user?.name || "this user"}</strong>
-              ? This action will immediately revoke access and mark the associated payment as <strong>REFUNDED</strong> (Please process the actual refund in the Razorpay Dashboard). 
-              <br/><br/>
+              ? This action will immediately revoke access and mark the
+              associated payment as <strong>REFUNDED</strong> (Please process
+              the actual refund in the Razorpay Dashboard).
+              <br />
+              <br />
               <strong>This action cannot be undone.</strong>
             </AlertDialogDescription>
           </AlertDialogHeader>

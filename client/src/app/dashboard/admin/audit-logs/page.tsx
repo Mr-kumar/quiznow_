@@ -179,7 +179,7 @@ function TableSkeleton() {
 const PAGE_SIZE = 20;
 
 export default function AuditLogsPage() {
-// State
+  // State
   const [page, setPage] = useState(1);
   const [refreshing, setRefreshing] = useState(false);
 

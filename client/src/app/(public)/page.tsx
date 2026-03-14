@@ -87,7 +87,6 @@ function ExamCategoryCard({
   );
 }
 
-
 function Testimonial({
   quote,
   name,
@@ -200,8 +199,16 @@ export default function PublicLandingPage() {
             </p>
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
-            <AnimatedStatBlock number={2} suffix="M+" label="Registered Students" />
-            <AnimatedStatBlock number={50} suffix="K+" label="Tests Available" />
+            <AnimatedStatBlock
+              number={2}
+              suffix="M+"
+              label="Registered Students"
+            />
+            <AnimatedStatBlock
+              number={50}
+              suffix="K+"
+              label="Tests Available"
+            />
             <AnimatedStatBlock number={98} suffix="%" label="Selection Rate" />
             <AnimatedStatBlock number={5} suffix="★" label="App Rating" />
           </div>
@@ -531,7 +538,11 @@ export default function PublicLandingPage() {
                     </Button>
                   </Link>
                   <Link href="/login">
-                    <Button size="lg" variant="outline" className="w-full sm:w-auto gap-2 px-8">
+                    <Button
+                      size="lg"
+                      variant="outline"
+                      className="w-full sm:w-auto gap-2 px-8"
+                    >
                       <BookOpenIcon className="h-5 w-5" />
                       Browse Tests
                     </Button>

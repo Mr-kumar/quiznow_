@@ -321,7 +321,7 @@ function useSectionSettings(prefix: string, defaults: SettingsMap) {
   const [saved, setSaved] = useState<SettingsMap>(defaults);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-// Load from backend once on mount
+  // Load from backend once on mount
   useEffect(() => {
     setLoading(true);
     adminSettingsApi
@@ -366,7 +366,9 @@ function useSectionSettings(prefix: string, defaults: SettingsMap) {
       setSaved({ ...values });
       toast("Settings saved", { description: `${prefix} settings updated.` });
     } catch (err: any) {
-      toast.error("Save failed", { description: err?.response?.data?.message ?? "Please try again." });
+      toast.error("Save failed", {
+        description: err?.response?.data?.message ?? "Please try again.",
+      });
     } finally {
       setSaving(false);
     }
@@ -952,7 +954,7 @@ function AnalyticsPanel() {
 // ─── Database panel (actions only — nothing persisted) ────────────────────────
 
 function DatabasePanel() {
-const [running, setRunning] = useState<string | null>(null);
+  const [running, setRunning] = useState<string | null>(null);
   const [resetOpen, setResetOpen] = useState(false);
 
   const dbStats = [

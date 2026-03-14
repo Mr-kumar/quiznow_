@@ -36,10 +36,31 @@ import { cn } from "@/lib/utils";
 import { EXAM_CATEGORIES } from "@/constants/exams";
 
 const NAV_LINKS = [
-  { href: "/practice", label: "Practice", icon: BookOpenIcon, desc: "Topic-wise questions" },
-  { href: "/pyq", label: "PYQ Papers", icon: FileTextIcon, desc: "Previous year papers" },
-  { href: "/rankings", label: "Rankings", icon: TrophyIcon, desc: "All-India leaderboard" },
-  { href: "/plans", label: "Pricing", icon: CrownIcon, desc: "Plans & subscriptions", amber: true },
+  {
+    href: "/practice",
+    label: "Practice",
+    icon: BookOpenIcon,
+    desc: "Topic-wise questions",
+  },
+  {
+    href: "/pyq",
+    label: "PYQ Papers",
+    icon: FileTextIcon,
+    desc: "Previous year papers",
+  },
+  {
+    href: "/rankings",
+    label: "Rankings",
+    icon: TrophyIcon,
+    desc: "All-India leaderboard",
+  },
+  {
+    href: "/plans",
+    label: "Pricing",
+    icon: CrownIcon,
+    desc: "Plans & subscriptions",
+    amber: true,
+  },
 ];
 
 // ─── Mega Menu ────────────────────────────────────────────────────────────────
@@ -51,7 +72,6 @@ function ExamMegaMenu({ onClose }: { onClose: () => void }) {
         {/* Arrow pointer */}
         <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rotate-45 bg-white dark:bg-slate-900 border-l border-t border-slate-200 dark:border-slate-700 rounded-sm" />
         <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-
           {/* Search row */}
           <div className="px-5 pt-4 pb-3 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3">
             <SearchIcon className="h-4 w-4 text-slate-400 shrink-0" />
@@ -170,12 +190,12 @@ export function PublicNavbar() {
     <header
       className={cn(
         "sticky top-0 z-50 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md transition-all duration-200",
-        scrolled && "shadow-sm border-b border-slate-200/80 dark:border-slate-800/80",
+        scrolled &&
+          "shadow-sm border-b border-slate-200/80 dark:border-slate-800/80",
       )}
     >
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2.5 shrink-0">
             <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center shadow-md">
@@ -188,7 +208,6 @@ export function PublicNavbar() {
 
           {/* Desktop Nav */}
           <div className="hidden lg:flex items-center gap-0.5">
-
             {/* Exams mega menu trigger */}
             <div ref={megaRef} className="relative">
               <button
@@ -204,7 +223,10 @@ export function PublicNavbar() {
                 <GraduationCapIcon className="h-4 w-4" />
                 Exams
                 <ChevronDownIcon
-                  className={cn("h-3.5 w-3.5 transition-transform duration-200", megaOpen && "rotate-180")}
+                  className={cn(
+                    "h-3.5 w-3.5 transition-transform duration-200",
+                    megaOpen && "rotate-180",
+                  )}
                 />
               </button>
               {megaOpen && <ExamMegaMenu onClose={() => setMegaOpen(false)} />}
@@ -237,12 +259,19 @@ export function PublicNavbar() {
           {/* CTAs */}
           <div className="hidden lg:flex items-center gap-2">
             <Link href="/login">
-              <Button variant="ghost" size="sm" className="text-slate-600 dark:text-slate-300 font-medium">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-slate-600 dark:text-slate-300 font-medium"
+              >
                 Log in
               </Button>
             </Link>
             <Link href="/login">
-              <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg px-5 shadow-sm">
+              <Button
+                size="sm"
+                className="bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg px-5 shadow-sm"
+              >
                 Get Started Free
               </Button>
             </Link>
@@ -254,7 +283,11 @@ export function PublicNavbar() {
             className="lg:hidden p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
             onClick={() => setMobileOpen((v) => !v)}
           >
-            {mobileOpen ? <XIcon className="h-5 w-5" /> : <MenuIcon className="h-5 w-5" />}
+            {mobileOpen ? (
+              <XIcon className="h-5 w-5" />
+            ) : (
+              <MenuIcon className="h-5 w-5" />
+            )}
           </button>
         </div>
       </nav>
@@ -263,7 +296,6 @@ export function PublicNavbar() {
       {mobileOpen && (
         <div className="lg:hidden border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950">
           <div className="max-h-[80vh] overflow-y-auto px-4 py-4 space-y-1.5">
-
             {/* Exams accordion */}
             <button
               type="button"
@@ -274,7 +306,12 @@ export function PublicNavbar() {
                 <GraduationCapIcon className="h-4 w-4 text-blue-500" />
                 All Exams
               </span>
-              <ChevronDownIcon className={cn("h-4 w-4 transition-transform", mobileExamsOpen && "rotate-180")} />
+              <ChevronDownIcon
+                className={cn(
+                  "h-4 w-4 transition-transform",
+                  mobileExamsOpen && "rotate-180",
+                )}
+              />
             </button>
 
             {mobileExamsOpen && (
@@ -287,7 +324,9 @@ export function PublicNavbar() {
                   >
                     <span className="text-base">{cat.emoji}</span>
                     <span className="font-medium">{cat.label}</span>
-                    <span className="ml-auto text-xs text-slate-400">{cat.count} tests</span>
+                    <span className="ml-auto text-xs text-slate-400">
+                      {cat.count} tests
+                    </span>
                   </Link>
                 ))}
               </div>
@@ -305,7 +344,9 @@ export function PublicNavbar() {
                   <Icon className="h-4 w-4 text-blue-500" />
                   <div>
                     <p>{link.label}</p>
-                    <p className="text-xs text-slate-400 font-normal">{link.desc}</p>
+                    <p className="text-xs text-slate-400 font-normal">
+                      {link.desc}
+                    </p>
                   </div>
                   <ChevronRightIcon className="h-4 w-4 ml-auto text-slate-400" />
                 </Link>
@@ -315,10 +356,17 @@ export function PublicNavbar() {
             {/* CTAs */}
             <div className="pt-3 flex flex-col gap-2 border-t border-slate-100 dark:border-slate-800">
               <Link href="/login">
-                <Button variant="outline" className="w-full h-11 rounded-xl font-medium">Log in</Button>
+                <Button
+                  variant="outline"
+                  className="w-full h-11 rounded-xl font-medium"
+                >
+                  Log in
+                </Button>
               </Link>
               <Link href="/login">
-                <Button className="w-full h-11 rounded-xl bg-blue-600 text-white font-semibold">Get Started Free</Button>
+                <Button className="w-full h-11 rounded-xl bg-blue-600 text-white font-semibold">
+                  Get Started Free
+                </Button>
               </Link>
             </div>
           </div>

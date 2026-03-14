@@ -11,7 +11,7 @@ export type ErrorHandlerOptions = {
 };
 
 export function useErrorHandler() {
-const [errors, setErrors] = useState<
+  const [errors, setErrors] = useState<
     Array<{ id: string; error: any; type: string }>
   >([]);
 
