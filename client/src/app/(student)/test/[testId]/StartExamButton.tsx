@@ -17,11 +17,12 @@
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2Icon, PlayIcon, AlertCircleIcon } from "lucide-react";
+import { Loader2Icon, PlayIcon, AlertCircleIcon, LockIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { attemptsApi } from "@/api/attempts";
 import { useExamStore } from "@/features/exam/stores/exam-store";
 import { requestExamFullscreen } from "@/features/exam/hooks/use-antichat";
+import { useSubscription } from "@/hooks/use-subscription";
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -29,6 +30,9 @@ interface StartExamButtonProps {
   testId: string;
   testTitle: string;
   durationMins: number;
+  /** Pass premium status from server so we know if we need to check sub */
+  isPremium?: boolean;
+  /** These can still be passed from server (e.g. isUpcoming, isExpired) */
   isDisabled?: boolean;
   disabledReason?: string;
 }
@@ -39,14 +43,26 @@ export function StartExamButton({
   testId,
   testTitle: _testTitle,
   durationMins: _durationMins,
-  isDisabled = false,
-  disabledReason,
+  isPremium = false,
+  isDisabled: isDisabledProp = false,
+  disabledReason: disabledReasonProp,
 }: StartExamButtonProps) {
   const router = useRouter();
   const startExam = useExamStore((s) => s.startExam);
 
+  // ✅ NEW: Client-side subscription check
+  const { isSubscribed, isLoading } = useSubscription();
+
   const [isStarting, setIsStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // ── Derived state ─────────────────────────────────────────────────────────
+  const isPremiumLocked = isPremium && !isSubscribed;
+  const isDisabled = isDisabledProp || isPremiumLocked || isLoading;
+
+  const disabledReason = isPremiumLocked
+    ? "Requires Premium Subscription"
+    : disabledReasonProp;
 
   const handleStart = useCallback(async () => {
     setIsStarting(true);
@@ -73,8 +89,8 @@ export function StartExamButton({
     } catch (err: unknown) {
       const message =
         err !== null && typeof err === "object" && "response" in err
-          ? ((err as { response?: { data?: { message?: string } } }).response
-              ?.data?.message ?? "Failed to start test. Please try again.")
+          ? (err as { response?: { data?: { message?: string } } }).response
+              ?.data?.message ?? "Failed to start test. Please try again."
           : "Failed to start test. Please try again.";
       setError(message);
       setIsStarting(false);

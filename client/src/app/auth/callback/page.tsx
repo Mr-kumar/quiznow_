@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuthStore } from "@/stores/auth-store";
 import { Loader2 } from "lucide-react";
+import api from "@/lib/api";
 
 function CallbackHandler() {
   const router = useRouter();
@@ -12,46 +13,50 @@ function CallbackHandler() {
   const login = useAuthStore((s) => s.login);
 
   useEffect(() => {
-    const token = searchParams.get("token");
-    const expiresInRaw = searchParams.get("expiresIn");
+    const code = searchParams.get("code");
 
-    if (!token) {
+    if (!code) {
       router.replace("/login?error=oauth_failed");
       return;
     }
 
-    try {
-      // Decode JWT payload — base64url → JSON
-      const base64Payload = token
-        .split(".")[1]
-        .replace(/-/g, "+")
-        .replace(/_/g, "/");
+    const exchangeCode = async () => {
+      try {
+        const res = await api.post("/auth/exchange", { code });
+        const { access_token, expiresIn } = res.data;
 
-      const payload = JSON.parse(atob(base64Payload));
+        // Decode JWT payload — base64url → JSON
+        const base64Payload = access_token
+          .split(".")[1]
+          .replace(/-/g, "+")
+          .replace(/_/g, "/");
 
-      const user = {
-        id: payload.sub as string,
-        email: payload.email as string,
-        name: (payload.name ?? payload.email) as string,
-        role: payload.role as "ADMIN" | "STUDENT" | "INSTRUCTOR",
-        image: (payload.image as string) ?? undefined,
-      };
+        const payload = JSON.parse(atob(base64Payload));
 
-      const expiresIn = expiresInRaw ? parseInt(expiresInRaw, 10) : undefined;
+        const user = {
+          id: payload.sub as string,
+          email: payload.email as string,
+          name: (payload.name ?? payload.email) as string,
+          role: payload.role as "ADMIN" | "STUDENT" | "INSTRUCTOR",
+          image: (payload.image as string) ?? undefined,
+        };
 
-      // Stores token in Zustand + localStorage + sets qn_token cookie
-      login(user, token, expiresIn);
+        // Stores token in Zustand + localStorage + sets qn_token cookie
+        login(user, access_token, expiresIn);
 
-      // Same role-based redirect as login-form.tsx
-      if (user.role === "ADMIN") {
-        router.replace("/dashboard/admin");
-      } else {
-        router.replace("/dashboard");
+        // Same role-based redirect as login-form.tsx
+        if (user.role === "ADMIN") {
+          router.replace("/dashboard/admin");
+        } else {
+          router.replace("/dashboard");
+        }
+      } catch (err) {
+        console.error("[auth/callback] Token exchange failed:", err);
+        router.replace("/login?error=token_invalid");
       }
-    } catch (err) {
-      console.error("[auth/callback] Token parse failed:", err);
-      router.replace("/login?error=token_invalid");
-    }
+    };
+
+    exchangeCode();
   }, [searchParams, login, router]);
 
   return null;

@@ -1,64 +1,5 @@
 import api from "@/lib/api";
-import type { ApiResponse, PaginatedResponse } from "@/types/api";
-
-export interface Category {
-  id: string;
-  name: string;
-  parentId?: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-  parent?: Category;
-  children?: Category[];
-}
-
-export interface Exam {
-  id: string;
-  name: string;
-  categoryId: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-  category?: Category;
-}
-
-export interface TestSeries {
-  id: string;
-  title: string;
-  examId: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-  exam?: Exam;
-  examName?: string;
-  description?: string;
-  category?: string;
-  testCount?: number;
-  freeTestCount?: number;
-  isPremium?: boolean;
-  level?: string;
-}
-
-export interface Test {
-  id: string;
-  title: string;
-  // DB column names (what the server actually returns)
-  durationMins: number;
-  totalMarks: number;
-  passMarks: number;
-  positiveMark: number;
-  negativeMark: number;
-  startAt?: string;
-  endAt?: string;
-  isLive: boolean;
-  isPremium: boolean;
-  maxAttempts: number | null;
-  seriesId: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-  series?: TestSeries;
-}
+import type { Category, Exam, TestSeries, Test } from "./test-types";
 
 // DTO field names = what the server's CreateTestDto expects (with forbidNonWhitelisted)
 export interface CreateTestRequest {
@@ -105,6 +46,8 @@ export const adminTestsApi = {
     api.get<Test[]>("/tests", {
       params: { page, limit, search, seriesId },
     }),
+
+  getHierarchy: () => api.get<any>("/tests/hierarchy"),
 
   getById: (id: string) => api.get<Test>(`/tests/${id}`),
 
@@ -155,42 +98,4 @@ export const adminTestSeriesApi = {
   update: (id: string, data: Partial<TestSeries>) =>
     api.patch<TestSeries>(`/test-series/${id}`, data),
   delete: (id: string) => api.delete(`/test-series/${id}`),
-};
-
-// Student Tests API (for students, not admins)
-export const studentTestsApi = {
-  getAll: (
-    page?: number,
-    limit?: number,
-    search?: string,
-    seriesId?: string,
-    categoryId?: string
-  ) =>
-    api.get("/student/tests", {
-      params: { page, limit, search, seriesId, categoryId },
-    }),
-
-  getById: (id: string) => api.get(`/student/tests/${id}`),
-
-  getSections: (id: string) => api.get(`/student/tests/${id}/sections`),
-
-  start: (id: string) => api.post(`/student/tests/${id}/start`),
-};
-
-// Public API (no auth required)
-export const publicApi = {
-  getTestSeries: (params: {
-    examId?: string;
-    category?: string;
-    q?: string;
-    limit?: number;
-  }) => api.get<TestSeries[]>("/public/test-series", { params }),
-
-  getTestSeriesById: (id: string) =>
-    api.get<TestSeries>(`/public/test-series/${id}`),
-
-  getLatestTests: (limit: number = 6) =>
-    api.get<Test[]>("/public/test-series/latest-tests", { params: { limit } }),
-
-  getCategories: () => api.get<Category[]>("/categories/tree"),
 };

@@ -54,7 +54,6 @@ interface PageProps {
 async function getTestData(testId: string): Promise<{
   test: ExamTest;
   sections: ExamSection[];
-  isSubscribed: boolean;
 } | null> {
   try {
     // Read auth token from cookie (set by auth-store on login)
@@ -68,16 +67,12 @@ async function getTestData(testId: string): Promise<{
 
     const apiUrl = process.env.NEXT_PUBLIC_API_URL;
 
-    const [testRes, sectionsRes, subRes] = await Promise.all([
+    const [testRes, sectionsRes] = await Promise.all([
       fetch(`${apiUrl}/student/tests/${testId}`, {
         headers,
         next: { revalidate: 60 }, // cache for 60s — test config rarely changes
       }),
       fetch(`${apiUrl}/student/tests/${testId}/sections`, {
-        headers,
-        next: { revalidate: 60 },
-      }),
-      fetch(`${apiUrl}/users/me/subscription`, {
         headers,
         next: { revalidate: 60 },
       }),
@@ -89,25 +84,14 @@ async function getTestData(testId: string): Promise<{
 
     const testJson = await testRes.json();
     const sectionsJson = sectionsRes.ok ? await sectionsRes.json() : [];
-    const subJson = subRes.ok ? await subRes.json() : null;
+
     // Student API returns { success: true, data: test } structure
     const test: ExamTest = testJson?.data ?? testJson;
     const sections: ExamSection[] = (sectionsJson?.data ?? sectionsJson) || [];
-    // Student API returns { success: true, data: subscription | null } structure for /me/subscription
-    const subscription = subJson?.data;
-
-    // Check if the returned subscription is active and not expired
-    const hasActiveSubscription =
-      subscription &&
-      subscription.status === "ACTIVE" &&
-      new Date(subscription.expiresAt) > new Date();
-
-    const isSubscribed = !!hasActiveSubscription;
 
     return {
       test,
       sections: sections.sort((a, b) => a.order - b.order),
-      isSubscribed,
     };
   } catch (error) {
     console.error("Error in getTestData:", error);
@@ -129,7 +113,10 @@ export async function generateMetadata({
 
   return {
     title: `${data.test.title} — Instructions | QuizNow`,
-    description: `${data.test.durationMins} minutes · ${data.sections.reduce((n, s) => n + s.questions.length, 0)} questions · ${data.test.totalMarks} marks`,
+    description: `${data.test.durationMins} minutes · ${data.sections.reduce(
+      (n, s) => n + s.questions.length,
+      0
+    )} questions · ${data.test.totalMarks} marks`,
     robots: { index: false }, // instructions page is not for public indexing
   };
 }
@@ -165,7 +152,9 @@ function InfoCard({
         </span>
       </div>
       <span
-        className={`text-xl font-bold ${valueColor ?? "text-slate-900 dark:text-slate-100"}`}
+        className={`text-xl font-bold ${
+          valueColor ?? "text-slate-900 dark:text-slate-100"
+        }`}
       >
         {value}
       </span>
@@ -190,7 +179,7 @@ export default async function TestInstructionsPage({ params }: PageProps) {
 
   if (!data) notFound();
 
-  const { test, sections, isSubscribed } = data;
+  const { test, sections } = data;
 
   const totalQuestions = sections.reduce((n, s) => n + s.questions.length, 0);
   const isUpcoming = test.startAt ? new Date(test.startAt) > new Date() : false;
@@ -372,10 +361,14 @@ export default async function TestInstructionsPage({ params }: PageProps) {
           </h2>
           <ul className="space-y-2.5">
             <RuleItem
-              text={`This test contains ${totalQuestions} questions to be answered in ${formatDuration(test.durationMins)}.`}
+              text={`This test contains ${totalQuestions} questions to be answered in ${formatDuration(
+                test.durationMins
+              )}.`}
             />
             <RuleItem
-              text={`Each correct answer carries ${test.positiveMark ?? 4} marks. Each wrong answer deducts ${test.negativeMark} marks.`}
+              text={`Each correct answer carries ${
+                test.positiveMark ?? 4
+              } marks. Each wrong answer deducts ${test.negativeMark} marks.`}
             />
             <RuleItem text="You can navigate freely between sections and questions at any time." />
             <RuleItem text="Use 'Mark for Review' to flag questions you want to revisit before submitting." />
@@ -409,7 +402,6 @@ export default async function TestInstructionsPage({ params }: PageProps) {
         {/* ── Start button (or gates) ──────────────────────────────────────── */}
         <SubscriptionGate
           isPremium={test.isPremium}
-          isSubscribed={isSubscribed}
           variant="replace"
           ctaText="Subscribe to Unlock"
         >
@@ -422,17 +414,14 @@ export default async function TestInstructionsPage({ params }: PageProps) {
               testId={test.id}
               testTitle={test.title}
               durationMins={test.durationMins}
-              isDisabled={
-                (!isSubscribed && test.isPremium) || isUpcoming || isExpired
-              }
+              isPremium={test.isPremium}
+              isDisabled={isUpcoming || isExpired}
               disabledReason={
-                !isSubscribed && test.isPremium
-                  ? "Requires Premium Subscription"
-                  : isExpired
-                    ? "Test Has Ended"
-                    : isUpcoming
-                      ? "Test Starts Soon"
-                      : undefined
+                isExpired
+                  ? "Test Has Ended"
+                  : isUpcoming
+                  ? "Test Starts Soon"
+                  : undefined
               }
             />
           </Suspense>

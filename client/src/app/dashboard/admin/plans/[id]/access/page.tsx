@@ -3,12 +3,8 @@
 import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import { adminPlansApi, type PlanAccess } from "@/api/plans";
-import {
-  adminExamsApi,
-  type Exam,
-  adminTestSeriesApi,
-  type TestSeries,
-} from "@/api/tests";
+import { adminExamsApi, adminTestSeriesApi } from "@/api/admin-tests";
+import type { Exam, TestSeries } from "@/api/test-types";
 import { Button } from "@/components/ui/button";
 import {
   Card,

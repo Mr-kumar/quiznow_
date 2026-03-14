@@ -32,7 +32,7 @@ export function useLogin() {
 
   return useMutation({
     mutationFn: async (
-      credentials: LoginCredentials,
+      credentials: LoginCredentials
     ): Promise<DevLoginResponse> => {
       // Use dev login endpoint
       const response = await api.post<DevLoginResponse>("/auth/dev-login", {
@@ -98,13 +98,13 @@ export function useRefreshToken() {
   return useMutation({
     mutationFn: async () => {
       const response = await api.post<{ token: string; expiresIn: number }>(
-        "/auth/refresh",
+        "/auth/refresh"
       );
       return response.data;
     },
     onSuccess: (data) => {
       // FIXED: actually save the new token to the store.
-      // Previously called refreshToken() which only checked expiry — never persisted new token.
+      // Previously called checkAndExpireToken() which only checked expiry — never persisted new token.
       const { user, login } = useAuthStore.getState();
       if (user) {
         login(user, data.token, data.expiresIn);
@@ -113,7 +113,7 @@ export function useRefreshToken() {
     onError: (error: any) => {
       console.error(
         "Token refresh failed:",
-        error.response?.data || error.message,
+        error.response?.data || error.message
       );
       // Force logout if refresh fails — token is unrecoverable
       useAuthStore.getState().logout();

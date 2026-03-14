@@ -19,17 +19,18 @@
 import React from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { LockIcon, SparklesIcon } from "lucide-react";
+import { LockIcon, SparklesIcon, Loader2Icon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useSubscription } from "@/hooks/use-subscription";
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
 interface SubscriptionGateProps {
   /** True if this content requires a paid subscription */
   isPremium: boolean;
-  /** True if the current user has an active subscription */
-  isSubscribed: boolean;
+  /** True if the current user has an active subscription. If undefined, it will be fetched on the client. */
+  isSubscribed?: boolean;
   children: React.ReactNode;
   /**
    * "overlay" (default) — blurs children and shows lock over them
@@ -95,16 +96,37 @@ function LockOverlayContent({
 
 export function SubscriptionGate({
   isPremium,
-  isSubscribed,
+  isSubscribed: isSubscribedProp,
   children,
   variant = "overlay",
   ctaText = "View Plans",
   plansHref = "/plans",
   className,
 }: SubscriptionGateProps) {
-  // Not gated — render children normally
+  // ✅ NEW: Client-side subscription fetch if not provided as prop
+  const { isSubscribed: isSubscribedHook, isLoading } = useSubscription();
+  const isSubscribed = isSubscribedProp ?? isSubscribedHook;
+
+  // 1. Not gated — render children normally
   if (!isPremium || isSubscribed) {
     return <>{children}</>;
+  }
+
+  // 2. Loading state — show a subtle spinner or placeholder
+  if (isLoading && isSubscribedProp === undefined) {
+    return (
+      <div
+        className={cn(
+          "flex flex-col items-center justify-center p-12 gap-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/50 dark:bg-slate-900/50 animate-pulse",
+          className
+        )}
+      >
+        <Loader2Icon className="h-6 w-6 text-slate-400 animate-spin" />
+        <p className="text-xs text-slate-500 font-medium">
+          Checking subscription...
+        </p>
+      </div>
+    );
   }
 
   // ── Inline variant — just a badge, minimal footprint ───────────────────
@@ -125,7 +147,7 @@ export function SubscriptionGate({
       <div
         className={cn(
           "rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30",
-          className,
+          className
         )}
       >
         <LockOverlayContent ctaText={ctaText} plansHref={plansHref} />

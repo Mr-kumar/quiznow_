@@ -20,7 +20,7 @@ interface AuthState {
 
   login: (user: AuthUser, token: string, expiresIn?: number) => void;
   logout: () => void;
-  refreshToken: () => void;
+  checkAndExpireToken: () => void;
 }
 
 // Helper to set cookie readable by edge middleware
@@ -83,7 +83,7 @@ export const useAuthStore = create<AuthState>()(
         });
       },
 
-      refreshToken: () => {
+      checkAndExpireToken: () => {
         const state = useAuthStore.getState();
         if (
           state.token &&
@@ -126,6 +126,6 @@ export const useAuthStore = create<AuthState>()(
           }
         }
       },
-    },
-  ),
+    }
+  )
 );

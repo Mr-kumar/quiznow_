@@ -21,6 +21,8 @@ import { useExamTimer } from "../hooks/use-exam-timer";
 interface TimerDisplayProps {
   /** Compact mode for mobile header (smaller text, no icon) */
   compact?: boolean;
+  /** Callback for when the timer reaches zero */
+  onExpired?: () => Promise<void> | void;
   className?: string;
 }
 
@@ -28,9 +30,10 @@ interface TimerDisplayProps {
 
 export function TimerDisplay({
   compact = false,
+  onExpired,
   className,
 }: TimerDisplayProps) {
-  const { display, isWarning, isCritical } = useExamTimer();
+  const { display, isWarning, isCritical } = useExamTimer({ onExpired });
 
   return (
     <div

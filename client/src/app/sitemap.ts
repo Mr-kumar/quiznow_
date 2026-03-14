@@ -20,7 +20,7 @@
  */
 
 import type { MetadataRoute } from "next";
-import type { Exam, TestSeries } from "@/api/tests";
+import type { Exam, TestSeries } from "@/api/test-types";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://quiznow.in";
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";

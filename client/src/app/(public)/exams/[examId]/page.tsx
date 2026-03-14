@@ -26,7 +26,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { JsonLd } from "@/components/seo/JsonLd";
-import type { Exam, TestSeries } from "@/api/tests";
+import type { Exam, TestSeries } from "@/api/test-types";
 
 // ── Data fetching ─────────────────────────────────────────────────────────────
 

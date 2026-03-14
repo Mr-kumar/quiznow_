@@ -1,10 +1,10 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import {
   adminQuestionsApi,
-  CursorPaginationParams,
-  CursorPaginationResponse,
-  Question,
-} from "@/lib/admin-api";
+  type CursorPaginationParams,
+  type CursorPaginationResponse,
+  type Question,
+} from "@/api/questions";
 import { useDebounce } from "./use-debounce";
 
 interface UseCursorPaginationOptions {

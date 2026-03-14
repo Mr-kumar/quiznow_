@@ -19,15 +19,8 @@ import api from "@/lib/api";
 import type { ExamTest, ExamSection, ExamQuestion } from "@/types/exam";
 import { useAuthStore } from "@/stores/auth-store";
 import { useLangStore } from "@/stores/language-store";
-import { useEffect } from "react";
-
-// ── Query keys ────────────────────────────────────────────────────────────────
-// Scoped under "exam" so invalidation never touches admin test cache
-
-export const examKeys = {
-  test: (id: string) => ["exam", "test", "v2", id] as const,
-  sections: (id: string) => ["exam", "sections", "v2", id] as const,
-};
+import { useEffect, useMemo } from "react";
+import { examKeys } from "@/api/query-keys";
 
 // ── API calls ─────────────────────────────────────────────────────────────────
 // These are student-facing endpoints (different from admin /tests)
@@ -91,13 +84,16 @@ export function useExamLoader(testId: string | null): ExamLoaderResult {
 
   const sections = sectionsQuery.data ?? [];
 
-  // Build question lookup map for O(1) access by questionId
-  const questionMap = new Map<string, ExamQuestion>();
-  sections.forEach((section) => {
-    section.questions.forEach((q) => {
-      questionMap.set(q.id, q);
+  // ✅ FIXED: Build question lookup map with useMemo to avoid rebuilds on every render
+  const questionMap = useMemo(() => {
+    const map = new Map<string, ExamQuestion>();
+    sections.forEach((section) => {
+      section.questions.forEach((q) => {
+        map.set(q.id, q);
+      });
     });
-  });
+    return map;
+  }, [sections]);
 
   const totalQuestions = questionMap.size;
 
@@ -139,7 +135,7 @@ export function useExamLoader(testId: string | null): ExamLoaderResult {
 export function getQuestion(
   sections: ExamSection[],
   sectionIdx: number,
-  questionIdx: number,
+  questionIdx: number
 ): ExamQuestion | null {
   return sections[sectionIdx]?.questions[questionIdx] ?? null;
 }
@@ -153,7 +149,7 @@ export function getTotalQuestions(sections: ExamSection[]): number {
 export function getFlatQuestionIndex(
   sections: ExamSection[],
   sectionIdx: number,
-  questionIdx: number,
+  questionIdx: number
 ): number {
   const offset = sections
     .slice(0, sectionIdx)

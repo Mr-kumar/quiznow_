@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { adminTestSeriesApi } from "@/lib/admin-api";
+import { adminTestSeriesApi } from "@/api/admin-tests";
 
 export function useHierarchyCounts() {
   return useQuery({

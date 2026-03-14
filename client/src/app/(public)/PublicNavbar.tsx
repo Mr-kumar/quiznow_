@@ -49,7 +49,7 @@ import { useAuthStore } from "@/stores/auth-store";
 import { cn } from "@/lib/utils";
 
 import { EXAM_CATEGORIES } from "@/constants/exams";
-import { publicApi } from "@/api/tests";
+import { publicApi } from "@/api/public";
 import { useQuery } from "@tanstack/react-query";
 import { publicKeys } from "@/api/query-keys";
 

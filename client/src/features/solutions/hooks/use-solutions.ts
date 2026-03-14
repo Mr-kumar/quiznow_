@@ -2,21 +2,16 @@
  * features/solutions/hooks/use-solutions.ts
  *
  * Solutions hook for the features/solutions/ feature folder.
- * Thin wrapper around attemptsApi.getReview() with client-side
- * filtering helpers consumed by SolutionFilter + SolutionQuestion.
+ * COMPOSITION LAYER: Uses the base useSolutions hook from features/results
+ * and adds client-side filtering logic consumed by SolutionFilter + SolutionQuestion.
  *
- * NOTE: This is the hook for the features/solutions/ components.
- * The features/results/hooks/use-solutions.ts is used by the main
- * solutions page (app/(student)/test/[testId]/solutions/page.tsx).
- * Both fetch the same API endpoint but expose different interfaces.
+ * NOTE: This ensures data-fetching and sorting logic is centralized in
+ * features/results/hooks/use-solutions.ts.
  */
 
-import { useQuery } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
-import { attemptsApi } from "@/api/attempts";
-import { useLangStore } from "@/stores/language-store";
-import { attemptKeys } from "@/api/query-keys";
 import type { ReviewQuestion } from "@/api/attempts";
+import { useSolutions } from "@/features/results/hooks/use-solutions";
 
 // ── Filter type ───────────────────────────────────────────────────────────────
 
@@ -29,14 +24,14 @@ export type SolutionFilterType =
 
 export function filterQuestions(
   questions: ReviewQuestion[],
-  filter: SolutionFilterType,
+  filter: SolutionFilterType
 ): ReviewQuestion[] {
   switch (filter) {
     case "correct":
       return questions.filter((q) => q.isCorrect);
     case "wrong":
       return questions.filter(
-        (q) => !q.isCorrect && q.selectedOptionId !== null,
+        (q) => !q.isCorrect && q.selectedOptionId !== null
       );
     case "unattempted":
       return questions.filter((q) => q.selectedOptionId === null);
@@ -77,55 +72,36 @@ export interface UseSolutionsResult {
 // ── Hook ──────────────────────────────────────────────────────────────────────
 
 export function useSolutionsFeature(
-  attemptId: string | null,
+  attemptId: string | null
 ): UseSolutionsResult {
-  const lang = useLangStore((s) => s.lang);
+  const {
+    questions: allQuestions,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useSolutions(attemptId);
+
   const [activeFilter, setFilter] = useState<SolutionFilterType>("all");
-
-  const query = useQuery({
-    queryKey: attemptKeys.review(attemptId ?? "", lang),
-    queryFn: async (): Promise<ReviewQuestion[]> => {
-      const res = await attemptsApi.getReview(attemptId!, lang);
-      const raw =
-        (res.data as { data?: ReviewQuestion[] }).data ??
-        (res.data as ReviewQuestion[]);
-      return [...raw].sort((a, b) =>
-        a.sectionId === b.sectionId
-          ? a.order - b.order
-          : a.sectionId.localeCompare(b.sectionId),
-      );
-    },
-    enabled: !!attemptId,
-    staleTime: Infinity,
-    gcTime: 1000 * 60 * 60,
-    retry: 2,
-  });
-
-  const allQuestions: ReviewQuestion[] = query.data ?? [];
 
   const counts: FilterCounts = useMemo(
     () => ({
       all: allQuestions.length,
       correct: allQuestions.filter((q) => q.isCorrect).length,
       wrong: allQuestions.filter(
-        (q) => !q.isCorrect && q.selectedOptionId !== null,
+        (q) => !q.isCorrect && q.selectedOptionId !== null
       ).length,
       unattempted: allQuestions.filter((q) => q.selectedOptionId === null)
         .length,
       marked: allQuestions.filter((q) => q.isMarked).length,
     }),
-    [allQuestions],
+    [allQuestions]
   );
 
   const filteredQuestions = useMemo(
     () => filterQuestions(allQuestions, activeFilter),
-    [allQuestions, activeFilter],
+    [allQuestions, activeFilter]
   );
-
-  const error = query.isError
-    ? ((query.error as { message?: string })?.message ??
-      "Failed to load solutions.")
-    : null;
 
   return {
     allQuestions,
@@ -133,9 +109,9 @@ export function useSolutionsFeature(
     activeFilter,
     setFilter,
     counts,
-    isLoading: query.isLoading,
-    isError: query.isError,
+    isLoading,
+    isError,
     error,
-    refetch: query.refetch,
+    refetch,
   };
 }

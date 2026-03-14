@@ -49,6 +49,12 @@ export class TestsController {
     return this.testsService.create(createTestDto);
   }
 
+  @Get('hierarchy')
+  @ApiOperation({ summary: 'Get full test hierarchy (Categories -> Exams -> Series -> Tests)' })
+  getHierarchy() {
+    return this.testsService.getHierarchy();
+  }
+
   @Get()
   @ApiOperation({ summary: 'List all Tests' })
   async findAll(

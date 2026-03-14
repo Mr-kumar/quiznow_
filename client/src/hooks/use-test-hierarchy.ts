@@ -1,10 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import {
-  adminCategoriesApi,
-  adminExamsApi,
-  adminTestSeriesApi,
-  adminTestsApi,
-} from "@/lib/admin-api";
+import { adminTestsApi } from "@/api/admin-tests";
 
 export interface HierarchyItem {
   id: string;
@@ -21,11 +16,6 @@ export interface HierarchyItem {
   };
 }
 
-/** Safely extract array from either shape: T[] or { data: T[] } */
-function toArray<T>(res: any): T[] {
-  return Array.isArray(res?.data) ? res.data : (res?.data?.data ?? []);
-}
-
 export function useTestHierarchy() {
   const [hierarchy, setHierarchy] = useState<HierarchyItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -39,72 +29,53 @@ export function useTestHierarchy() {
   const loadHierarchy = useCallback(async () => {
     setError(null);
 
-    const [catResult, examResult, seriesResult, testResult] =
-      await Promise.allSettled([
-        adminCategoriesApi.getAll(),
-        adminExamsApi.getAll(),
-        adminTestSeriesApi.getAll(),
-        adminTestsApi.getAll(),
-      ]);
+    try {
+      const response = await adminTestsApi.getHierarchy();
+      // Handle different response shapes from Axios/Interceptor
+      const data = Array.isArray(response.data)
+        ? response.data
+        : response.data?.data ?? [];
 
-    const categories =
-      catResult.status === "fulfilled" ? toArray<any>(catResult.value) : [];
-    const exams =
-      examResult.status === "fulfilled" ? toArray<any>(examResult.value) : [];
-    const series =
-      seriesResult.status === "fulfilled"
-        ? toArray<any>(seriesResult.value)
-        : [];
-    const tests =
-      testResult.status === "fulfilled" ? toArray<any>(testResult.value) : [];
-
-    if (catResult.status === "rejected") {
-      setError("Failed to load hierarchy — categories unavailable");
-      console.error("Categories fetch error:", catResult.reason);
-    }
-
-    const hierarchyData: HierarchyItem[] = categories.map((category) => ({
-      id: category.id,
-      name: category.name,
-      type: "category" as const,
-      metadata: {
-        isActive: category.isActive,
-        createdAt: category.createdAt,
-      },
-      children: exams
-        .filter((exam) => exam.categoryId === category.id)
-        .map((exam) => ({
+      const hierarchyData: HierarchyItem[] = data.map((category: any) => ({
+        id: category.id,
+        name: category.name,
+        type: "category" as const,
+        metadata: {
+          isActive: category.isActive,
+          createdAt: category.createdAt,
+        },
+        children: (category.exams || []).map((exam: any) => ({
           id: exam.id,
           name: exam.name,
           type: "exam" as const,
           metadata: { isActive: exam.isActive, createdAt: exam.createdAt },
-          children: series
-            .filter((s) => s.examId === exam.id)
-            .map((s) => ({
-              id: s.id,
-              name: s.title,
-              type: "series" as const,
-              metadata: { isActive: s.isActive, createdAt: s.createdAt },
-              children: tests
-                .filter((t) => t.seriesId === s.id)
-                .map((t) => ({
-                  id: t.id,
-                  name: t.title,
-                  type: "test" as const,
-                  metadata: {
-                    isActive: t.isActive,
-                    isLive: t.isLive,
-                    isPremium: t.isPremium,
-                    durationMins: t.durationMins,
-                    totalMarks: t.totalMarks,
-                    createdAt: t.createdAt,
-                  },
-                })),
+          children: (exam.testSeries || []).map((s: any) => ({
+            id: s.id,
+            name: s.title,
+            type: "series" as const,
+            metadata: { isActive: s.isActive, createdAt: s.createdAt },
+            children: (s.tests || []).map((t: any) => ({
+              id: t.id,
+              name: t.title,
+              type: "test" as const,
+              metadata: {
+                isActive: t.isActive,
+                isLive: t.isLive,
+                isPremium: t.isPremium,
+                durationMins: t.durationMins,
+                totalMarks: t.totalMarks,
+                createdAt: t.createdAt,
+              },
             })),
+          })),
         })),
-    }));
+      }));
 
-    setHierarchy(hierarchyData);
+      setHierarchy(hierarchyData);
+    } catch (err) {
+      setError("Failed to load hierarchy from server");
+      console.error("Hierarchy fetch error:", err);
+    }
   }, []);
 
   // Initial load

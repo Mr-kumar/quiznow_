@@ -80,11 +80,8 @@ import {
   adminCategoriesApi,
   adminExamsApi,
   adminTestSeriesApi,
-  type Test,
-  type Category,
-  type Exam,
-  type TestSeries,
-} from "@/lib/admin-api";
+} from "@/api/admin-tests";
+import type { Test, Category, Exam, TestSeries } from "@/api/test-types";
 import { cn } from "@/lib/utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────

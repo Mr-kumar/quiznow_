@@ -1,9 +1,12 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { adminTestsApi } from "@/api/tests";
+import {
+  adminTestsApi,
+  type CreateTestRequest,
+  type UpdateTestRequest,
+} from "@/api/admin-tests";
 import { testKeys } from "@/api/query-keys";
 import { parseApiError } from "@/lib/errors";
-import type { CreateTestRequest, UpdateTestRequest } from "@/api/tests";
 
 export function useCreateTest() {
   const queryClient = useQueryClient();

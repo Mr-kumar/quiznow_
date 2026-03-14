@@ -1,5 +1,6 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { PrismaService } from 'src/services/prisma/prisma.service';
+import { CacheService } from 'src/cache/cache.service';
 import { CreateTestDto } from './dto/create-test.dto';
 import { UpdateTestDto } from './dto/update-test.dto';
 import { TestValidator } from 'src/common/validators/answer.validator';
@@ -13,7 +14,10 @@ import * as XLSX from 'xlsx';
 export class TestsService {
   private readonly logger = new Logger(TestsService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private cacheService: CacheService,
+  ) {}
 
   /**
    * 🚨 LIVE EDIT SHIELD: Prevents editing live tests to protect student sessions
@@ -123,6 +127,51 @@ export class TestsService {
 
     this.logger.log(`Test created: ${test.id}`);
     return test;
+  }
+
+  /**
+   * 🌳 HIERARCHY: Returns a pre-joined tree of Categories -> Exams -> Series -> Tests
+   * This is used by the Admin Dashboard to avoid fetching 1000s of full records
+   * and joining them client-side (performance optimization for #31).
+   */
+  async getHierarchy() {
+    return this.prisma.category.findMany({
+      where: { parentId: null }, // Top-level categories
+      select: {
+        id: true,
+        name: true,
+        isActive: true,
+        createdAt: true,
+        exams: {
+          select: {
+            id: true,
+            name: true,
+            isActive: true,
+            createdAt: true,
+            testSeries: {
+              select: {
+                id: true,
+                title: true,
+                isActive: true,
+                createdAt: true,
+                tests: {
+                  select: {
+                    id: true,
+                    title: true,
+                    isActive: true,
+                    isLive: true,
+                    isPremium: true,
+                    durationMins: true,
+                    totalMarks: true,
+                    createdAt: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
   }
 
   // 2. Find All (Include Series Title)
@@ -632,12 +681,22 @@ export class TestsService {
   }
 
   async getSectionsForStudents(testId: string, userId?: string) {
+    const cacheKey = `test:${testId}:sections`;
+    const cached = await this.cacheService.get<any[]>(cacheKey);
+    if (cached) return cached;
+
     const test = await this.findOneForStudents(testId, userId);
 
     if (!test) {
       return [];
     }
 
-    return this.getSections(testId);
+    const sections = await this.getSections(testId);
+
+    // S-15 fix: Cache sections with TTL: test.durationMins * 60 * 2
+    const ttl = (test.durationMins || 180) * 60 * 2;
+    await this.cacheService.set(cacheKey, sections, ttl);
+
+    return sections;
   }
 }

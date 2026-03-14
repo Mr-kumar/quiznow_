@@ -59,12 +59,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { studentTestsApi, publicApi } from "@/api/tests";
+import { studentTestsApi } from "@/api/student-tests";
+import { publicApi } from "@/api/public";
 import { attemptsApi } from "@/api/attempts";
 import { testKeys, attemptKeys } from "@/api/query-keys";
 import { useDebounce } from "@/hooks/use-debounce";
 import { cn } from "@/lib/utils";
-import type { Test } from "@/api/tests";
+import type { Test } from "@/api/test-types";
 import type { AttemptSummary } from "@/api/attempts";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

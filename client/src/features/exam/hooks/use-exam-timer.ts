@@ -40,9 +40,16 @@ const CRITICAL_MS = 1 * 60 * 1000; // 1 minute
 
 // ── Hook ──────────────────────────────────────────────────────────────────────
 
-export function useExamTimer(): TimerState {
+interface UseExamTimerOptions {
+  /**
+   * Called when time hits 00:00:00.
+   * Should handle full API submission flow.
+   */
+  onExpired?: () => Promise<void> | void;
+}
+
+export function useExamTimer(options?: UseExamTimerOptions): TimerState {
   const endTimestamp = useExamStore(selectTimestamp);
-  const submitExam = useExamStore((s) => s.submitExam);
   const examStatus = useExamStore((s) => s.status);
 
   // Local display state — the ONLY thing that causes re-renders on each tick
@@ -52,13 +59,13 @@ export function useExamTimer(): TimerState {
   // Guard: only auto-submit once, even if interval fires multiple times at ~0
   const hasSubmitted = useRef(false);
 
-  // Stable submit function ref — avoids stale closure in interval
-  const submitRef = useRef(submitExam);
+  // Stable callback ref — avoids stale closure in interval
+  const onExpiredRef = useRef(options?.onExpired);
   useEffect(() => {
-    submitRef.current = submitExam;
-  }, [submitExam]);
+    onExpiredRef.current = options?.onExpired;
+  }, [options?.onExpired]);
 
-  const tick = useCallback(() => {
+  const tick = useCallback(async () => {
     if (!endTimestamp) return;
 
     const remaining = endTimestamp - Date.now();
@@ -70,7 +77,9 @@ export function useExamTimer(): TimerState {
       // Auto-submit once
       if (!hasSubmitted.current && examStatus === "STARTED") {
         hasSubmitted.current = true;
-        submitRef.current();
+        if (onExpiredRef.current) {
+          await onExpiredRef.current();
+        }
       }
       return;
     }

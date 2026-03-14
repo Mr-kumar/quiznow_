@@ -7,6 +7,7 @@ import {
   ValidationException,
 } from 'src/common/exceptions/app.exception';
 import { ForbiddenException } from '@nestjs/common';
+import { CacheService } from 'src/cache/cache.service';
 
 interface StartAttemptRequest {
   testId: string;
@@ -20,7 +21,21 @@ export class AttemptsService {
   constructor(
     private prisma: PrismaService,
     private schedulerService: SchedulerService,
+    private cacheService: CacheService,
   ) {}
+
+  // ─── Helpers ──────────────────────────────────────────────────────────────
+  private async getTestQuestionIds(testId: string): Promise<string[]> {
+    const sections = await this.prisma.section.findMany({
+      where: { testId },
+      include: {
+        questions: {
+          select: { questionId: true },
+        },
+      },
+    });
+    return sections.flatMap((s) => s.questions.map((q) => q.questionId));
+  }
 
   // ─── 1. Start a Test ──────────────────────────────────────────────────────
   async start(dto: StartAttemptRequest) {
@@ -72,10 +87,10 @@ export class AttemptsService {
 
       // Check if the plan unlocks this specific series or its parent exam
       const accesses = activeSub.plan.accesses;
-      
+
       if (accesses.length === 0) {
         this.logger.warn(
-          `User ${user.email} has active plan '${activeSub.plan.name}' but it has NO PlanAccess configurations. Please configure Plan Access in the Admin Dashboard.`
+          `User ${user.email} has active plan '${activeSub.plan.name}' but it has NO PlanAccess configurations. Please configure Plan Access in the Admin Dashboard.`,
         );
       }
 
@@ -92,29 +107,66 @@ export class AttemptsService {
       }
     }
 
-    // FIX #1: Single count() — reuse the result for both the max-attempts
-    // check AND the attemptNumber calculation. Previously there were two
-    // identical prisma.attempt.count() calls with the same where clause.
-    const previousCount = await this.prisma.attempt.count({
-      where: { testId: dto.testId, userId: dto.userId },
-    });
+    // ── Race-condition proof start: read-check-write in a serializable transaction ──
+    try {
+      const attempt = await this.prisma.$transaction(
+        async (tx) => {
+          const previousCount = await tx.attempt.count({
+            where: { testId: dto.testId, userId: dto.userId },
+          });
 
-    if (test.maxAttempts && previousCount >= test.maxAttempts) {
-      throw new ValidationException(
-        `Maximum attempts reached (${test.maxAttempts})`,
-        'MAX_ATTEMPTS_REACHED',
+          if (test.maxAttempts && previousCount >= test.maxAttempts) {
+            throw new ValidationException(
+              `Maximum attempts reached (${test.maxAttempts})`,
+              'MAX_ATTEMPTS_REACHED',
+            );
+          }
+
+          return tx.attempt.create({
+            data: {
+              userId: dto.userId,
+              testId: dto.testId,
+              attemptNumber: previousCount + 1,
+              status: 'STARTED',
+              startTime: new Date(),
+            },
+          });
+        },
+        { isolationLevel: 'Serializable' },
       );
-    }
 
-    return this.prisma.attempt.create({
-      data: {
-        userId: dto.userId,
-        testId: dto.testId,
-        attemptNumber: previousCount + 1,
-        status: 'STARTED',
-        startTime: new Date(),
-      },
-    });
+      // S-8 fix: Cache valid question IDs for this attempt to avoid heavy DB fetches on every answer save
+      const questionIds = await this.getTestQuestionIds(test.id);
+      const ttl = (test.durationMins || 180) * 60; // seconds
+      await this.cacheService.set(
+        `attempt:${attempt.id}:questions`,
+        questionIds,
+        ttl,
+      );
+
+      return attempt;
+    } catch (err: any) {
+      if (err.code === 'P2002') {
+        // Unique constraint violation (race condition)
+        // Return the existing STARTED attempt instead of crashing
+        const existing = await this.prisma.attempt.findFirst({
+          where: { testId: dto.testId, userId: dto.userId, status: 'STARTED' },
+          orderBy: { createdAt: 'desc' },
+        });
+        if (existing) {
+          // Re-populate cache for the existing attempt
+          const questionIds = await this.getTestQuestionIds(test.id);
+          const ttl = (test.durationMins || 180) * 60;
+          await this.cacheService.set(
+            `attempt:${existing.id}:questions`,
+            questionIds,
+            ttl,
+          );
+          return existing;
+        }
+      }
+      throw err;
+    }
   }
 
   // ─── 2. Submit & Score ────────────────────────────────────────────────────
@@ -124,8 +176,22 @@ export class AttemptsService {
     const whereId =
       typeof attemptId === 'string' ? BigInt(attemptId) : attemptId;
     const attempt: any = await this.prisma.attempt.findUnique({
-      where: { id: whereId as any },
-      include: { test: true },
+      where: { id: whereId },
+      include: {
+        test: {
+          include: {
+            sections: {
+              include: {
+                questions: {
+                  include: {
+                    question: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!attempt) {
@@ -134,7 +200,9 @@ export class AttemptsService {
 
     // Ownership check: verify the calling user owns this attempt
     if (userId && attempt.userId !== userId) {
-      throw new ForbiddenException('Access denied — this attempt does not belong to you');
+      throw new ForbiddenException(
+        'Access denied — this attempt does not belong to you',
+      );
     }
 
     if (attempt.status === 'SUBMITTED') {
@@ -170,17 +238,10 @@ export class AttemptsService {
       },
     });
 
-    // Fetch all questions linked to this test (for total count + topic stats)
-    const questions = await this.prisma.question.findMany({
-      where: {
-        sectionLinks: {
-          some: {
-            section: { testId: attempt.testId },
-          },
-        },
-      },
-      select: { id: true, topicId: true },
-    });
+    // Extract all questions from the test structure
+    const questions = attempt.test.sections.flatMap((s: any) =>
+      s.questions.map((sq: any) => sq.question),
+    );
 
     const totalQuestions = questions.length;
 
@@ -193,15 +254,18 @@ export class AttemptsService {
       questionId: string;
       isCorrect: boolean;
       marksAwarded: number;
+      unanswered: boolean;
     }> = [];
 
     for (const ans of savedAnswers) {
-      if (!ans.optionId) {
+      const unanswered = !ans.optionId;
+      if (unanswered) {
         // Unanswered (cleared) — no marks
         scoredAnswers.push({
           questionId: ans.questionId,
           isCorrect: false,
           marksAwarded: 0,
+          unanswered: true,
         });
         continue;
       }
@@ -223,12 +287,15 @@ export class AttemptsService {
         questionId: ans.questionId,
         isCorrect,
         marksAwarded,
+        unanswered: false,
       });
     }
 
     score = Math.max(0, score);
 
-    const answeredCount = savedAnswers.filter((a) => a.optionId !== null).length;
+    const answeredCount = savedAnswers.filter(
+      (a) => a.optionId !== null,
+    ).length;
     const unattemptedCount = totalQuestions - answeredCount;
 
     const totalAttempted = correctCount + wrongCount;
@@ -247,21 +314,52 @@ export class AttemptsService {
 
     try {
       await this.prisma.$transaction(async (tx) => {
-        // A. Update each AttemptAnswer with scoring results
-        for (const scored of scoredAnswers) {
-          await tx.attemptAnswer.update({
-            where: {
-              attemptId_questionId: {
+        // A. Update AttemptAnswers with scoring results (Batch optimized to avoid N+1)
+        const correctIds = scoredAnswers
+          .filter((a) => a.isCorrect)
+          .map((a) => a.questionId);
+        const incorrectIds = scoredAnswers
+          .filter((a) => !a.isCorrect && !a.unanswered)
+          .map((a) => a.questionId);
+        const unansweredIds = scoredAnswers
+          .filter((a) => a.unanswered)
+          .map((a) => a.questionId);
+
+        await Promise.all([
+          correctIds.length > 0 &&
+            tx.attemptAnswer.updateMany({
+              where: {
                 attemptId: whereId as any,
-                questionId: scored.questionId,
+                questionId: { in: correctIds },
               },
-            },
-            data: {
-              isCorrect: scored.isCorrect,
-              marksAwarded: scored.marksAwarded,
-            },
-          });
-        }
+              data: {
+                isCorrect: true,
+                marksAwarded: attempt.test?.positiveMark ?? 1,
+              },
+            }),
+          incorrectIds.length > 0 &&
+            tx.attemptAnswer.updateMany({
+              where: {
+                attemptId: whereId as any,
+                questionId: { in: incorrectIds },
+              },
+              data: {
+                isCorrect: false,
+                marksAwarded: -(attempt.test?.negativeMark ?? 0),
+              },
+            }),
+          unansweredIds.length > 0 &&
+            tx.attemptAnswer.updateMany({
+              where: {
+                attemptId: whereId as any,
+                questionId: { in: unansweredIds },
+              },
+              data: {
+                isCorrect: false,
+                marksAwarded: 0,
+              },
+            }),
+        ]);
 
         // B. Update attempt record
         await tx.attempt.update({
@@ -298,130 +396,150 @@ export class AttemptsService {
           topicGroups.set(topicId, existing);
         }
 
-        for (const [topicId, { correct, wrong }] of topicGroups) {
-          const total = correct + wrong;
-          const topicAccuracy =
-            total > 0 ? Math.round((correct / total) * 100) : 0;
+        // H-2 fix: Batch-fetch all existing stats before the loop to avoid N+1 queries
+        const topicIds = Array.from(topicGroups.keys());
+        const existingStats = await tx.userTopicStat.findMany({
+          where: {
+            userId: attempt.userId,
+            topicId: { in: topicIds },
+          },
+        });
+        const statsMap = new Map(existingStats.map((s) => [s.topicId, s]));
 
-          // H-2 fix: Fetch existing stat to recalculate running accuracy on update
-          const existingStat = await tx.userTopicStat.findUnique({
-            where: {
-              userId_topicId: {
-                userId: attempt.userId,
-                topicId,
-              },
-            },
-          });
+        // Upsert stats in parallel inside the transaction
+        await Promise.all(
+          Array.from(topicGroups.entries()).map(
+            async ([topicId, { correct, wrong }]) => {
+              const existingStat = statsMap.get(topicId);
+              const newCorrect = (existingStat?.correct ?? 0) + correct;
+              const newWrong = (existingStat?.wrong ?? 0) + wrong;
+              const newTotal = newCorrect + newWrong;
+              const updatedAccuracy =
+                newTotal > 0 ? Math.round((newCorrect / newTotal) * 100) : 0;
 
-          const newCorrect = (existingStat?.correct ?? 0) + correct;
-          const newWrong = (existingStat?.wrong ?? 0) + wrong;
-          const newTotal = newCorrect + newWrong;
-          const updatedAccuracy =
-            newTotal > 0 ? Math.round((newCorrect / newTotal) * 100) : 0;
-
-          await tx.userTopicStat.upsert({
-            where: {
-              userId_topicId: {
-                userId: attempt.userId,
-                topicId,
-              },
+              return tx.userTopicStat.upsert({
+                where: {
+                  userId_topicId: {
+                    userId: attempt.userId,
+                    topicId,
+                  },
+                },
+                create: {
+                  userId: attempt.userId,
+                  topicId,
+                  attempts: 1,
+                  correct,
+                  wrong,
+                  accuracy: updatedAccuracy, // Consistent running accuracy
+                },
+                update: {
+                  attempts: { increment: 1 },
+                  correct: { increment: correct },
+                  wrong: { increment: wrong },
+                  accuracy: updatedAccuracy, // Consistent running accuracy
+                },
+              });
             },
-            create: {
-              userId: attempt.userId,
-              topicId,
-              attempts: 1,
-              correct,
-              wrong,
-              accuracy: topicAccuracy,
-            },
-            update: {
-              attempts: { increment: 1 },
-              correct: { increment: correct },
-              wrong: { increment: wrong },
-              accuracy: updatedAccuracy, // H-2 fix: recalculated running accuracy
-            },
-          });
-        }
+          ),
+        );
 
         // H-1 fix: Write LeaderboardEntry inside the submit transaction
-        await tx.leaderboardEntry.upsert({
+        const existingLeaderboardEntry = await (
+          tx.leaderboardEntry as any
+        ).findUnique({
           where: {
             testId_userId: {
               testId: attempt.testId,
               userId: attempt.userId,
             },
           },
-          create: {
-            testId: attempt.testId,
-            userId: attempt.userId,
-            score,
-          },
-          update: {
-            // Keep best score only
-            score: {
-              set: Math.max(score, 0),
-            },
-          },
         });
+
+        if (!existingLeaderboardEntry) {
+          // No previous attempt — create new entry
+          await (tx.leaderboardEntry as any).create({
+            data: {
+              testId: attempt.testId,
+              userId: attempt.userId,
+              score,
+              accuracy,
+              timeTaken,
+            },
+          });
+        } else {
+          // Check if current attempt is better than the best previous one
+          // Primary criteria: Higher Score
+          // Tie-break: Faster timeTaken (lower value)
+          const isHigherScore = score > existingLeaderboardEntry.score;
+          const isSameScoreButFaster =
+            score === existingLeaderboardEntry.score &&
+            timeTaken !== null &&
+            (existingLeaderboardEntry.timeTaken === null ||
+              timeTaken < (existingLeaderboardEntry.timeTaken as number));
+
+          if (isHigherScore || isSameScoreButFaster) {
+            await (tx.leaderboardEntry as any).update({
+              where: { id: existingLeaderboardEntry.id },
+              data: {
+                score,
+                accuracy,
+                timeTaken,
+              },
+            });
+          }
+        }
       });
-    } catch (error) {
-      this.logger.error(`Failed to submit attempt ${attemptId}`, error);
-      throw new ValidationException(
-        'Failed to submit test. Please try again.',
-        'SUBMISSION_FAILED',
+
+      // Clear the cached question IDs after submission
+      await this.cacheService.del(`attempt:${whereId}:questions`);
+
+      this.logger.log(
+        `Attempt ${attemptId} submitted — Score=${score}, Correct=${correctCount}, Wrong=${wrongCount}`,
       );
+
+      // Calculate section results (Now synchronous, no additional DB queries)
+      const sectionResults = this.calculateSectionResults(
+        attempt.test.sections,
+        scoredAnswers,
+        attempt.test.positiveMark,
+      );
+
+      // Get rank from leaderboard
+      const rank = await this.getAttemptRank(attempt.testId, score);
+      const totalAttempts = await this.getTotalAttempts(attempt.testId);
+
+      return {
+        attemptId: String(attemptId),
+        testId: attempt.testId,
+        testTitle: attempt.test.title,
+        status: 'SUBMITTED',
+        score,
+        totalMarks: attempt.test.totalMarks,
+        passMarks: attempt.test.passMarks,
+        passed: score >= (attempt.test.passMarks || 0),
+        correctCount,
+        wrongCount,
+        unattemptedCount,
+        accuracy,
+        timeTaken,
+        sectionResults,
+        rank,
+        totalAttempts,
+        startTime: attempt.createdAt,
+        endTime: new Date(),
+      };
+    } finally {
+      // Any logic that MUST run can go here
     }
-
-    this.logger.log(
-      `Attempt ${attemptId} submitted — Score=${score}, Correct=${correctCount}, Wrong=${wrongCount}`,
-    );
-
-    // Calculate section results
-    const sectionResults = await this.calculateSectionResults(
-      attempt.testId,
-      scoredAnswers,
-    );
-
-    // Get rank from leaderboard
-    const rank = await this.getAttemptRank(attempt.testId, score);
-    const totalAttempts = await this.getTotalAttempts(attempt.testId);
-
-    return {
-      attemptId: String(attemptId),
-      testId: attempt.testId,
-      testTitle: attempt.test.title,
-      status: 'SUBMITTED',
-      score,
-      totalMarks: attempt.test.totalMarks,
-      passMarks: attempt.test.passMarks,
-      passed: score >= (attempt.test.passMarks || 0),
-      correctCount,
-      wrongCount,
-      unattemptedCount,
-      accuracy,
-      timeTaken,
-      sectionResults,
-      rank,
-      totalAttempts,
-      startTime: attempt.createdAt,
-      endTime: new Date(),
-    };
   }
 
   // Helper methods for AttemptResult calculation
   // Field names match client's SectionResult type: attempted, correct, wrong, score, totalMarks
-  private async calculateSectionResults(testId: string, answerData: any[]) {
-    const sections = await this.prisma.section.findMany({
-      where: { testId },
-      include: {
-        questions: {
-          include: {
-            question: true,
-          },
-        },
-      },
-    });
-
+  private calculateSectionResults(
+    sections: any[],
+    answerData: any[],
+    positiveMark: number = 1,
+  ) {
     return sections.map((section) => {
       const sectionAnswers = answerData.filter((a) =>
         section.questions.some((sq) => sq.question.id === a.questionId),
@@ -445,7 +563,7 @@ export class AttemptsService {
         correct,
         wrong,
         score: Math.max(0, sectionScore),
-        totalMarks: totalQuestions, // per-section max
+        totalMarks: totalQuestions * positiveMark, // ✅ FIXED: Use correct max marks
       };
     });
   }
@@ -467,7 +585,8 @@ export class AttemptsService {
   // ─── 3. Get Review / Solutions ────────────────────────────────────────────
   async getReview(attemptId: string | number | bigint, userId?: string) {
     // M-3 fix: Proper BigInt conversion (was passing raw string before)
-    const whereId = typeof attemptId === 'string' ? BigInt(attemptId) : attemptId;
+    const whereId =
+      typeof attemptId === 'string' ? BigInt(attemptId) : attemptId;
 
     const attempt: any = await this.prisma.attempt.findUnique({
       where: { id: whereId },
@@ -483,7 +602,9 @@ export class AttemptsService {
 
     // Ownership check: verify the calling user owns this attempt
     if (userId && attempt.userId !== userId) {
-      throw new ForbiddenException('Access denied — this attempt does not belong to you');
+      throw new ForbiddenException(
+        'Access denied — this attempt does not belong to you',
+      );
     }
     if (attempt.status !== 'SUBMITTED') {
       throw new ValidationException(
@@ -591,13 +712,26 @@ export class AttemptsService {
 
   // ─── 4. Basic result / CRUD ───────────────────────────────────────────────
 
-  async findOne(id: string | number | bigint) {
+  async findOne(id: string | number | bigint, userId?: string) {
     // Convert string id to BigInt
     if (!id || id === 'null' || id === 'undefined') {
       throw new Error('Invalid attempt ID');
     }
 
     const attemptId = typeof id === 'string' ? BigInt(id) : id;
+
+    // S-14 fix: Cache scorecard results (Results are immutable once submitted)
+    const cacheKey = `attempt:${attemptId}:result`;
+    const cachedResult = await this.cacheService.get<any>(cacheKey);
+    if (cachedResult) {
+      // Ownership check for cached data
+      if (userId && cachedResult.userId !== userId) {
+        throw new ForbiddenException(
+          'Access denied — this attempt does not belong to you',
+        );
+      }
+      return cachedResult;
+    }
 
     const attempt = await this.prisma.attempt.findUnique({
       where: { id: attemptId },
@@ -632,6 +766,13 @@ export class AttemptsService {
 
     if (!attempt) {
       return null;
+    }
+
+    // Ownership check: verify the calling user owns this attempt
+    if (userId && attempt.userId !== userId) {
+      throw new ForbiddenException(
+        'Access denied — this attempt does not belong to you',
+      );
     }
 
     // Calculate total questions in test
@@ -695,7 +836,7 @@ export class AttemptsService {
     ).length;
     const unattemptedCount = totalQuestions - attempt.answers.length;
 
-    return {
+    const result = {
       attemptId: String(attempt.id),
       testId: attempt.testId,
       testTitle: attempt.test.title,
@@ -711,7 +852,7 @@ export class AttemptsService {
       accuracy: attempt.accuracy || 0,
       timeTaken,
       sectionResults,
-      rank: await this.getAttemptRank(attempt.testId, attempt.score || 0),
+      rank: 0, // Placeholder, calculated below
       totalAttempts,
       startTime: attempt.createdAt,
       endTime: attempt.endTime,
@@ -724,6 +865,16 @@ export class AttemptsService {
       positiveMark: attempt.test.positiveMark,
       negativeMark: attempt.test.negativeMark,
     };
+
+    // Recalculate rank dynamically if needed
+    result.rank = await this.getAttemptRank(attempt.testId, attempt.score || 0);
+
+    // Cache the result for 24 hours if the test is already submitted
+    if (attempt.status === 'SUBMITTED') {
+      await this.cacheService.set(cacheKey, result, 24 * 60 * 60);
+    }
+
+    return result;
   }
 
   async findAll(page = 1, limit = 20) {
@@ -753,7 +904,10 @@ export class AttemptsService {
 
   // ─── 5. Anti-cheating ───────────────────────────────────────────────────────
 
-  async incrementSuspicious(attemptId: string | number | bigint, userId?: string) {
+  async incrementSuspicious(
+    attemptId: string | number | bigint,
+    userId?: string,
+  ) {
     const id = typeof attemptId === 'string' ? BigInt(attemptId) : attemptId;
 
     // H-5 fix: Verify the attempt belongs to the calling user
@@ -762,7 +916,9 @@ export class AttemptsService {
         where: { id, userId },
       });
       if (!attempt) {
-        throw new ForbiddenException('Access denied — this attempt does not belong to you');
+        throw new ForbiddenException(
+          'Access denied — this attempt does not belong to you',
+        );
       }
     }
 
@@ -787,23 +943,45 @@ export class AttemptsService {
   ) {
     const id = typeof attemptId === 'string' ? BigInt(attemptId) : attemptId;
 
-    // Verify attempt belongs to user
-    const attempt = await this.prisma.attempt.findFirst({
-      where: { id, userId },
-      include: { test: { include: { sections: { include: { questions: true } } } } },
-    });
+    // S-8 fix: Use cache for question validation instead of fetching entire test structure
+    let validQuestionIds: string[] | null = await this.cacheService.get<
+      string[]
+    >(`attempt:${id}:questions`);
 
-    if (!attempt) {
-      throw new Error('Attempt not found or access denied');
+    // Fallback if cache is empty (e.g. server restart mid-exam)
+    if (!validQuestionIds) {
+      const attempt = await this.prisma.attempt.findFirst({
+        where: { id, userId },
+        include: {
+          test: { include: { sections: { include: { questions: true } } } },
+        },
+      });
+
+      if (!attempt) {
+        throw new Error('Attempt not found or access denied');
+      }
+
+      validQuestionIds = attempt.test.sections.flatMap((s: any) =>
+        s.questions.map((sq: any) => sq.questionId),
+      );
+
+      // Re-populate cache for subsequent saves
+      await this.cacheService.set(
+        `attempt:${id}:questions`,
+        validQuestionIds,
+        3600 * 3, // 1 hour default
+      );
+    } else {
+      // Basic ownership check if using cache (faster than include join)
+      const attemptExists = await this.prisma.attempt.count({
+        where: { id, userId },
+      });
+      if (!attemptExists) {
+        throw new ForbiddenException('Access denied');
+      }
     }
 
-    // M-1 fix: Validate questionId belongs to the test
-    const validQuestionIds = new Set(
-      (attempt as any).test.sections.flatMap((s: any) =>
-        s.questions.map((sq: any) => sq.questionId),
-      ),
-    );
-    if (!validQuestionIds.has(questionId)) {
+    if (!validQuestionIds.includes(questionId)) {
       throw new ValidationException(
         'This question does not belong to the test being attempted',
         'INVALID_QUESTION',
@@ -852,13 +1030,50 @@ export class AttemptsService {
   ) {
     const id = typeof attemptId === 'string' ? BigInt(attemptId) : attemptId;
 
-    // Verify attempt belongs to user
-    const attempt = await this.prisma.attempt.findFirst({
-      where: { id, userId },
-    });
+    // S-8 fix: Use cache for question validation instead of fetching entire test structure
+    let validQuestionIds: string[] | null = await this.cacheService.get<
+      string[]
+    >(`attempt:${id}:questions`);
 
-    if (!attempt) {
-      throw new Error('Attempt not found or access denied');
+    // Fallback if cache is empty
+    if (!validQuestionIds) {
+      const attempt = await this.prisma.attempt.findFirst({
+        where: { id, userId },
+        include: {
+          test: { include: { sections: { include: { questions: true } } } },
+        },
+      });
+
+      if (!attempt) {
+        throw new Error('Attempt not found or access denied');
+      }
+
+      validQuestionIds = attempt.test.sections.flatMap((s: any) =>
+        s.questions.map((sq: any) => sq.questionId),
+      );
+
+      await this.cacheService.set(
+        `attempt:${id}:questions`,
+        validQuestionIds,
+        3600 * 3,
+      );
+    } else {
+      const attemptExists = await this.prisma.attempt.count({
+        where: { id, userId },
+      });
+      if (!attemptExists) {
+        throw new ForbiddenException('Access denied');
+      }
+    }
+
+    // Validate all questionIds in batch
+    for (const ans of answers) {
+      if (!validQuestionIds.includes(ans.questionId)) {
+        throw new ValidationException(
+          `Question ${ans.questionId} does not belong to this test`,
+          'INVALID_QUESTION',
+        );
+      }
     }
 
     // ✅ ENHANCED: Log batch operation details
@@ -892,7 +1107,7 @@ export class AttemptsService {
           optionId,
           isMarked: isMarked || false,
         },
-        }),
+      }),
     );
 
     // H-3 fix: Use $transaction instead of Promise.all for atomicity
@@ -951,7 +1166,10 @@ export class AttemptsService {
       });
       return { success: true, message: 'Attempt deleted successfully' };
     } catch (error) {
-       throw new ValidationException('Failed to delete attempt', 'DELETE_FAILED');
+      throw new ValidationException(
+        'Failed to delete attempt',
+        'DELETE_FAILED',
+      );
     }
   }
 }

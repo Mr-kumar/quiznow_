@@ -17,10 +17,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { studentTestsApi } from "@/api/tests";
+import { studentTestsApi } from "@/api/student-tests";
 import { testKeys } from "@/api/query-keys";
 import { useDebounce } from "@/hooks/use-debounce";
-import type { Test } from "@/api/tests";
+import type { Test } from "@/api/test-types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Group {

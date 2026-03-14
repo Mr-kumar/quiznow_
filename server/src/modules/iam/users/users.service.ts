@@ -1,5 +1,10 @@
-import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../../services/prisma/prisma.service';
+import { CacheService } from 'src/cache/cache.service';
 import { User, Role, UserStatus, SubscriptionStatus } from '@prisma/client';
 import { AuditLogsService } from '../../admin/audit-logs/audit-logs.service';
 import { AuditAction } from '../../admin/audit-logs/dto/create-audit-log.dto';
@@ -11,6 +16,7 @@ export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditLogs: AuditLogsService,
+    private readonly cacheService: CacheService,
   ) {}
 
   async findAll(
@@ -141,7 +147,11 @@ export class UsersService {
     return updated;
   }
 
-  async remove(id: string, actorId?: string, actorRole?: string): Promise<User> {
+  async remove(
+    id: string,
+    actorId?: string,
+    actorRole?: string,
+  ): Promise<User> {
     // Check if user exists
     const existingUser = await this.findOne(id);
     if (!existingUser) {
@@ -270,7 +280,11 @@ export class UsersService {
   }
 
   async getMySubscription(userId: string) {
-    return this.prisma.subscription.findFirst({
+    const cacheKey = `user:${userId}:subscription`;
+    const cached = await this.cacheService.get<any>(cacheKey);
+    if (cached) return cached;
+
+    const subscription = await this.prisma.subscription.findFirst({
       where: {
         userId,
         expiresAt: {
@@ -282,6 +296,11 @@ export class UsersService {
       },
       orderBy: { expiresAt: 'desc' },
     });
+
+    // S-15 fix: Cache per userId with TTL: 60s
+    await this.cacheService.set(cacheKey, subscription, 60);
+
+    return subscription;
   }
   // ─── Admin Deep-Dive methods ───────────────────────────────────────────────────
 

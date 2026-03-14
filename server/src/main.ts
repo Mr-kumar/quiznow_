@@ -12,25 +12,15 @@ async function bootstrap() {
   // 🌐 Set Global API Prefix
   app.setGlobalPrefix('api');
 
-  // 🛡️ Rate Limiting Middleware (env-dependent limits)
+  // 🛡️ Rate Limiting Strategy (Per-endpoint limiting to avoid blocking normal exam activity)
   const isProd = process.env.NODE_ENV === 'production';
-  app.use(
-    rateLimit({
-      windowMs: 15 * 60 * 1000, // 15 minutes
-      max: isProd ? 100 : 1000,
-      message:
-        'Too many requests from this IP, please try again after 15 minutes',
-      standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-      legacyHeaders: false, // Disable the `X-RateLimit-*` headers
-    }),
-  );
 
-  // 🛡️ Stricter rate limiting for auth endpoints (C-4 fix: include /api prefix)
+  // 1. 🛡️ Auth endpoints (Strict)
   app.use(
     '/api/auth',
     rateLimit({
       windowMs: 15 * 60 * 1000, // 15 minutes
-      max: 100, // Increased from 10 to 100 for development
+      max: 20, // Strict limit for login/oauth
       message:
         'Too many authentication attempts, please try again after 15 minutes',
       standardHeaders: true,
@@ -38,15 +28,42 @@ async function bootstrap() {
     }),
   );
 
-  // 🛡️ Rate limiting for file uploads
+  // 2. 🛡️ Exam activity (High volume - PATCH /attempts/:id/answers)
   app.use(
-    '/api/questions/upload', // ✅ FIXED: include /api prefix
+    '/api/attempts',
     rateLimit({
-      windowMs: 60 * 60 * 1000, // 1 hour
-      max: 20, // Increased from 5 to 20 for development
-      message: 'Upload limit exceeded. Maximum 20 uploads per hour.',
+      windowMs: 15 * 60 * 1000, // 15 minutes
+      max: 600, // Higher limit to allow saving 100+ answers + navigations
+      message: 'Too many actions in your exam session. Please wait a moment.',
       standardHeaders: true,
       legacyHeaders: false,
+    }),
+  );
+
+  // 3. 🛡️ Admin uploads
+  app.use(
+    '/api/questions/upload',
+    rateLimit({
+      windowMs: 60 * 60 * 1000, // 1 hour
+      max: 10, // Strict limit for heavy processing
+      message: 'Upload limit exceeded. Maximum 10 uploads per hour.',
+      standardHeaders: true,
+      legacyHeaders: false,
+    }),
+  );
+
+  // 4. 🛡️ General API (Fallback for all other routes like /subjects, /categories)
+  app.use(
+    rateLimit({
+      windowMs: 15 * 60 * 1000, // 15 minutes
+      max: isProd ? 1000 : 5000, // Generous limit for browsing
+      message: 'Too many requests, please try again later',
+      standardHeaders: true,
+      legacyHeaders: false,
+      skip: (req: any) =>
+        req.path.startsWith('/api/auth') ||
+        req.path.startsWith('/api/attempts') ||
+        req.path.startsWith('/api/questions/upload'),
     }),
   );
 
@@ -82,7 +99,7 @@ async function bootstrap() {
     .addBearerAuth() // Adds the "Token" button
     .build();
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('docs', app, document);  // C-5 fix: moved from 'api' to 'docs'
+  SwaggerModule.setup('docs', app, document); // C-5 fix: moved from 'api' to 'docs'
 
   // 🚀 Start
   const port = process.env.PORT || 4000;

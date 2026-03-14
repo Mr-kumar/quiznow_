@@ -59,8 +59,8 @@ export class AttemptsController {
 
   @Get(':id/result')
   @ApiOperation({ summary: 'Get the scorecard' })
-  findOne(@Param('id') id: string) {
-    return this.attemptsService.findOne(id);
+  findOne(@Param('id') id: string, @Request() req: any) {
+    return this.attemptsService.findOne(id, req.user.userId);
   }
 
   @Patch(':id/answers')

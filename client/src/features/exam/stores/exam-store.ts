@@ -85,14 +85,14 @@ function writeSession(state: Partial<ExamState>) {
         json.length,
       );
 
-      // Keep only the 50 most recent answers
-      const recentAnswers = Object.fromEntries(
-        Object.entries(snapshot.answers).slice(-50),
+      // ✅ FIXED: Keep all answered, drop only visited-with-no-answer (lowest value data)
+      const compressedAnswers = Object.fromEntries(
+        Object.entries(snapshot.answers).filter(([, a]) => a.optionId !== null),
       );
 
       const compressedSnapshot: SessionSnapshot = {
         ...snapshot,
-        answers: recentAnswers,
+        answers: compressedAnswers,
       };
 
       json = JSON.stringify(compressedSnapshot);

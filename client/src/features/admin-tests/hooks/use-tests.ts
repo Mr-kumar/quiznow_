@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { adminTestsApi } from "@/api/tests";
+import { adminTestsApi } from "@/api/admin-tests";
 import { testKeys } from "@/api/query-keys";
 
 interface UseTestsParams {

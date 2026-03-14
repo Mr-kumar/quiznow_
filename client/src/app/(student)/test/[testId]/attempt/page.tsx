@@ -186,26 +186,22 @@ export default function AttemptPage() {
   // ── Store state ──────────────────────────────────────────────────────────
   const examStatus = useExamStore(selectStatus);
   const attemptId = useExamStore(selectAttemptId);
-  const currentSectionIdx = useExamStore((state) => state.currentSectionIdx);
-  const currentQuestionIdx = useExamStore((state) => state.currentQuestionIdx);
-  const navigation = { currentSectionIdx, currentQuestionIdx };
-  const examStore = useExamStore(); // Get the full store for methods
 
-  // Use store methods directly
-  const restoreFromSession = examStore.restoreFromSession;
-  const storeNavigate = examStore.navigate;
-  const storeSetAnswer = examStore.setAnswer;
-  const submitExam = examStore.submitExam;
-  const startExam = examStore.startExam;
+  const currentSectionIdx = useExamStore((s) => s.currentSectionIdx);
+  const currentQuestionIdx = useExamStore((s) => s.currentQuestionIdx);
+  const restoreFromSession = useExamStore((s) => s.restoreFromSession);
+  const storeNavigate = useExamStore((s) => s.navigate);
+  const storeSetAnswer = useExamStore((s) => s.setAnswer);
+  const submitExam = useExamStore((s) => s.submitExam);
+  const startExam = useExamStore((s) => s.startExam);
+
+  const navigation = { currentSectionIdx, currentQuestionIdx };
 
   // ── UI state ─────────────────────────────────────────────────────────────
-  const uiStore = useUIStore(); // Get the full store for methods
-
-  // Use store methods directly
-  const isPaletteOpen = uiStore.isPaletteOpen;
-  const closePalette = uiStore.closePalette;
-  const showOverlay = uiStore.showLoadingOverlay;
-  const hideOverlay = uiStore.hideLoadingOverlay;
+  const isPaletteOpen = useUIStore((s) => s.isPaletteOpen);
+  const closePalette = useUIStore((s) => s.closePalette);
+  const showOverlay = useUIStore((s) => s.showLoadingOverlay);
+  const hideOverlay = useUIStore((s) => s.hideLoadingOverlay);
 
   // ── Local UI state ────────────────────────────────────────────────────────
   const [isSubmitDialogOpen, setIsSubmitDialogOpen] = useState(false);
@@ -230,7 +226,7 @@ export default function AttemptPage() {
       const question = section?.questions[questionIdx];
       if (!question) {
         console.warn(
-          `Invalid navigation: section ${sectionIdx}, question ${questionIdx}`,
+          `Invalid navigation: section ${sectionIdx}, question ${questionIdx}`
         );
         return;
       }
@@ -242,19 +238,19 @@ export default function AttemptPage() {
         questionIdx,
         question.id,
         sections.length, // ✅ Pass total sections
-        questionsPerSection, // ✅ Pass per-section counts
+        questionsPerSection // ✅ Pass per-section counts
       );
 
       if (!success) {
         console.error(
-          `Navigation rejected by store: section ${sectionIdx}, question ${questionIdx}`,
+          `Navigation rejected by store: section ${sectionIdx}, question ${questionIdx}`
         );
         return;
       }
 
       closePalette(); // Close palette on mobile after navigation
     },
-    [sections, storeNavigate, closePalette],
+    [sections, storeNavigate, closePalette]
   );
 
   // ── Initialise on mount ───────────────────────────────────────────────────
@@ -290,14 +286,14 @@ export default function AttemptPage() {
         if (!newAttemptId) {
           console.error(
             "Failed to extract attempt ID from response:",
-            response,
+            response
           );
           router.replace(`/test/${testId}`);
           return;
         }
 
         // Start exam in store with the attemptId
-        examStore.startExam(String(newAttemptId), testId, test.durationMins);
+        startExam(String(newAttemptId), testId, test.durationMins);
 
         // Navigate to first question
         navigateTo(0, 0);
@@ -318,7 +314,7 @@ export default function AttemptPage() {
     isLoading,
     examStatus,
     restoreFromSession,
-    examStore,
+    startExam,
     navigateTo,
     router,
   ]);
@@ -357,7 +353,7 @@ export default function AttemptPage() {
       // ✅ SYNC: Properly sync with current mark status
       syncAnswer(questionId, optionId, isMarked);
     },
-    [storeSetAnswer, syncAnswer],
+    [storeSetAnswer, syncAnswer]
   );
 
   const handleSubmitConfirm = useCallback(async () => {
@@ -384,7 +380,7 @@ export default function AttemptPage() {
       const allAnswersDrained = await drainAll();
       console.log(
         "[SUBMIT] Step 1: drainAll completed, result:",
-        allAnswersDrained,
+        allAnswersDrained
       );
 
       if (!allAnswersDrained) {
@@ -460,7 +456,7 @@ export default function AttemptPage() {
     (sectionIdx: number, questionIdx: number, _questionId: string) => {
       navigateTo(sectionIdx, questionIdx);
     },
-    [navigateTo],
+    [navigateTo]
   );
 
   // ── Section change handler (from ExamHeader tabs) ─────────────────────────
@@ -468,7 +464,7 @@ export default function AttemptPage() {
     (sectionIdx: number, questionIdx: number) => {
       navigateTo(sectionIdx, questionIdx);
     },
-    [navigateTo],
+    [navigateTo]
   );
 
   // ── Render: Not initialised yet ───────────────────────────────────────────
@@ -507,7 +503,7 @@ export default function AttemptPage() {
   const currentQuestion = getQuestion(
     sections,
     currentSectionIdx,
-    currentQuestionIdx,
+    currentQuestionIdx
   );
 
   const totalQuestions = sections.reduce((n, s) => n + s.questions.length, 0);
@@ -563,6 +559,7 @@ export default function AttemptPage() {
           onSubmitClick={() => {
             setIsSubmitDialogOpen(true);
           }}
+          onTimerExpired={handleSubmitConfirm}
         />
 
         {/* ── Main body ─────────────────────────────────────────────────── */}

@@ -351,6 +351,7 @@ model AttemptAnswer {
   @@id([attemptId, questionId])
   @@index([questionId])
   @@index([optionId])
+  @@index([attemptId])
 }
 
 model LeaderboardEntry {
@@ -358,13 +359,15 @@ model LeaderboardEntry {
   testId    String
   userId    String
   score     Float
+  accuracy  Float?   // Added for performance (avoid joins)
+  timeTaken Int?     // Added for performance (avoid joins)
   createdAt DateTime @default(now())
 
   test Test @relation(fields: [testId], references: [id], onDelete: Restrict)
   user User @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   @@unique([testId, userId])
-  @@index([testId, score(sort: Desc)])
+  @@index([testId, score(sort: Desc), timeTaken(sort: Asc)])
 }
 
 model UserTopicStat {
@@ -425,6 +428,8 @@ model Plan {
 model PlanAccess {
   id       String  @id @default(cuid())
   planId   String
+  // XOR constraint: exactly one of examId or seriesId must be set
+  // Enforced via raw SQL migration: planaccess_exactly_one
   examId   String?
   seriesId String?
 

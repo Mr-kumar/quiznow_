@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { adminQuestionsApi, adminTopicsApi, type Topic } from "@/lib/admin-api";
+import { adminQuestionsApi } from "@/api/questions";
+import { adminTopicsApi, type Topic } from "@/api/subjects";
 import api from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -74,7 +75,7 @@ export default function BulkQuestionUpload({
       }
     };
     loadTopics();
-  }, [toast]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Validate (dry run — no DB writes) ─────────────────────────────────────
   // ✅ FIX: Previously called adminQuestionsApi.bulkUpload(), which performed the
@@ -95,7 +96,7 @@ export default function BulkQuestionUpload({
       const response = await api.post(
         "/questions/validate-bulk-file",
         formData,
-        { headers: { "Content-Type": "multipart/form-data" } },
+        { headers: { "Content-Type": "multipart/form-data" } }
       );
 
       setValidation({
@@ -105,7 +106,9 @@ export default function BulkQuestionUpload({
       setShowValidation(true);
 
       toast("Validation Complete", {
-        description: `${response.data.validCount ?? 0} valid rows, ${response.data.errors?.length ?? 0} errors`,
+        description: `${response.data.validCount ?? 0} valid rows, ${
+          response.data.errors?.length ?? 0
+        } errors`,
       });
     } catch (error: any) {
       handleError(error, { showToast: true });
@@ -137,7 +140,7 @@ export default function BulkQuestionUpload({
       const response = await adminQuestionsApi.bulkUpload(
         file,
         sectionId,
-        selectedTopicId || undefined,
+        selectedTopicId || undefined
       );
       toast("Import Successful", {
         description: `${response.data.count} questions uploaded successfully`,

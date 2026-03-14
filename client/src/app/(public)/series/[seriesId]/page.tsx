@@ -29,7 +29,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import type { Test, TestSeries } from "@/api/tests";
+import type { Test, TestSeries } from "@/api/test-types";
 
 // ── Data fetching ─────────────────────────────────────────────────────────────
 

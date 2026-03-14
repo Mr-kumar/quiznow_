@@ -30,7 +30,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { EXAM_CATEGORIES as CATEGORIES } from "@/constants/exams";
-import { publicApi } from "@/api/tests";
+import { publicApi } from "@/api/public";
 import { publicKeys } from "@/api/query-keys";
 import { Skeleton } from "@/components/ui/skeleton";
 

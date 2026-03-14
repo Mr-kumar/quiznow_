@@ -19,7 +19,7 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { publicApi } from "@/api/tests";
+import { publicApi } from "@/api/public";
 import { publicKeys } from "@/api/query-keys";
 
 export function LatestTestsSection() {

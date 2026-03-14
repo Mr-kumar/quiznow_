@@ -43,7 +43,8 @@ import {
 } from "@/components/ui/card";
 import { ExamSearchBar } from "@/app/(public)/exams/ExamSearchBar";
 import { EXAM_CATEGORIES as CATEGORIES } from "@/constants/exams";
-import { publicApi, type TestSeries } from "@/api/tests";
+import { publicApi } from "@/api/public";
+import type { TestSeries } from "@/api/test-types";
 
 // ── Metadata ──────────────────────────────────────────────────────────────────
 

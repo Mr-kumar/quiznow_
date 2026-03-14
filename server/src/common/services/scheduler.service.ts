@@ -24,6 +24,8 @@ export class SchedulerService {
       // M-2 fix: Use test.durationMins instead of flat 24-hour cutoff.
       // Prisma updateMany doesn't support relation-based filters,
       // so we use raw SQL to join Attempt with Test.
+      // ✅ ADD GRACE PERIOD: Allow 2 minutes extra before cron auto-expires attempts
+      // This protects students whose network might be slow during submission
       const result = await this.prisma.$executeRaw`
         UPDATE "Attempt" a
         SET "status" = 'EXPIRED'::"Status",
@@ -31,7 +33,7 @@ export class SchedulerService {
         FROM "Test" t
         WHERE a."testId" = t."id"
           AND a."status" = 'STARTED'
-          AND a."startTime" + (t."durationMins" * INTERVAL '1 minute') < NOW()
+          AND a."startTime" + ((t."durationMins" + 2) * INTERVAL '1 minute') < NOW()
       `;
 
       if (result > 0) {
@@ -133,6 +135,8 @@ export class SchedulerService {
     const elapsedMinutes =
       (now.getTime() - attempt.startTime.getTime()) / (1000 * 60);
 
-    return elapsedMinutes > attempt.test.durationMins;
+    // ✅ ADD GRACE PERIOD: Allow 1 minute extra for network lag/submission latency
+    const gracePeriodMinutes = 1;
+    return elapsedMinutes > attempt.test.durationMins + gracePeriodMinutes;
   }
 }

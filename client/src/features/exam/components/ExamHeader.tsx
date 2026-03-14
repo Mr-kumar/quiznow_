@@ -34,6 +34,8 @@ interface ExamHeaderProps {
   currentSectionIdx: number;
   onSectionChange: (sectionIdx: number, questionIdx: number) => void;
   onSubmitClick: () => void;
+  /** Called when timer hits 00:00:00 */
+  onTimerExpired?: () => Promise<void> | void;
   className?: string;
 }
 
@@ -45,6 +47,7 @@ function ExamHeaderInner({
   currentSectionIdx,
   onSectionChange,
   onSubmitClick,
+  onTimerExpired,
   className,
 }: ExamHeaderProps) {
   const togglePalette = useUIStore((s) => s.togglePalette);
@@ -55,7 +58,7 @@ function ExamHeaderInner({
         "sticky top-0 z-50 w-full bg-white dark:bg-slate-900",
         "border-b border-slate-200 dark:border-slate-700",
         "shadow-sm",
-        className,
+        className
       )}
     >
       {/* ── Top row ──────────────────────────────────────────────────────── */}
@@ -90,7 +93,7 @@ function ExamHeaderInner({
 
           {/* Timer */}
           <div className="px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-800">
-            <TimerDisplay />
+            <TimerDisplay onExpired={onTimerExpired} />
           </div>
 
           {/* Palette toggle — mobile only */}

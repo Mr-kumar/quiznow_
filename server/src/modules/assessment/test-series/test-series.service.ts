@@ -5,12 +5,16 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from 'src/services/prisma/prisma.service';
+import { CacheService } from 'src/cache/cache.service';
 import { CreateTestSeryDto } from './dto/create-test-sery.dto';
 import { UpdateTestSeryDto } from './dto/update-test-sery.dto';
 
 @Injectable()
 export class TestSeriesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private cacheService: CacheService,
+  ) {}
 
   // 1. Create
   async create(dto: CreateTestSeryDto) {
@@ -101,6 +105,12 @@ export class TestSeriesService {
     q?: string,
     limit?: number,
   ) {
+    const cacheKey = `public:test-series:e${examId || 'all'}:c${
+      category || 'all'
+    }:q${q || 'none'}:l${limit || 'all'}`;
+    const cached = await this.cacheService.get<any[]>(cacheKey);
+    if (cached) return cached;
+
     const where: any = {
       isActive: true, // Only show active series
       tests: {
@@ -147,7 +157,7 @@ export class TestSeriesService {
     });
 
     // Transform to match frontend expectations
-    return series.map((s) => ({
+    const result = series.map((s) => ({
       id: s.id,
       title: s.title,
       examName: s.exam?.name || '',
@@ -159,6 +169,11 @@ export class TestSeriesService {
       level: 'BEGINNER' as const, // Default level - you can make this dynamic based on test count or other criteria
       createdAt: s.createdAt,
     }));
+
+    // S-15 fix: Cache with TTL: 300s
+    await this.cacheService.set(cacheKey, result, 300);
+
+    return result;
   }
 
   // 7. Public Find One (for public series page)
