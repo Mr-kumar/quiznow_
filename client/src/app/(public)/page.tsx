@@ -45,6 +45,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HeroSearch } from "./HeroSearch";
 import { AnimatedFeatures } from "./AnimatedFeatures";
+import { AnimatedStatBlock } from "./AnimatedStatBlock";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Sub-components
@@ -85,24 +86,6 @@ function ExamCategoryCard({
   );
 }
 
-function StatBlock({
-  number,
-  label,
-  accent,
-}: {
-  number: string;
-  label: string;
-  accent?: string;
-}) {
-  return (
-    <div className="text-center group">
-      <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-linear-to-br from-purple-500 to-blue-600 text-white mb-4 group-hover:scale-110 transition-transform duration-300">
-        <span className="text-2xl font-bold tabular-nums">{number}</span>
-      </div>
-      <p className="text-sm font-medium text-muted-foreground">{label}</p>
-    </div>
-  );
-}
 
 function Testimonial({
   quote,
@@ -277,7 +260,7 @@ export default function PublicLandingPage() {
       </section>
 
       {/* ── STATS ─────────────────────────────────────────────────────────── */}
-      <section className="relative py-20 bg-muted/30">
+      <section className="relative py-16 md:py-20 bg-muted/30">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-foreground mb-4">
@@ -288,16 +271,16 @@ export default function PublicLandingPage() {
             </p>
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
-            <StatBlock number="2M+" label="Registered Students" />
-            <StatBlock number="50K+" label="Tests Available" />
-            <StatBlock number="98%" label="Selection Rate" />
-            <StatBlock number="4.9★" label="App Rating" />
+            <AnimatedStatBlock number={2} suffix="M+" label="Registered Students" />
+            <AnimatedStatBlock number={50} suffix="K+" label="Tests Available" />
+            <AnimatedStatBlock number={98} suffix="%" label="Selection Rate" />
+            <AnimatedStatBlock number={5} suffix="★" label="App Rating" />
           </div>
         </div>
       </section>
 
       {/* ── FEATURES ──────────────────────────────────────────────────────── */}
-      <section className="py-24 bg-background">
+      <section className="py-16 md:py-24 bg-background">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <Badge
@@ -368,7 +351,7 @@ export default function PublicLandingPage() {
       </section>
 
       {/* ── EXAM CATEGORIES ───────────────────────────────────────────────── */}
-      <section className="py-24 bg-muted/30">
+      <section className="py-16 md:py-24 bg-muted/30">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <Badge
@@ -439,7 +422,7 @@ export default function PublicLandingPage() {
       </section>
 
       {/* ── HOW IT WORKS ──────────────────────────────────────────────────── */}
-      <section className="py-24 bg-background">
+      <section className="py-16 md:py-24 bg-background">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <Badge
@@ -506,7 +489,7 @@ export default function PublicLandingPage() {
       </section>
 
       {/* ── TESTIMONIALS ───────────────────────────────────────────────────── */}
-      <section className="py-24 bg-muted/30">
+      <section className="py-16 md:py-24 bg-muted/30">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <Badge
@@ -592,7 +575,7 @@ export default function PublicLandingPage() {
       </section>
 
       {/* ── FINAL CTA ─────────────────────────────────────────────────────── */}
-      <section className="py-24 bg-background">
+      <section className="py-16 md:py-24 bg-background">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <Card className="border-0 bg-linear-to-br from-primary/5 to-primary/10">
             <CardContent className="p-12">
@@ -612,14 +595,18 @@ export default function PublicLandingPage() {
                   exam preparation platform
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
-                  <Button size="lg" className="gap-2 px-8">
-                    <PlayCircleIcon className="h-5 w-5" />
-                    Start Practicing
-                  </Button>
-                  <Button size="lg" variant="outline" className="gap-2 px-8">
-                    <BookOpenIcon className="h-5 w-5" />
-                    Browse Tests
-                  </Button>
+                  <Link href="/login">
+                    <Button size="lg" className="w-full sm:w-auto gap-2 px-8">
+                      <PlayCircleIcon className="h-5 w-5" />
+                      Start Practicing
+                    </Button>
+                  </Link>
+                  <Link href="/login">
+                    <Button size="lg" variant="outline" className="w-full sm:w-auto gap-2 px-8">
+                      <BookOpenIcon className="h-5 w-5" />
+                      Browse Tests
+                    </Button>
+                  </Link>
                 </div>
                 <div className="flex items-center justify-center gap-8 pt-6 text-sm text-muted-foreground">
                   {[

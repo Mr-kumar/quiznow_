@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ArrowLeft, Shield, Trash2, BookOpen, Layers } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 import {
   Select,
   SelectContent,
@@ -31,9 +31,7 @@ export default function PlanAccessPage({
   const resolvedParams = use(params);
   const planId = resolvedParams.id;
   const router = useRouter();
-  const { toast } = useToast();
-
-  const [isLoading, setIsLoading] = useState(true);
+const [isLoading, setIsLoading] = useState(true);
   const [accesses, setAccesses] = useState<PlanAccess[]>([]);
   const [exams, setExams] = useState<Exam[]>([]);
   const [series, setSeries] = useState<TestSeries[]>([]);
@@ -47,11 +45,7 @@ export default function PlanAccessPage({
       const data = await adminPlansApi.getAccesses(planId);
       setAccesses(data);
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to load plan access rules",
-        variant: "destructive",
-      });
+      toast.error("Error", { description: "Failed to load plan access rules" });
     }
   };
 
@@ -70,11 +64,7 @@ export default function PlanAccessPage({
         setExams(examsData.data);
         setSeries(seriesData.data);
       } catch (error) {
-        toast({
-          title: "Error fetching data",
-          description: "Could not load exams or series.",
-          variant: "destructive",
-        });
+        toast.error("Error fetching data", { description: "Could not load exams or series." });
       } finally {
         setIsLoading(false);
       }
@@ -85,19 +75,11 @@ export default function PlanAccessPage({
 
   const handleAddAccess = async () => {
     if (selectedExamId === "none" && selectedSeriesId === "none") {
-      return toast({
-        title: "Validation Error",
-        description: "Please select either an Exam or a Series to unlock.",
-        variant: "destructive",
-      });
+      return toast.error("Validation Error", { description: "Please select either an Exam or a Series to unlock." });
     }
 
     if (selectedExamId !== "none" && selectedSeriesId !== "none") {
-      return toast({
-        title: "Validation Error",
-        description: "Cannot select both Exam and Series in the same rule.",
-        variant: "destructive",
-      });
+      return toast.error("Validation Error", { description: "Cannot select both Exam and Series in the same rule." });
     }
 
     setIsAdding(true);
@@ -107,20 +89,13 @@ export default function PlanAccessPage({
         seriesId: selectedSeriesId !== "none" ? selectedSeriesId : undefined,
       });
       
-      toast({
-        title: "Access Rule Added",
-        description: "The selected content is now unlocked by this plan.",
-      });
+      toast("Access Rule Added", { description: "The selected content is now unlocked by this plan." });
       
       setSelectedExamId("none");
       setSelectedSeriesId("none");
       await fetchAccesses();
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.response?.data?.message || "Failed to add rule",
-        variant: "destructive",
-      });
+      toast.error("Error", { description: error.response?.data?.message || "Failed to add rule" });
     } finally {
       setIsAdding(false);
     }
@@ -131,17 +106,10 @@ export default function PlanAccessPage({
     
     try {
       await adminPlansApi.removeAccess(planId, accessId);
-      toast({
-        title: "Removed",
-        description: "The access rule has been removed.",
-      });
+      toast("Removed", { description: "The access rule has been removed." });
       await fetchAccesses();
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to remove the access rule.",
-        variant: "destructive",
-      });
+      toast.error("Error", { description: "Failed to remove the access rule." });
     }
   };
 

@@ -8,6 +8,7 @@ import {
   Delete,
   Query,
   UseGuards,
+  Req as Request,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { SubscriptionsService } from './subscriptions.service';
@@ -28,8 +29,15 @@ export class SubscriptionsController {
   constructor(private subscriptionsService: SubscriptionsService) {}
 
   @Post()
-  create(@Body() createSubscriptionDto: CreateSubscriptionDto) {
-    return this.subscriptionsService.create(createSubscriptionDto);
+  create(
+    @Body() createSubscriptionDto: CreateSubscriptionDto,
+    @Request() req: any,
+  ) {
+    return this.subscriptionsService.create(
+      createSubscriptionDto,
+      req.user?.userId,
+      req.user?.role,
+    );
   }
 
   @Get()
@@ -56,12 +64,22 @@ export class SubscriptionsController {
   update(
     @Param('id') id: string,
     @Body() updateSubscriptionDto: UpdateSubscriptionDto,
+    @Request() req: any,
   ) {
-    return this.subscriptionsService.update(id, updateSubscriptionDto);
+    return this.subscriptionsService.update(
+      id,
+      updateSubscriptionDto,
+      req.user?.userId,
+      req.user?.role,
+    );
   }
 
   @Delete(':id/cancel')
-  cancelWithRefundNote(@Param('id') id: string) {
-    return this.subscriptionsService.cancelWithRefundNote(id);
+  cancelWithRefundNote(@Param('id') id: string, @Request() req: any) {
+    return this.subscriptionsService.cancelWithRefundNote(
+      id,
+      req.user?.userId,
+      req.user?.role,
+    );
   }
 }

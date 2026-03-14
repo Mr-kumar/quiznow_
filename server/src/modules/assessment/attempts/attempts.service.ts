@@ -72,8 +72,17 @@ export class AttemptsService {
 
       // Check if the plan unlocks this specific series or its parent exam
       const accesses = activeSub.plan.accesses;
+      
+      if (accesses.length === 0) {
+        this.logger.warn(
+          `User ${user.email} has active plan '${activeSub.plan.name}' but it has NO PlanAccess configurations. Please configure Plan Access in the Admin Dashboard.`
+        );
+      }
+
       const hasAccess = accesses.some(
-        (a) => a.seriesId === test.seriesId || a.examId === test.series.examId,
+        (a) =>
+          (a.seriesId && a.seriesId === test.seriesId) ||
+          (a.examId && test.series?.examId && a.examId === test.series.examId),
       );
 
       if (!hasAccess) {

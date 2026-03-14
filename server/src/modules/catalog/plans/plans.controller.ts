@@ -8,6 +8,7 @@ import {
   Delete,
   Query,
   UseGuards,
+  Req as Request,
 } from '@nestjs/common';
 import { PlansService } from './plans.service';
 import { CreatePlanDto } from './dto/create-plan.dto';
@@ -28,8 +29,12 @@ export class PlansController {
   constructor(private plansService: PlansService) {}
 
   @Post()
-  create(@Body() createPlanDto: CreatePlanDto) {
-    return this.plansService.create(createPlanDto);
+  create(@Body() createPlanDto: CreatePlanDto, @Request() req: any) {
+    return this.plansService.create(
+      createPlanDto,
+      req.user?.userId,
+      req.user?.role,
+    );
   }
 
   @Get()
@@ -51,23 +56,48 @@ export class PlansController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updatePlanDto: UpdatePlanDto) {
-    return this.plansService.update(id, updatePlanDto);
+  update(
+    @Param('id') id: string,
+    @Body() updatePlanDto: UpdatePlanDto,
+    @Request() req: any,
+  ) {
+    return this.plansService.update(
+      id,
+      updatePlanDto,
+      req.user?.userId,
+      req.user?.role,
+    );
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.plansService.delete(id);
+  remove(@Param('id') id: string, @Request() req: any) {
+    return this.plansService.delete(id, req.user?.userId, req.user?.role);
   }
 
   @Post(':id/access')
-  addAccess(@Param('id') id: string, @Body() dto: AddPlanAccessDto) {
-    return this.plansService.addAccess(id, dto);
+  addAccess(
+    @Param('id') id: string,
+    @Body() dto: AddPlanAccessDto,
+    @Request() req: any,
+  ) {
+    return this.plansService.addAccess(
+      id,
+      dto,
+      req.user?.userId,
+      req.user?.role,
+    );
   }
 
   @Delete(':id/access/:accessId')
-  removeAccess(@Param('accessId') accessId: string) {
-    return this.plansService.removeAccess(accessId);
+  removeAccess(
+    @Param('accessId') accessId: string,
+    @Request() req: any,
+  ) {
+    return this.plansService.removeAccess(
+      accessId,
+      req.user?.userId,
+      req.user?.role,
+    );
   }
 
   @Get(':id/access')

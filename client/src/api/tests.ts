@@ -52,6 +52,7 @@ export interface Test {
   endAt?: string;
   isLive: boolean;
   isPremium: boolean;
+  maxAttempts: number | null;
   seriesId: string;
   isActive: boolean;
   createdAt: string;
@@ -91,8 +92,9 @@ export interface UpdateTestRequest {
   duration?: number;
   totalMarks?: number;
   passingMarks?: number;
-  positiveMark?: number; // Fixed: use correct DTO field name
-  negativeMarking?: number; // Keep: matches DTO field name
+  positiveMark?: number;
+  negativeMarking?: number;
+  maxAttempts?: number;
   startAt?: string;
   endAt?: string;
 }

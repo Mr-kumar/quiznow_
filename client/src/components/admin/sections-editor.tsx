@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,8 +49,7 @@ interface SectionsEditorProps {
 }
 
 export function SectionsEditor({ testId, testTitle }: SectionsEditorProps) {
-  const { toast } = useToast();
-  const [sections, setSections] = useState<Section[]>([]);
+const [sections, setSections] = useState<Section[]>([]);
   const [loading, setLoading] = useState(false);
 
   // Create dialog
@@ -77,11 +76,7 @@ export function SectionsEditor({ testId, testTitle }: SectionsEditorProps) {
       const filtered = (all as Section[]).filter((s) => s.testId === testId);
       setSections(filtered.sort((a, b) => a.order - b.order));
     } catch (error: any) {
-      toast({
-        title: "Failed to load sections",
-        description: error?.response?.data?.message ?? "Please try again.",
-        variant: "destructive",
-      });
+      toast.error("Failed to load sections", { description: error?.response?.data?.message ?? "Please try again." });
     } finally {
       setLoading(false);
     }
@@ -102,17 +97,13 @@ export function SectionsEditor({ testId, testTitle }: SectionsEditorProps) {
         order: sections.length + 1,
         durationMins: newDuration === "" ? undefined : Number(newDuration),
       });
-      toast({ title: `Section "${newName}" created` });
+      toast(`Section "${newName}" created`);
       setIsCreateOpen(false);
       setNewName("");
       setNewDuration("");
       await loadSections();
     } catch (error: any) {
-      toast({
-        title: "Failed to create section",
-        description: error?.response?.data?.message ?? "Please try again.",
-        variant: "destructive",
-      });
+      toast.error("Failed to create section", { description: error?.response?.data?.message ?? "Please try again." });
     } finally {
       setCreating(false);
     }
@@ -134,15 +125,11 @@ export function SectionsEditor({ testId, testTitle }: SectionsEditorProps) {
         name: editName.trim(),
         durationMins: editDuration === "" ? undefined : Number(editDuration),
       });
-      toast({ title: `Section "${editName}" updated` });
+      toast(`Section "${editName}" updated`);
       setEditingSection(null);
       await loadSections();
     } catch (error: any) {
-      toast({
-        title: "Failed to update section",
-        description: error?.response?.data?.message ?? "Please try again.",
-        variant: "destructive",
-      });
+      toast.error("Failed to update section", { description: error?.response?.data?.message ?? "Please try again." });
     } finally {
       setUpdating(false);
     }
@@ -153,15 +140,11 @@ export function SectionsEditor({ testId, testTitle }: SectionsEditorProps) {
     setDeleting(true);
     try {
       await api.delete(`/sections/${deleteSection.id}`);
-      toast({ title: `Section "${deleteSection.name}" removed` });
+      toast(`Section "${deleteSection.name}" removed`);
       setDeleteSection(null);
       await loadSections();
     } catch (error: any) {
-      toast({
-        title: "Failed to delete section",
-        description: error?.response?.data?.message ?? "Please try again.",
-        variant: "destructive",
-      });
+      toast.error("Failed to delete section", { description: error?.response?.data?.message ?? "Please try again." });
     } finally {
       setDeleting(false);
     }

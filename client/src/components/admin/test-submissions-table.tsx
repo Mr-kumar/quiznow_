@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 import { adminAttemptsApi } from "@/api/attempts";
 import {
   Table,
@@ -49,8 +49,7 @@ interface SubmissionsTableProps {
 }
 
 export function TestSubmissionsTable({ testId }: SubmissionsTableProps) {
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
+const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
@@ -63,15 +62,11 @@ export function TestSubmissionsTable({ testId }: SubmissionsTableProps) {
     mutationFn: (id: string) => adminAttemptsApi.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-attempts", testId] });
-      toast({ title: "Attempt deleted permanently" });
+      toast("Attempt deleted permanently");
       setDeleteTarget(null);
     },
     onError: (err: any) => {
-      toast({
-        title: "Delete failed",
-        description: err?.response?.data?.message || err.message,
-        variant: "destructive",
-      });
+      toast.error("Delete failed", { description: err?.response?.data?.message || err.message || "An unexpected error occurred" });
     },
   });
 

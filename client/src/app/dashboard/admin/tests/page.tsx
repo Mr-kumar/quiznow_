@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -104,8 +105,9 @@ const createTestSchema = z.object({
   duration: z.number().int().min(1, "Duration must be at least 1 min"),
   totalMarks: z.number().int().min(1, "Total marks required"),
   passingMarks: z.number().int().min(0),
-  positiveMark: z.number().min(0).optional(), // ✅ CORRECT: Optional field
-  negativeMarking: z.number().min(0).optional(), // ✅ CORRECT: Optional field
+  positiveMark: z.number().min(0).optional(),
+  negativeMarking: z.number().min(0).optional(),
+  maxAttempts: z.number().int().min(1).optional().or(z.literal("")),
   startAt: z.string().optional(),
   endAt: z.string().optional(),
 });
@@ -115,6 +117,7 @@ const editTestSchema = createTestSchema.partial().extend({
   isLive: z.boolean().optional(),
   isPremium: z.boolean().optional(),
   isActive: z.boolean().optional(),
+  maxAttempts: z.number().int().min(1).optional().or(z.literal("")),
 });
 
 const createCategorySchema = z.object({
@@ -133,6 +136,7 @@ const createSeriesSchema = z.object({
 });
 
 type CreateTestValues = z.infer<typeof createTestSchema>;
+type EditTestValues = z.infer<typeof editTestSchema>;
 type CreateCategoryValues = z.infer<typeof createCategorySchema>;
 type CreateExamValues = z.infer<typeof createExamSchema>;
 type CreateSeriesValues = z.infer<typeof createSeriesSchema>;
@@ -584,8 +588,7 @@ function TestCard({
 
 export default function TestsPage() {
   const router = useRouter();
-  const { toast } = useToast();
-  const { refresh: refreshHierarchy } = useTestHierarchy();
+const { refresh: refreshHierarchy } = useTestHierarchy();
 
   // ── Data state ─────────────────────────────────────────────────────────────
   const [tests, setTests] = useState<Test[]>([]);
@@ -598,7 +601,7 @@ export default function TestsPage() {
   // ── UI state ───────────────────────────────────────────────────────────────
   const [selected, setSelected] = useState<SelectedNode | null>(null);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | "live" | "draft">(
+  const [statusFilter, setStatusFilter] = useState<"all" | "live" | "draft" | "premium">(
     "all",
   );
 
@@ -630,7 +633,7 @@ export default function TestsPage() {
     },
   });
 
-  const editTestForm = useForm<Partial<CreateTestValues>>({
+  const editTestForm = useForm<EditTestValues>({
     resolver: zodResolver(editTestSchema),
     defaultValues: {},
   });
@@ -663,14 +666,17 @@ export default function TestsPage() {
     if (editTestTarget) {
       editTestForm.reset({
         title: editTestTarget.title,
-        testSeriesId: editTestTarget.seriesId, // ✅ FIXED: was seriesId, now testSeriesId
+        testSeriesId: editTestTarget.seriesId,
         duration: editTestTarget.durationMins,
         totalMarks: editTestTarget.totalMarks,
         passingMarks: editTestTarget.passMarks,
-        positiveMark: editTestTarget.positiveMark, // ✅ FIXED: was positiveMarking, now positiveMark
+        positiveMark: editTestTarget.positiveMark,
         negativeMarking: editTestTarget.negativeMark,
-        startAt: editTestTarget.startAt?.slice(0, 16),
-        endAt: editTestTarget.endAt?.slice(0, 16),
+        maxAttempts: editTestTarget.maxAttempts ?? "",
+        isPremium: editTestTarget.isPremium ?? false,
+        isActive: editTestTarget.isActive ?? true,
+        startAt: editTestTarget.startAt?.slice(0, 16) || "",
+        endAt: editTestTarget.endAt?.slice(0, 16) || "",
       });
     }
   }, [editTestTarget, editTestForm]);
@@ -725,6 +731,7 @@ export default function TestsPage() {
     }
     if (statusFilter === "live" && !t.isLive) return false;
     if (statusFilter === "draft" && t.isLive) return false;
+    if (statusFilter === "premium" && !t.isPremium) return false;
     if (search) {
       const q = search.toLowerCase();
       const match =
@@ -743,49 +750,40 @@ export default function TestsPage() {
     setSubmitting(true);
     try {
       await adminTestsApi.create(values);
-      toast({
-        title: "Test created",
-        description: `"${values.title}" is ready to assemble`,
-      });
+      toast("Test created", { description: `"${values.title}" is ready to assemble` });
       setCreateTestOpen(false);
       createTestForm.reset();
       loadAll();
       refreshHierarchy();
     } catch (e: any) {
-      toast({
-        title: "Failed to create test",
-        description: e?.response?.data?.message ?? e?.message,
-        variant: "destructive",
-      });
+      toast.error("Failed to create test", { description: e?.response?.data?.message ?? e?.message });
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleEditTest = async (values: Partial<CreateTestValues>) => {
+  const handleEditTest = async (values: Partial<EditTestValues>) => {
     if (!editTestTarget) return;
     setSubmitting(true);
     try {
-      // ✅ FIXED: Send positiveMark (not positiveMarking)
       await adminTestsApi.update(editTestTarget.id, {
         title: values.title,
         duration: values.duration,
         totalMarks: values.totalMarks,
         passingMarks: values.passingMarks,
-        positiveMark: values.positiveMark, // ✅ FIXED: correct field name
+        positiveMark: values.positiveMark,
         negativeMarking: values.negativeMarking,
         startAt: values.startAt || undefined,
         endAt: values.endAt || undefined,
+        isPremium: values.isPremium,
+        isActive: values.isActive,
+        maxAttempts: values.maxAttempts === "" ? undefined : (values.maxAttempts as number | undefined),
       });
-      toast({ title: "Test updated" });
+      toast("Test updated");
       setEditTestTarget(null);
       loadAll();
     } catch (e: any) {
-      toast({
-        title: "Failed to update",
-        description: e?.response?.data?.message ?? e?.message,
-        variant: "destructive",
-      });
+      toast.error("Failed to update", { description: e?.response?.data?.message ?? e?.message });
     } finally {
       setSubmitting(false);
     }
@@ -800,13 +798,9 @@ export default function TestsPage() {
       setTests((prev) =>
         prev.map((t) => (t.id === test.id ? { ...t, isLive: next } : t)),
       );
-      toast({ title: next ? "Test is now Live 🟢" : "Test moved to Draft" });
+      toast(next ? "Test is now Live 🟢" : "Test moved to Draft");
     } catch (e: any) {
-      toast({
-        title: "Failed to update publish status",
-        description: e?.response?.data?.message ?? e?.message,
-        variant: "destructive",
-      });
+      toast.error("Failed to update publish status", { description: e?.response?.data?.message ?? e?.message });
     } finally {
       setPublishingId(null);
     }
@@ -817,18 +811,11 @@ export default function TestsPage() {
     setDuplicatingId(test.id);
     try {
       await adminTestsApi.duplicate(test.id);
-      toast({
-        title: "Test duplicated",
-        description: "A copy has been created",
-      });
+      toast("Test duplicated", { description: "A copy has been created" });
       loadAll();
       refreshHierarchy();
     } catch (e: any) {
-      toast({
-        title: "Duplication failed",
-        description: e?.response?.data?.message ?? e?.message,
-        variant: "destructive",
-      });
+      toast.error("Duplication failed", { description: e?.response?.data?.message ?? e?.message });
     } finally {
       setDuplicatingId(null);
     }
@@ -839,16 +826,12 @@ export default function TestsPage() {
     setDeleting(true);
     try {
       await adminTestsApi.delete(deleteTarget.id);
-      toast({ title: "Test deleted" });
+      toast("Test deleted");
       setDeleteTarget(null);
       setTests((prev) => prev.filter((t) => t.id !== deleteTarget.id));
       refreshHierarchy();
     } catch (e: any) {
-      toast({
-        title: "Failed to delete",
-        description: e?.response?.data?.message ?? e?.message,
-        variant: "destructive",
-      });
+      toast.error("Failed to delete", { description: e?.response?.data?.message ?? e?.message });
     } finally {
       setDeleting(false);
     }
@@ -858,17 +841,13 @@ export default function TestsPage() {
     setSubmitting(true);
     try {
       await adminCategoriesApi.create(values);
-      toast({ title: "Category created" });
+      toast("Category created");
       setCreateCatOpen(false);
       catForm.reset();
       loadAll();
       refreshHierarchy();
     } catch (e: any) {
-      toast({
-        title: "Failed",
-        description: e?.response?.data?.message,
-        variant: "destructive",
-      });
+      toast.error("Failed", { description: e?.response?.data?.message ?? "An unexpected error occurred" });
     } finally {
       setSubmitting(false);
     }
@@ -878,17 +857,13 @@ export default function TestsPage() {
     setSubmitting(true);
     try {
       await adminExamsApi.create(values);
-      toast({ title: "Exam created" });
+      toast("Exam created");
       setCreateExamOpen(false);
       examForm.reset();
       loadAll();
       refreshHierarchy();
     } catch (e: any) {
-      toast({
-        title: "Failed",
-        description: e?.response?.data?.message,
-        variant: "destructive",
-      });
+      toast.error("Failed", { description: e?.response?.data?.message ?? "An unexpected error occurred" });
     } finally {
       setSubmitting(false);
     }
@@ -898,17 +873,13 @@ export default function TestsPage() {
     setSubmitting(true);
     try {
       await adminTestSeriesApi.create(values);
-      toast({ title: "Series created" });
+      toast("Series created");
       setCreateSeriesOpen(false);
       seriesForm.reset();
       loadAll();
       refreshHierarchy();
     } catch (e: any) {
-      toast({
-        title: "Failed",
-        description: e?.response?.data?.message,
-        variant: "destructive",
-      });
+      toast.error("Failed", { description: e?.response?.data?.message ?? "An unexpected error occurred" });
     } finally {
       setSubmitting(false);
     }
@@ -1079,6 +1050,7 @@ export default function TestsPage() {
                 <SelectItem value="all">All</SelectItem>
                 <SelectItem value="live">Live only</SelectItem>
                 <SelectItem value="draft">Draft only</SelectItem>
+                <SelectItem value="premium">Premium only</SelectItem>
               </SelectContent>
             </Select>
 
@@ -1261,9 +1233,10 @@ export default function TestsPage() {
                       </FormLabel>
                       <FormControl>
                         <Input
-                          {...field}
                           type="number"
                           min={1}
+                          value={field.value}
+                          onChange={(e) => field.onChange(e.target.value === "" ? "" : +e.target.value)}
                           className="h-9 text-sm"
                         />
                       </FormControl>
@@ -1281,9 +1254,10 @@ export default function TestsPage() {
                       </FormLabel>
                       <FormControl>
                         <Input
-                          {...field}
                           type="number"
                           min={1}
+                          value={field.value}
+                          onChange={(e) => field.onChange(e.target.value === "" ? "" : +e.target.value)}
                           className="h-9 text-sm"
                         />
                       </FormControl>
@@ -1305,9 +1279,10 @@ export default function TestsPage() {
                       </FormLabel>
                       <FormControl>
                         <Input
-                          {...field}
                           type="number"
                           min={0}
+                          value={field.value}
+                          onChange={(e) => field.onChange(e.target.value === "" ? "" : +e.target.value)}
                           className="h-9 text-sm"
                         />
                       </FormControl>
@@ -1325,9 +1300,10 @@ export default function TestsPage() {
                       </FormLabel>
                       <FormControl>
                         <Input
-                          {...field}
                           type="number"
                           min={0}
+                          value={field.value}
+                          onChange={(e) => field.onChange(e.target.value === "" ? "" : +e.target.value)}
                           className="h-9 text-sm"
                         />
                       </FormControl>
@@ -1345,10 +1321,11 @@ export default function TestsPage() {
                       </FormLabel>
                       <FormControl>
                         <Input
-                          {...field}
                           type="number"
                           min={0}
                           step={0.25}
+                          value={field.value}
+                          onChange={(e) => field.onChange(e.target.value === "" ? "" : +e.target.value)}
                           className="h-9 text-sm"
                         />
                       </FormControl>
@@ -1402,6 +1379,33 @@ export default function TestsPage() {
                   )}
                 />
               </div>
+
+              {/* Max Attempts — optional */}
+              <FormField
+                control={createTestForm.control}
+                name="maxAttempts"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-xs font-semibold text-slate-600 uppercase tracking-wide">
+                      Max Attempts{" "}
+                      <span className="font-normal normal-case text-slate-400">
+                        (optional — leave blank for unlimited)
+                      </span>
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min={1}
+                        placeholder="Unlimited"
+                        value={field.value ?? ""}
+                        onChange={(e) => field.onChange(e.target.value === "" ? "" : +e.target.value)}
+                        className="h-9 text-sm"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <div className="flex justify-end gap-2 pt-2">
                 <Button
@@ -1589,6 +1593,77 @@ export default function TestsPage() {
                 />
               </div>
 
+              {/* Max Attempts — edit */}
+              <FormField
+                control={editTestForm.control}
+                name="maxAttempts"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-xs font-semibold text-slate-600 uppercase tracking-wide">
+                      Max Attempts{" "}
+                      <span className="font-normal normal-case text-slate-400">(blank = unlimited)</span>
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min={1}
+                        placeholder="Unlimited"
+                        value={field.value ?? ""}
+                        onChange={(e) => field.onChange(e.target.value === "" ? "" : +e.target.value)}
+                        className="h-9 text-sm"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Toggle switches for isPremium and isActive */}
+              <div className="rounded-lg border border-slate-200 dark:border-slate-700 p-3 space-y-3">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Flags</p>
+                <FormField
+                  control={editTestForm.control}
+                  name="isPremium"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center justify-between gap-3">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                          ⭐ Premium Test
+                        </FormLabel>
+                        <p className="text-[11px] text-slate-400">Only subscribed students can access</p>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value ?? false}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <div className="border-t border-slate-100 dark:border-slate-800" />
+                <FormField
+                  control={editTestForm.control}
+                  name="isActive"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center justify-between gap-3">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                          ✅ Active
+                        </FormLabel>
+                        <p className="text-[11px] text-slate-400">Inactive tests are hidden from students</p>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value ?? true}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              </div>
+
               <div className="flex justify-end gap-2 pt-2">
                 <Button
                   type="button"
@@ -1680,6 +1755,39 @@ export default function TestsPage() {
                         autoFocus
                       />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={catForm.control}
+                name="parentId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-xs font-semibold text-slate-600 uppercase tracking-wide">
+                      Parent Category{" "}
+                      <span className="font-normal normal-case text-slate-400">
+                        (optional — for sub-categories)
+                      </span>
+                    </FormLabel>
+                    <Select
+                      value={field.value ?? "none"}
+                      onValueChange={(v) => field.onChange(v === "none" ? undefined : v)}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="h-9 text-sm">
+                          <SelectValue placeholder="None (root level)" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="none">None (root level)</SelectItem>
+                        {categories.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}

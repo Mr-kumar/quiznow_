@@ -47,15 +47,7 @@ export const adminSubscriptionsApi = {
 
   update: (id: string, data: UpdateSubscriptionRequest) =>
     api.patch<Subscription>(`/admin/subscriptions/${id}`, data),
-
-  // Server only has DELETE /admin/subscriptions/:id for cancellation (soft cancel → status=CANCELLED)
-  // There is no PATCH .../cancel or .../extend endpoint on the server
-  cancel: (id: string) =>
-    api.delete<Subscription>(`/admin/subscriptions/${id}`),
-
-  delete: (id: string) => api.delete(`/admin/subscriptions/${id}`),
-  cancelSubscription: async (id: string): Promise<Subscription> => {
-    const response = await api.delete(`/admin/subscriptions/${id}/cancel`);
-    return response.data;
+  cancelSubscription: async (id: string): Promise<void> => {
+    await api.delete(`/admin/subscriptions/${id}/cancel`);
   },
 };

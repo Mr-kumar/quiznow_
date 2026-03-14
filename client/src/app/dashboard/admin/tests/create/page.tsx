@@ -19,7 +19,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 import {
   Loader2,
   ChevronRight,
@@ -178,8 +178,7 @@ function NumberField({
 
 export default function CreateTestPage() {
   const router = useRouter();
-  const { toast } = useToast();
-  const [step, setStep] = useState<1 | 2>(1);
+const [step, setStep] = useState<1 | 2>(1);
   const [isLoading, setIsLoading] = useState(false);
   const [createdTestId, setCreatedTestId] = useState<string | null>(null);
   const [createdSectionId, setCreatedSectionId] = useState<string | null>(null);
@@ -236,26 +235,26 @@ export default function CreateTestPage() {
     const cat = res.data.data ?? res.data;
     setCategories((p) => [...p, cat]);
     upd("categoryId", cat.id);
-    toast({ title: "Category created" });
+    toast("Category created");
   };
   const createExam = async (name: string) => {
     const res = await api.post("/exams", { name, categoryId: form.categoryId });
     const exam = res.data.data ?? res.data;
     setExams((p) => [...p, exam]);
     upd("examId", exam.id);
-    toast({ title: "Exam created" });
+    toast("Exam created");
   };
   const createSeries = async (title: string) => {
     const res = await api.post("/test-series", { title, examId: form.examId });
     const s = res.data.data ?? res.data;
     setSeries((p) => [...p, s]);
     upd("seriesId", s.id);
-    toast({ title: "Series created" });
+    toast("Series created");
   };
 
   const handleSubmit = async () => {
     if (!form.seriesId || !form.title.trim()) {
-      toast({ title: "Fill in all required fields", variant: "destructive" });
+      toast.error("Fill in all required fields");
       return;
     }
     setIsLoading(true);
@@ -273,13 +272,10 @@ export default function CreateTestPage() {
       const testId = res?.data?.test?.id;
       const sectionId = res?.data?.section?.id;
       if (!testId) {
-        toast({
-          title: "Unexpected response from server",
-          variant: "destructive",
-        });
+        toast.error("Unexpected response from server");
         return;
       }
-      toast({ title: "Test created!" });
+      toast("Test created!");
       if (testMode === "full") {
         setCreatedTestId(testId);
         setCreatedSectionId(sectionId ?? null); // wizard always returns a section
@@ -288,11 +284,7 @@ export default function CreateTestPage() {
         router.push(`/dashboard/admin/tests/${testId}`);
       }
     } catch (err: any) {
-      toast({
-        title: "Failed to create test",
-        description: err?.response?.data?.message,
-        variant: "destructive",
-      });
+      toast.error("Failed to create test", { description: err?.response?.data?.message ?? "An unexpected error occurred" });
     } finally {
       setIsLoading(false);
     }

@@ -1,25 +1,66 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../../services/prisma/prisma.service';
-import { User, Role, UserStatus } from '@prisma/client';
+import { User, Role, UserStatus, SubscriptionStatus } from '@prisma/client';
+import { AuditLogsService } from '../../admin/audit-logs/audit-logs.service';
+import { AuditAction } from '../../admin/audit-logs/dto/create-audit-log.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditLogs: AuditLogsService,
+  ) {}
 
   async findAll(
     page: number = 1,
     limit: number = 20,
-  ): Promise<{ data: User[]; total: number }> {
+    search?: string,
+  ): Promise<{ data: (User & { subscriptions: any[] })[]; total: number }> {
     const skip = (page - 1) * limit;
+    const where: any = {
+      deletedAt: null,
+    };
+
+    if (search) {
+      where.OR = [
+        { email: { contains: search, mode: 'insensitive' as const } },
+        { name: { contains: search, mode: 'insensitive' as const } },
+      ];
+    }
+
     const [data, total] = await Promise.all([
       this.prisma.user.findMany({
+        where,
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
+        include: {
+          subscriptions: {
+            where: {
+              status: SubscriptionStatus.ACTIVE,
+              expiresAt: {
+                gt: new Date(),
+              },
+            },
+            select: {
+              id: true,
+              expiresAt: true,
+              status: true,
+              plan: {
+                select: {
+                  id: true,
+                  name: true,
+                  price: true,
+                  durationDays: true,
+                },
+              },
+            },
+          },
+        },
       }),
-      this.prisma.user.count(),
+      this.prisma.user.count({ where }),
     ]);
     return { data, total };
   }
@@ -36,64 +77,113 @@ export class UsersService {
     });
   }
 
-  async create(createUserDto: CreateUserDto): Promise<User> {
+  async create(
+    createUserDto: CreateUserDto,
+    actorId?: string,
+    actorRole?: string,
+  ): Promise<User> {
     // Check if user already exists
     const existingUser = await this.findByEmail(createUserDto.email);
     if (existingUser) {
-      throw new Error('User with this email already exists');
+      throw new ConflictException('User with this email already exists');
     }
 
-    return this.prisma.user.create({
+    const user = await this.prisma.user.create({
       data: {
         email: createUserDto.email,
         name: createUserDto.name,
         role: createUserDto.role,
       },
     });
+    this.auditLogs.logAsync({
+      action: AuditAction.USER_CREATED,
+      targetType: 'User',
+      targetId: user.id,
+      actorId,
+      actorRole,
+      metadata: { email: user.email, role: user.role },
+    });
+    return user;
   }
 
-  async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
+  async update(
+    id: string,
+    updateUserDto: UpdateUserDto,
+    actorId?: string,
+    actorRole?: string,
+  ): Promise<User> {
     // Check if user exists
     const existingUser = await this.findOne(id);
     if (!existingUser) {
-      throw new Error('User not found');
+      throw new NotFoundException('User not found');
     }
 
     // If updating email, check if it's already taken
     if (updateUserDto.email && updateUserDto.email !== existingUser.email) {
       const emailExists = await this.findByEmail(updateUserDto.email);
       if (emailExists) {
-        throw new Error('Email already in use');
+        throw new ConflictException('Email already in use');
       }
     }
 
-    return this.prisma.user.update({
+    const updated = await this.prisma.user.update({
       where: { id },
       data: updateUserDto,
     });
+    this.auditLogs.logAsync({
+      action: AuditAction.USER_UPDATED,
+      targetType: 'User',
+      targetId: id,
+      actorId,
+      actorRole,
+      metadata: updateUserDto as any,
+    });
+    return updated;
   }
 
-  async remove(id: string): Promise<User> {
+  async remove(id: string, actorId?: string, actorRole?: string): Promise<User> {
     // Check if user exists
     const existingUser = await this.findOne(id);
     if (!existingUser) {
-      throw new Error('User not found');
+      throw new NotFoundException('User not found');
     }
 
-    return this.prisma.user.delete({
+    // Soft-delete: set deletedAt instead of removing the row
+    const deleted = await this.prisma.user.update({
       where: { id },
+      data: { deletedAt: new Date() },
     });
+    this.auditLogs.logAsync({
+      action: AuditAction.USER_DELETED,
+      targetType: 'User',
+      targetId: id,
+      actorId,
+      actorRole,
+      metadata: { email: existingUser.email, role: existingUser.role },
+    });
+    return deleted;
   }
 
   async getStats() {
     const [total, students, instructors, admins, newThisMonth] =
       await Promise.all([
-        this.prisma.user.count(),
-        this.prisma.user.count({ where: { role: 'STUDENT' } }),
-        this.prisma.user.count({ where: { role: 'INSTRUCTOR' } }),
-        this.prisma.user.count({ where: { role: 'ADMIN' } }),
         this.prisma.user.count({
           where: {
+            deletedAt: null,
+          },
+        }),
+        this.prisma.user.count({
+          where: { role: 'STUDENT', deletedAt: null },
+        }),
+        this.prisma.user.count({
+          where: { role: 'INSTRUCTOR', deletedAt: null },
+        }),
+        this.prisma.user.count({
+          where: { role: 'ADMIN', deletedAt: null },
+        }),
+        this.prisma.user.count({
+          where: {
+            deletedAt: null,
             createdAt: {
               gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
             },
@@ -195,16 +285,34 @@ export class UsersService {
   }
   // ─── Admin Deep-Dive methods ───────────────────────────────────────────────────
 
-  async updateStatus(id: string, status: UserStatus): Promise<User> {
+  async updateStatus(
+    id: string,
+    status: UserStatus,
+    actorId?: string,
+    actorRole?: string,
+  ): Promise<User> {
     const existingUser = await this.findOne(id);
     if (!existingUser) {
-      throw new Error('User not found');
+      throw new NotFoundException('User not found');
     }
 
-    return this.prisma.user.update({
+    const updated = await this.prisma.user.update({
       where: { id },
       data: { status },
     });
+    const action =
+      status === 'BANNED'
+        ? AuditAction.USER_BANNED
+        : AuditAction.USER_ROLE_CHANGED;
+    this.auditLogs.logAsync({
+      action,
+      targetType: 'User',
+      targetId: id,
+      actorId,
+      actorRole,
+      metadata: { status },
+    });
+    return updated;
   }
 
   async getDeepProfile(userId: string) {
@@ -225,7 +333,7 @@ export class UsersService {
       },
     });
 
-    if (!user) throw new Error('User not found');
+    if (!user) throw new NotFoundException('User not found');
 
     // Get aggregated attempt stats
     const attemptsSummary = await this.prisma.attempt.aggregate({

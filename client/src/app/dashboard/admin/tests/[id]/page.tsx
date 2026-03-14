@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import api from "@/lib/api";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -197,8 +197,7 @@ function StatChip({
 
 export default function TestAssemblyPage() {
   const params = useParams();
-  const { toast } = useToast();
-  const testId = params.id as string;
+const testId = params.id as string;
 
   const [testData, setTestData] = useState<TestData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -286,11 +285,7 @@ export default function TestAssemblyPage() {
         );
       }
     } catch (err: any) {
-      toast({
-        title: "Failed to load test",
-        description: err?.response?.data?.message,
-        variant: "destructive",
-      });
+      toast.error("Failed to load test", { description: err?.response?.data?.message ?? "An unexpected error occurred" });
     } finally {
       setLoading(false);
     }
@@ -309,13 +304,9 @@ export default function TestAssemblyPage() {
     try {
       await api.patch(`/tests/${testId}/publish`, { isLive: next });
       setTestData({ ...testData, isLive: next });
-      toast({ title: next ? "Test is now Live 🟢" : "Test moved to Draft" });
+      toast(next ? "Test is now Live 🟢" : "Test moved to Draft");
     } catch (err: any) {
-      toast({
-        title: "Failed",
-        description: err?.response?.data?.message,
-        variant: "destructive",
-      });
+      toast.error("Failed", { description: err?.response?.data?.message ?? "An unexpected error occurred" });
     } finally {
       setTogglingPublish(false);
     }
@@ -340,13 +331,9 @@ export default function TestAssemblyPage() {
       setNewSectionName("");
       setNewSectionDuration("");
       await fetchTest();
-      toast({ title: "Section created" });
+      toast("Section created");
     } catch (err: any) {
-      toast({
-        title: "Failed to create section",
-        description: err?.response?.data?.message,
-        variant: "destructive",
-      });
+      toast.error("Failed to create section", { description: err?.response?.data?.message ?? "An unexpected error occurred" });
     } finally {
       setCreatingSection(false);
     }
@@ -369,15 +356,11 @@ export default function TestAssemblyPage() {
         // Same whitelist-strip issue as handleCreateSection above.
         durationMins: editDuration === "" ? undefined : Number(editDuration),
       });
-      toast({ title: "Section updated" });
+      toast("Section updated");
       setEditSection(null);
       await fetchTest();
     } catch (err: any) {
-      toast({
-        title: "Failed to update section",
-        description: err?.response?.data?.message,
-        variant: "destructive",
-      });
+      toast.error("Failed to update section", { description: err?.response?.data?.message ?? "An unexpected error occurred" });
     } finally {
       setUpdatingSection(false);
     }
@@ -389,15 +372,11 @@ export default function TestAssemblyPage() {
     setDeletingSection(true);
     try {
       await api.delete(`/sections/${deleteTarget.id}`);
-      toast({ title: `Section "${deleteTarget.name}" deleted` });
+      toast(`Section "${deleteTarget.name}" deleted`);
       setDeleteTarget(null);
       await fetchTest(false);
     } catch (err: any) {
-      toast({
-        title: "Failed to delete section",
-        description: err?.response?.data?.message,
-        variant: "destructive",
-      });
+      toast.error("Failed to delete section", { description: err?.response?.data?.message ?? "An unexpected error occurred" });
     } finally {
       setDeletingSection(false);
     }
@@ -418,9 +397,7 @@ export default function TestAssemblyPage() {
       questionIds,
     });
     await fetchTest();
-    toast({
-      title: `${questionIds.length} question${questionIds.length !== 1 ? "s" : ""} added to ${bankSectionName}`,
-    });
+    toast(`${questionIds.length} question${questionIds.length !== 1 ? "s" : ""} added to ${bankSectionName}`);
   };
 
   // ── Unlink question ────────────────────────────────────────────────────────
@@ -431,15 +408,11 @@ export default function TestAssemblyPage() {
       await api.delete(
         `/sections/${unlinkTarget.sectionId}/questions/${unlinkTarget.questionId}`,
       );
-      toast({ title: "Question removed from section" });
+      toast("Question removed from section");
       setUnlinkTarget(null);
       await fetchTest();
     } catch (err: any) {
-      toast({
-        title: "Failed to remove question",
-        description: err?.response?.data?.message,
-        variant: "destructive",
-      });
+      toast.error("Failed to remove question", { description: err?.response?.data?.message ?? "An unexpected error occurred" });
     } finally {
       setUnlinking(false);
     }
@@ -486,7 +459,7 @@ export default function TestAssemblyPage() {
       });
     } catch {
       setTestData(snapshot);
-      toast({ title: "Reorder failed", variant: "destructive" });
+      toast.error("Reorder failed");
     }
   };
 

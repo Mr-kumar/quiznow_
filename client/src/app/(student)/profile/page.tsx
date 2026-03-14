@@ -16,7 +16,8 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import { format, differenceInDays } from "date-fns";
+import Link from "next/link";
 import {
   UserIcon,
   MailIcon,
@@ -507,63 +508,79 @@ export default function ProfilePage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <h3 className="text-lg font-semibold text-foreground">
-                  {subscription?.data?.plan || "Free"} Plan
-                </h3>
-                <Badge
-                  variant={
-                    subscription?.data?.plan === "FREE"
-                      ? "secondary"
-                      : "default"
-                  }
-                >
-                  {subscription?.data?.plan || "Free"}
-                </Badge>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                {subscription?.data?.plan === "FREE"
-                  ? "Access to free mock tests only"
-                  : `Access to ${subscription?.data?.plan} features`}
-              </p>
-            </div>
-            <div className="h-12 w-12 rounded-xl bg-amber-100 dark:bg-amber-950/20 flex items-center justify-center">
-              <CrownIcon className="h-6 w-6 text-amber-600 dark:text-amber-400" />
-            </div>
-          </div>
+          {(() => {
+            const planObj = subscription?.data?.plan;
+            const planName = (typeof planObj === "object" && planObj !== null ? (planObj as any).name : planObj) || "Free";
+            const status = subscription?.data?.status || "Active";
+            const expiresAt = subscription?.data?.currentPeriodEnd;
+            const isPremium = planName !== "Free" && planName !== "FREE";
+            
+            return (
+              <>
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-lg font-semibold text-foreground">
+                        {planName} Plan
+                      </h3>
+                      <Badge
+                        variant={status === "ACTIVE" ? "default" : "secondary"}
+                      >
+                        {status}
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      {!isPremium
+                        ? "Access to free mock tests only"
+                        : expiresAt
+                          ? (() => {
+                              const daysLeft = differenceInDays(new Date(expiresAt), new Date());
+                              return daysLeft > 0
+                                ? `${daysLeft} days remaining · Expires ${format(new Date(expiresAt), "MMM d, yyyy")}`
+                                : "Subscription expired";
+                            })()
+                          : `Access to ${planName} features`}
+                    </p>
+                  </div>
+                  <div className="h-12 w-12 rounded-xl bg-amber-100 dark:bg-amber-950/20 flex items-center justify-center">
+                    <CrownIcon className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+                  </div>
+                </div>
 
-          <Separator />
+                <Separator />
 
-          <div className="flex items-center justify-between">
-            <div className="space-y-1">
-              <p className="text-sm font-medium text-foreground">
-                {subscription?.data?.plan === "FREE"
-                  ? "Upgrade to Premium"
-                  : "Manage Subscription"}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {subscription?.data?.plan === "FREE"
-                  ? "Unlock premium tests and detailed analytics"
-                  : "View your subscription details and benefits"}
-              </p>
-            </div>
-            <Button className="gap-2">
-              {subscription?.data?.plan === "FREE" ? (
-                <>
-                  <CrownIcon className="h-4 w-4" />
-                  Upgrade
-                </>
-              ) : (
-                <>
-                  <ShieldCheckIcon className="h-4 w-4" />
-                  Manage
-                </>
-              )}
-            </Button>
-          </div>
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-foreground">
+                      {!isPremium ? "Upgrade to Premium" : "Manage Subscription"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {!isPremium
+                        ? "Unlock premium tests and detailed analytics"
+                        : "View your subscription details and benefits"}
+                    </p>
+                  </div>
+                  <Link href="/upgrade">
+                    <Button className="gap-2">
+                      {!isPremium ? (
+                        <>
+                          <CrownIcon className="h-4 w-4" />
+                          Upgrade
+                        </>
+                      ) : (
+                        <>
+                          <ShieldCheckIcon className="h-4 w-4" />
+                          Manage
+                        </>
+                      )}
+                    </Button>
+                  </Link>
+                </div>
+              </>
+            );
+          })()}
         </CardContent>
+
       </Card>
     </div>
   );

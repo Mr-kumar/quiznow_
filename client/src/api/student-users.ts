@@ -4,8 +4,8 @@ import type { User } from "./users";
 
 export interface Subscription {
   id: string;
-  plan: "FREE" | "PRO" | "PREMIUM";
-  status: "ACTIVE" | "CANCELLED" | "EXPIRED";
+  plan: { id: string; name: string; price: number; [key: string]: any } | "FREE" | "PRO" | "PREMIUM" | string;
+  status: "ACTIVE" | "CANCELLED" | "EXPIRED" | string;
   currentPeriodStart: string;
   currentPeriodEnd: string;
   cancelAtPeriodEnd: boolean;

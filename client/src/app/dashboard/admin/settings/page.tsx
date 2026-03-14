@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { adminSettingsApi } from "@/api/settings";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -321,9 +321,7 @@ function useSectionSettings(prefix: string, defaults: SettingsMap) {
   const [saved, setSaved] = useState<SettingsMap>(defaults);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const { toast } = useToast();
-
-  // Load from backend once on mount
+// Load from backend once on mount
   useEffect(() => {
     setLoading(true);
     adminSettingsApi
@@ -366,16 +364,9 @@ function useSectionSettings(prefix: string, defaults: SettingsMap) {
       }));
       await adminSettingsApi.updateBatch(batch);
       setSaved({ ...values });
-      toast({
-        title: "Settings saved",
-        description: `${prefix} settings updated.`,
-      });
+      toast("Settings saved", { description: `${prefix} settings updated.` });
     } catch (err: any) {
-      toast({
-        title: "Save failed",
-        description: err?.response?.data?.message ?? "Please try again.",
-        variant: "destructive",
-      });
+      toast.error("Save failed", { description: err?.response?.data?.message ?? "Please try again." });
     } finally {
       setSaving(false);
     }
@@ -961,8 +952,7 @@ function AnalyticsPanel() {
 // ─── Database panel (actions only — nothing persisted) ────────────────────────
 
 function DatabasePanel() {
-  const { toast } = useToast();
-  const [running, setRunning] = useState<string | null>(null);
+const [running, setRunning] = useState<string | null>(null);
   const [resetOpen, setResetOpen] = useState(false);
 
   const dbStats = [
@@ -976,7 +966,7 @@ function DatabasePanel() {
     setRunning(action);
     // Simulated — wire to real endpoints when available
     await new Promise((r) => setTimeout(r, 1200));
-    toast({ title: `${label} complete` });
+    toast(`${label} complete`);
     setRunning(null);
   };
 

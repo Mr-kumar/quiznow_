@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -306,8 +306,7 @@ function SubjectSidebar({
   onTopicAdded: (subjectId: string, t: Topic) => void;
   onTopicDeleted: (subjectId: string, topicId: string) => void;
 }) {
-  const { toast } = useToast();
-  const [sSearch, setSSearch] = useState("");
+const [sSearch, setSSearch] = useState("");
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [newTopicFor, setNewTopicFor] = useState<string | null>(null); // subjectId
   const [newTopicName, setNewTopicName] = useState("");
@@ -324,6 +323,11 @@ function SubjectSidebar({
   const [subjectName, setSubjectName] = useState("");
   const [submittingSubject, setSubmittingSubject] = useState(false);
   const [deletingSubject, setDeletingSubject] = useState(false);
+
+  const [topicToDelete, setTopicToDelete] = useState<{
+    subjectId: string;
+    topic: Topic;
+  } | null>(null);
 
   const newTopicRef = useRef<HTMLInputElement>(null);
 
@@ -354,13 +358,9 @@ function SubjectSidebar({
       onSubjectCreated({ ...created, topics: [] });
       setCreateSubjectOpen(false);
       setSubjectName("");
-      toast({ title: `Subject "${name}" created` });
+      toast(`Subject "${name}" created`);
     } catch (e: any) {
-      toast({
-        title: "Failed",
-        description: e?.response?.data?.message,
-        variant: "destructive",
-      });
+      toast.error("Failed", { description: e?.response?.data?.message ?? "An unexpected error occurred" });
     } finally {
       setSubmittingSubject(false);
     }
@@ -376,13 +376,9 @@ function SubjectSidebar({
       onSubjectRenamed(renameTarget.id, name);
       setRenameTarget(null);
       setSubjectName("");
-      toast({ title: `Renamed to "${name}"` });
+      toast(`Renamed to "${name}"`);
     } catch (e: any) {
-      toast({
-        title: "Failed",
-        description: e?.response?.data?.message,
-        variant: "destructive",
-      });
+      toast.error("Failed", { description: e?.response?.data?.message ?? "An unexpected error occurred" });
     } finally {
       setSubmittingSubject(false);
     }
@@ -402,13 +398,9 @@ function SubjectSidebar({
           topicName: null,
         });
       setDeleteSubjectTarget(null);
-      toast({ title: `"${deleteSubjectTarget.name}" deleted` });
+      toast(`"${deleteSubjectTarget.name}" deleted`);
     } catch (e: any) {
-      toast({
-        title: "Failed",
-        description: e?.response?.data?.message,
-        variant: "destructive",
-      });
+      toast.error("Failed", { description: e?.response?.data?.message ?? "An unexpected error occurred" });
     } finally {
       setDeletingSubject(false);
     }
@@ -425,34 +417,29 @@ function SubjectSidebar({
       onTopicAdded(subjectId, created);
       setNewTopicName("");
       setNewTopicFor(null);
-      toast({ title: `Topic "${name}" added` });
+      toast(`Topic "${name}" added`);
     } catch (e: any) {
-      toast({
-        title: "Failed to add topic",
-        description: e?.response?.data?.message,
-        variant: "destructive",
-      });
+      toast.error("Failed to add topic", { description: e?.response?.data?.message ?? "An unexpected error occurred" });
     } finally {
       setAddingTopic(false);
     }
   };
 
-  const handleDeleteTopic = async (subjectId: string, topic: Topic) => {
+  const confirmDeleteTopic = async () => {
+    if (!topicToDelete) return;
+    const { subjectId, topic } = topicToDelete;
     setDeletingTopicId(topic.id);
     try {
       await subjectsTopicsApi.delete(topic.id);
       onTopicDeleted(subjectId, topic.id);
       if (filters.topicId === topic.id)
         onFilterChange({ topicId: null, topicName: null });
-      toast({ title: `"${topic.name}" removed` });
+      toast(`"${topic.name}" removed`);
     } catch (e: any) {
-      toast({
-        title: "Failed",
-        description: e?.response?.data?.message,
-        variant: "destructive",
-      });
+      toast.error("Failed", { description: e?.response?.data?.message ?? "An unexpected error occurred" });
     } finally {
       setDeletingTopicId(null);
+      setTopicToDelete(null);
     }
   };
 
@@ -811,7 +798,7 @@ function SubjectSidebar({
                                 </button>
                                 <button
                                   onClick={() =>
-                                    handleDeleteTopic(subject.id, topic)
+                                    setTopicToDelete({ subjectId: subject.id, topic })
                                   }
                                   className={cn(
                                     "shrink-0 h-5 w-5 flex items-center justify-center rounded opacity-0 group-hover/topic:opacity-100 transition-opacity mr-1",
@@ -916,6 +903,31 @@ function SubjectSidebar({
               disabled={deletingSubject}
             >
               {deletingSubject ? "Deleting…" : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={!!topicToDelete}
+        onOpenChange={(v) => !v && setTopicToDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete topic?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <strong>&ldquo;{topicToDelete?.topic.name}&rdquo;</strong> will be
+              permanently deleted. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={confirmDeleteTopic}
+              disabled={!!deletingTopicId}
+            >
+              {deletingTopicId ? "Deleting…" : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1507,9 +1519,7 @@ function EditDialog({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function QuestionsPage() {
-  const { toast } = useToast();
-
-  // ── Taxonomy state ─────────────────────────────────────────────────────────
+// ── Taxonomy state ─────────────────────────────────────────────────────────
   const [subjects, setSubjects] = useState<SubjectWithTopics[]>([]);
   const [allTopics, setAllTopics] = useState<Topic[]>([]);
   const [taxonomyLoading, setTaxonomyLoading] = useState(true);
@@ -1555,7 +1565,7 @@ export default function QuestionsPage() {
         rawSubjects.map((s) => ({ ...s, topics: grouped[s.id] ?? [] })),
       );
     } catch {
-      toast({ title: "Failed to load taxonomy", variant: "destructive" });
+      toast.error("Failed to load taxonomy");
     } finally {
       setTaxonomyLoading(false);
     }

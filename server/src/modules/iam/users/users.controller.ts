@@ -38,10 +38,12 @@ export class UsersController {
   async findAll(
     @Query('page') page?: string,
     @Query('limit') limit?: string,
+    @Query('search') search?: string,
   ) {
     const result = await this.usersService.findAll(
       page ? parseInt(page) : 1,
       limit ? parseInt(limit) : 20,
+      search,
     );
     return {
       success: true,
@@ -91,9 +93,15 @@ export class UsersController {
   async updateStatus(
     @Param('id') id: string,
     @Body('status') status: UserStatus,
+    @Request() req: any,
   ) {
     try {
-      const data = await this.usersService.updateStatus(id, status);
+      const data = await this.usersService.updateStatus(
+        id,
+        status,
+        req.user?.userId,
+        req.user?.role,
+      );
       return {
         success: true,
         message: `User status updated to ${status}`,
@@ -128,9 +136,13 @@ export class UsersController {
   @Post()
   @ApiOperation({ summary: 'Create new user' })
   @ApiResponse({ status: 201, description: 'User created successfully' })
-  async create(@Body() createUserDto: CreateUserDto) {
+  async create(@Body() createUserDto: CreateUserDto, @Request() req: any) {
     try {
-      const data = await this.usersService.create(createUserDto);
+      const data = await this.usersService.create(
+        createUserDto,
+        req.user?.userId,
+        req.user?.role,
+      );
       return {
         success: true,
         message: 'User created successfully',
@@ -147,9 +159,18 @@ export class UsersController {
   @Patch(':id')
   @ApiOperation({ summary: 'Update user' })
   @ApiResponse({ status: 200, description: 'User updated successfully' })
-  async update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
+  async update(
+    @Param('id') id: string,
+    @Body() updateUserDto: UpdateUserDto,
+    @Request() req: any,
+  ) {
     try {
-      const data = await this.usersService.update(id, updateUserDto);
+      const data = await this.usersService.update(
+        id,
+        updateUserDto,
+        req.user?.userId,
+        req.user?.role,
+      );
       return {
         success: true,
         message: 'User updated successfully',
@@ -166,9 +187,13 @@ export class UsersController {
   @Delete(':id')
   @ApiOperation({ summary: 'Delete user' })
   @ApiResponse({ status: 200, description: 'User deleted successfully' })
-  async remove(@Param('id') id: string) {
+  async remove(@Param('id') id: string, @Request() req: any) {
     try {
-      const data = await this.usersService.remove(id);
+      const data = await this.usersService.remove(
+        id,
+        req.user?.userId,
+        req.user?.role,
+      );
       return {
         success: true,
         message: 'User deleted successfully',

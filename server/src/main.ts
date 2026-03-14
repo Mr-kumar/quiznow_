@@ -12,11 +12,12 @@ async function bootstrap() {
   // 🌐 Set Global API Prefix
   app.setGlobalPrefix('api');
 
-  // 🛡️ Rate Limiting Middleware (Fixed - more lenient for development)
+  // 🛡️ Rate Limiting Middleware (env-dependent limits)
+  const isProd = process.env.NODE_ENV === 'production';
   app.use(
     rateLimit({
       windowMs: 15 * 60 * 1000, // 15 minutes
-      max: 1000, // Increased from 100 to 1000 for development
+      max: isProd ? 100 : 1000,
       message:
         'Too many requests from this IP, please try again after 15 minutes',
       standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers

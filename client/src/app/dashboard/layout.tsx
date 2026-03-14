@@ -81,71 +81,93 @@ export default function DashboardLayout({
   const studentLinks = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/dashboard/tests", label: "My Tests", icon: BookOpen },
-    { href: "/test/history", label: "Results", icon: Award },
-    { href: "/leaderboard", label: "Leaderboard", icon: Target },
+    { href: "/exams", label: "Browse Exams", icon: Target }, // Used Target as close match to SearchIcon or keep Target
+    { href: "/test/history", label: "History", icon: Clock },
+    { href: "/leaderboard", label: "Leaderboard", icon: Award },
+    { href: "/profile", label: "Profile", icon: User },
+    { href: "/upgrade", label: "Upgrade", icon: CreditCard },
   ];
 
-  const adminLinks = [
+  const adminLinkGroups = [
     {
-      href: "/dashboard/admin",
-      label: "Admin Overview",
-      icon: LayoutDashboard,
-    },
-
-    {
-      href: "/dashboard/admin/tests",
-      label: "Manage Tests",
-      icon: FileText,
-    },
-    {
-      href: "/dashboard/admin/questions",
-      label: "Global Question Vault",
-      icon: BookOpen,
-    },
-
-    {
-      href: "/dashboard/admin/plans",
-      label: "Plans",
-      icon: DollarSign,
+      label: "OVERVIEW",
+      links: [
+        {
+          href: "/dashboard/admin",
+          label: "Dashboard",
+          icon: LayoutDashboard,
+        },
+        {
+          href: "/dashboard/admin/analytics",
+          label: "Analytics",
+          icon: BarChart3,
+        },
+      ],
     },
     {
-      href: "/dashboard/admin/subscriptions",
-      label: "Subscriptions",
-      icon: CreditCard,
+      label: "CONTENT",
+      links: [
+        {
+          href: "/dashboard/admin/tests",
+          label: "Manage Tests",
+          icon: FileText,
+        },
+        {
+          href: "/dashboard/admin/tests/create",
+          label: "Create Test",
+          icon: PlusCircle,
+        },
+        {
+          href: "/dashboard/admin/questions",
+          label: "Question Vault",
+          icon: BookOpen,
+        },
+      ],
     },
     {
-      href: "/dashboard/admin/payments",
-      label: "Payments",
-      icon: DollarSign,
+      label: "BILLING",
+      links: [
+        {
+          href: "/dashboard/admin/plans",
+          label: "Plans",
+          icon: DollarSign,
+        },
+        {
+          href: "/dashboard/admin/subscriptions",
+          label: "Subscriptions",
+          icon: CreditCard,
+        },
+        {
+          href: "/dashboard/admin/payments",
+          label: "Payments",
+          icon: DollarSign,
+        },
+      ],
     },
     {
-      href: "/dashboard/admin/audit-logs",
-      label: "Audit Logs",
-      icon: Shield,
-    },
-
-    {
-      href: "/dashboard/admin/tests/create",
-      label: "Create Test",
-      icon: PlusCircle,
-    },
-    {
-      href: "/dashboard/admin/users",
-      label: "Users",
-      icon: Users,
-    },
-    {
-      href: "/dashboard/admin/analytics",
-      label: "Analytics",
-      icon: BarChart3,
-    },
-    {
-      href: "/dashboard/admin/settings",
-      label: "Settings",
-      icon: Settings,
+      label: "SYSTEM",
+      links: [
+        {
+          href: "/dashboard/admin/users",
+          label: "Users",
+          icon: Users,
+        },
+        {
+          href: "/dashboard/admin/audit-logs",
+          label: "Audit Logs",
+          icon: Shield,
+        },
+        {
+          href: "/dashboard/admin/settings",
+          label: "Settings",
+          icon: Settings,
+        },
+      ],
     },
   ];
 
+  // Flatten for student view
+  const adminLinks = adminLinkGroups.flatMap((g) => g.links);
   const links = user.role === "ADMIN" ? adminLinks : studentLinks;
 
   return (
@@ -170,32 +192,64 @@ export default function DashboardLayout({
           </div>
 
           {/* 🚀 Dynamic Nav Links */}
-          <nav className="flex-1 px-4 py-6 space-y-2">
-            {links.map((link, index) => {
-              const Icon = link.icon;
-              const isActive = pathname === link.href;
-              return (
-                <Link
-                  key={`${link.href}-${index}`}
-                  href={link.href}
-                  className={`flex items-center justify-between px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 ${
-                    isActive
-                      ? user.role === "ADMIN"
-                        ? "bg-linear-to-r from-red-500 to-orange-600 text-white shadow-lg shadow-red-500/25 transform hover:scale-105"
-                        : "bg-linear-to-r from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/25 transform hover:scale-105"
-                      : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50 group"
-                  }`}
-                >
-                  <div className="flex items-center">
-                    <Icon
-                      className={`mr-3 h-5 w-5 ${isActive ? "text-white" : "group-hover:scale-110 transition-transform"}`}
-                    />
-                    {link.label}
+          <nav className="flex-1 px-4 py-4 overflow-y-auto">
+            {user.role === "ADMIN" ? (
+              <div className="space-y-5">
+                {adminLinkGroups.map((group) => (
+                  <div key={group.label}>
+                    <p className="px-4 mb-1.5 text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">
+                      {group.label}
+                    </p>
+                    <div className="space-y-1">
+                      {group.links.map((link, index) => {
+                        const Icon = link.icon;
+                        const isActive = pathname === link.href;
+                        return (
+                          <Link
+                            key={`${link.href}-${index}`}
+                            href={link.href}
+                            className={`flex items-center px-4 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 ${
+                              isActive
+                                ? "bg-linear-to-r from-red-500 to-orange-600 text-white shadow-lg shadow-red-500/25"
+                                : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50 group"
+                            }`}
+                          >
+                            <Icon
+                              className={`mr-3 h-4.5 w-4.5 ${isActive ? "text-white" : "group-hover:scale-110 transition-transform"}`}
+                              style={{ height: "1.125rem", width: "1.125rem" }}
+                            />
+                            {link.label}
+                          </Link>
+                        );
+                      })}
+                    </div>
                   </div>
-                  {/* BUG-3 FIX: Removed dead tests-hierarchy badge */}
-                </Link>
-              );
-            })}
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {links.map((link, index) => {
+                  const Icon = link.icon;
+                  const isActive = pathname === link.href;
+                  return (
+                    <Link
+                      key={`${link.href}-${index}`}
+                      href={link.href}
+                      className={`flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 ${
+                        isActive
+                          ? "bg-linear-to-r from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/25"
+                          : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50 group"
+                      }`}
+                    >
+                      <Icon
+                        className={`mr-3 h-5 w-5 ${isActive ? "text-white" : "group-hover:scale-110 transition-transform"}`}
+                      />
+                      {link.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
           </nav>
 
           {/* User Profile Footer */}

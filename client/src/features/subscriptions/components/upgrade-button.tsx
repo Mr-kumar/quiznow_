@@ -3,7 +3,7 @@
 import { usePayment } from '@/hooks/use-payment';
 import { Button } from '@/components/ui/button';
 import { ZapIcon, Loader2Icon } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+import { toast } from "sonner";
 
 interface UpgradeButtonProps {
   planId: string;
@@ -18,20 +18,11 @@ export function UpgradeButton({
   price,
   className,
 }: UpgradeButtonProps) {
-  const { toast } = useToast();
-
-  const { pay, loading } = usePayment({
+const { pay, loading } = usePayment({
     onSuccess: () =>
-      toast({
-        title: '🎉 Subscribed!',
-        description: `You are now subscribed to ${planName}.`,
-      }),
+      toast('🎉 Subscribed!', { description: `You are now subscribed to ${planName}.` }),
     onError: (msg) =>
-      toast({
-        title: 'Payment failed',
-        description: msg,
-        variant: 'destructive',
-      }),
+      toast.error('Payment failed', { description: msg }),
   });
 
   return (

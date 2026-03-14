@@ -19,7 +19,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { formatDistanceToNow, format } from "date-fns";
+import { formatDistanceToNow, format, differenceInDays } from "date-fns";
 import {
   ClockIcon,
   TrophyIcon,
@@ -35,6 +35,7 @@ import {
   RefreshCwIcon,
   TrendingUpIcon,
   SparkleIcon,
+  CrownIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -53,6 +54,7 @@ import { attemptsApi } from "@/api/attempts";
 import { leaderboardApi } from "@/api/leaderboard";
 import { attemptKeys, studentKeys } from "@/api/query-keys";
 import { useAuthStore } from "@/stores/auth-store";
+import { studentUsersApi } from "@/api/student-users";
 import { unwrap } from "@/lib/unwrap";
 import { cn } from "@/lib/utils";
 import type { AttemptSummary } from "@/api/attempts";
@@ -85,51 +87,104 @@ function StatCard({
   label,
   value,
   sub,
-  trend,
   color,
 }: {
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
   label: string;
   value: string;
   sub?: string;
-  trend?: "up" | "down" | "neutral";
   color: string;
 }) {
   return (
     <Card className="hover:shadow-md transition-shadow">
       <CardContent className="p-6">
+        <div className="flex items-center gap-3">
+          <div
+            className={cn(
+              "h-10 w-10 rounded-lg flex items-center justify-center",
+              color,
+            )}
+          >
+            <Icon className="h-5 w-5 text-white" />
+          </div>
+          <div>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              {label}
+            </p>
+            <p className="text-2xl font-bold text-foreground tabular-nums leading-tight">
+              {value}
+            </p>
+            {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── Subscription widget ───────────────────────────────────────────────────────
+
+function SubscriptionWidget({
+  subscription,
+}: {
+  subscription: { data?: { plan?: any; status?: string; currentPeriodEnd?: string } } | null;
+}) {
+  const planObj = subscription?.data?.plan;
+  const planName = (typeof planObj === "object" && planObj !== null ? (planObj as any).name : planObj) || "Free";
+  const status = subscription?.data?.status ?? "ACTIVE";
+  const expiresAt = subscription?.data?.currentPeriodEnd;
+  const isPremium = planName !== "Free" && planName !== "FREE";
+  const daysLeft = expiresAt ? differenceInDays(new Date(expiresAt), new Date()) : null;
+
+  return (
+    <Card className={cn(
+      "border",
+      isPremium
+        ? "bg-linear-to-r from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20 border-amber-200 dark:border-amber-800"
+        : "bg-linear-to-r from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 border-slate-200 dark:border-slate-700",
+    )}>
+      <CardContent className="p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div
-              className={cn(
-                "h-10 w-10 rounded-lg flex items-center justify-center",
-                color,
-              )}
-            >
-              <Icon className="h-5 w-5 text-white" />
+            <div className={cn(
+              "h-10 w-10 rounded-xl flex items-center justify-center",
+              isPremium
+                ? "bg-amber-100 dark:bg-amber-900/40"
+                : "bg-slate-200 dark:bg-slate-700",
+            )}>
+              <CrownIcon className={cn(
+                "h-5 w-5",
+                isPremium ? "text-amber-600 dark:text-amber-400" : "text-slate-500",
+              )} />
             </div>
             <div>
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                {label}
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-semibold text-foreground">
+                  {isPremium ? planName : "Free"} Plan
+                </p>
+                <Badge
+                  variant={status === "ACTIVE" ? "default" : "secondary"}
+                  className="text-[10px] h-5"
+                >
+                  {status}
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {isPremium && daysLeft !== null
+                  ? daysLeft > 0
+                    ? `${daysLeft} days remaining`
+                    : "Expired"
+                  : "Upgrade to unlock premium tests"}
               </p>
-              <p className="text-2xl font-bold text-foreground tabular-nums leading-tight">
-                {value}
-              </p>
-              {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
             </div>
           </div>
-          {trend && (
-            <div
-              className={cn(
-                "flex items-center gap-1 text-xs",
-                trend === "up" && "text-green-600",
-                trend === "down" && "text-red-500",
-                trend === "neutral" && "text-muted-foreground",
-              )}
-            >
-              <TrendingUpIcon className="h-3 w-3" />
-              {trend === "up" ? "+12%" : trend === "down" ? "-5%" : "0%"}
-            </div>
+          {!isPremium && (
+            <Link href="/upgrade">
+              <Button size="sm" className="gap-1.5 text-xs h-8">
+                <CrownIcon className="h-3.5 w-3.5" />
+                Upgrade
+              </Button>
+            </Link>
           )}
         </div>
       </CardContent>
@@ -199,7 +254,7 @@ function AttemptRow({ attempt }: { attempt: AttemptSummary }) {
           </div>
 
           {/* Actions */}
-          {isSubmitted && (
+          {isSubmitted && attempt.testId && attempt.attemptId ? (
             <div className="shrink-0 hidden sm:flex gap-1">
               <Link
                 href={`/test/${attempt.testId}/result?attemptId=${attempt.attemptId}`}
@@ -214,7 +269,19 @@ function AttemptRow({ attempt }: { attempt: AttemptSummary }) {
                 </Button>
               </Link>
             </div>
-          )}
+          ) : attempt.status === "STARTED" && attempt.testId ? (
+            <div className="shrink-0 hidden sm:flex gap-1">
+              <Link href={`/test/${attempt.testId}`}>
+                <Button
+                  size="sm"
+                  className="h-8 px-3 text-xs gap-1.5 bg-amber-500 hover:bg-amber-600 text-white"
+                >
+                  <PlayIcon className="h-3 w-3" />
+                  Resume
+                </Button>
+              </Link>
+            </div>
+          ) : null}
         </div>
       </CardContent>
     </Card>
@@ -298,6 +365,16 @@ export default function DashboardPage() {
     queryKey: studentKeys.topicStats(),
     queryFn: () =>
       leaderboardApi.getMyTopicStats().then(unwrap<UserTopicStat[]>),
+    staleTime: 1000 * 60 * 5,
+  });
+
+  // Subscription data
+  const { data: subscription } = useQuery({
+    queryKey: ["subscription"],
+    queryFn: async () => {
+      const res = await studentUsersApi.getMySubscription();
+      return res.data;
+    },
     staleTime: 1000 * 60 * 5,
   });
 
@@ -397,6 +474,9 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
+      {/* ── Subscription Status ─────────────────────────────────────────────── */}
+      <SubscriptionWidget subscription={subscription ?? null} />
+
       {/* ── Quick Stats ────────────────────────────────────────────────────── */}
       <div>
         <h2 className="text-xl font-semibold text-foreground mb-4">
@@ -408,29 +488,20 @@ export default function DashboardPage() {
             label="Total Tests"
             value={String(totalAttempts)}
             sub="all time"
-            trend={totalAttempts > 0 ? "up" : "neutral"}
             color="bg-blue-500"
           />
           <StatCard
             icon={TargetIcon}
             label="Avg Accuracy"
             value={avgAccuracy !== null ? `${Math.round(avgAccuracy)}%` : "—"}
-            sub="submitted"
-            trend={
-              avgAccuracy && avgAccuracy > 70
-                ? "up"
-                : avgAccuracy && avgAccuracy < 50
-                  ? "down"
-                  : "neutral"
-            }
+            sub="last 10 submitted"
             color="bg-green-500"
           />
           <StatCard
             icon={TrophyIcon}
-            label="Tests Passed"
+            label="Tests Completed"
             value={String(submitted.length)}
             sub={`of ${totalAttempts}`}
-            trend={submitted.length > 0 ? "up" : "neutral"}
             color="bg-amber-500"
           />
           <StatCard
@@ -447,7 +518,6 @@ export default function DashboardPage() {
               }).length,
             )}
             sub="attempts"
-            trend="up"
             color="bg-purple-500"
           />
         </div>

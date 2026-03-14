@@ -27,7 +27,8 @@ export function useSubscriptions(params: UseSubscriptionsParams = {}) {
         search || undefined,
         status,
       );
-      return (res.data as any)?.data ?? res.data;
+      // Always return the full paginated response { data, total, page, limit }
+      return res.data;
     },
     placeholderData: (prev) => prev,
     staleTime: 1000 * 60 * 2, // 2 min

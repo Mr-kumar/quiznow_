@@ -78,3 +78,7 @@ export const adminPlansApi = {
     return res.data;
   },
 };
+
+export const publicPlansApi = {
+  getAll: () => api.get<ApiResponse<Plan[]>>("/plans/public"),
+};

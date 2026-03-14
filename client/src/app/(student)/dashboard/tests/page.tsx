@@ -24,7 +24,7 @@
  * We cross-reference attempt history with tests to decide which CTA to show.
  */
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
@@ -141,9 +141,19 @@ function TestCard({ test, attempts, hasActiveSubscription }: TestCardProps) {
                   LIVE
                 </Badge>
               )}
-              {cta === "locked" && (
-                <Badge variant="secondary" className="text-xs gap-1">
-                  <LockIcon className="h-3 w-3" />
+              {test.isPremium && (
+                <Badge
+                  variant={cta === "locked" ? "secondary" : "default"}
+                  className={cn(
+                    "text-xs gap-1",
+                    cta !== "locked" && "bg-amber-500 hover:bg-amber-600",
+                  )}
+                >
+                  {cta === "locked" ? (
+                    <LockIcon className="h-3 w-3" />
+                  ) : (
+                    <SparkleIcon className="h-3 w-3" />
+                  )}
                   Premium
                 </Badge>
               )}
@@ -222,10 +232,13 @@ function TestCard({ test, attempts, hasActiveSubscription }: TestCardProps) {
 
       <CardFooter className="pt-0">
         {cta === "locked" ? (
-          <Link href="/plans" className="w-full">
-            <Button className="w-full gap-2" variant="secondary">
+          <Link href="/upgrade" className="w-full">
+            <Button
+              className="w-full gap-2 transition-all hover:bg-amber-100 dark:hover:bg-amber-900/40 hover:text-amber-700"
+              variant="secondary"
+            >
               <LockIcon className="h-4 w-4" />
-              Unlock — View Plans
+              Upgrade to Unlock
             </Button>
           </Link>
         ) : cta === "resume" ? (
@@ -328,6 +341,29 @@ export default function DashboardTestsPage() {
     staleTime: 1000 * 60 * 10,
   });
 
+  // Initialize category from local storage once categories are loaded
+  useEffect(() => {
+    if (categories.length > 0 && activeCategoryId === null) {
+      const savedCategory = localStorage.getItem("quiznow_target_category");
+      if (savedCategory && categories.some((c: any) => c.id === savedCategory)) {
+        setActiveCategoryId(savedCategory);
+      } else {
+        // Default to the first category instead of showing ALL tests
+        setActiveCategoryId(categories[0].id);
+      }
+    }
+  }, [categories, activeCategoryId]);
+
+  const handleCategorySelect = useCallback((categoryId: string | null) => {
+    setActiveCategoryId(categoryId);
+    setPage(1);
+    if (categoryId) {
+      localStorage.setItem("quiznow_target_category", categoryId);
+    } else {
+      localStorage.removeItem("quiznow_target_category");
+    }
+  }, []);
+
   const {
     data: testsData,
     isLoading: testsLoading,
@@ -403,10 +439,10 @@ export default function DashboardTestsPage() {
           <div className="flex items-center justify-between gap-4">
             <div>
               <h1 className="text-3xl font-bold tracking-tight">
-                Available Tests
+                My Target Exam Tests
               </h1>
               <p className="text-muted-foreground">
-                All tests you can take right now
+                Select your target exam category to see tailored mock tests
               </p>
             </div>
             <div className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground">
@@ -454,25 +490,19 @@ export default function DashboardTestsPage() {
                   <Button
                     variant={activeCategoryId === null ? "default" : "outline"}
                     size="sm"
-                    onClick={() => {
-                      setActiveCategoryId(null);
-                      setPage(1);
-                    }}
+                    onClick={() => handleCategorySelect(null)}
                     className="gap-1"
                   >
                     All Categories
                   </Button>
-                  {categories.map((cat) => (
+                  {categories.map((cat: any) => (
                     <Button
                       key={cat.id}
                       variant={
                         activeCategoryId === cat.id ? "default" : "outline"
                       }
                       size="sm"
-                      onClick={() => {
-                        setActiveCategoryId(cat.id);
-                        setPage(1);
-                      }}
+                      onClick={() => handleCategorySelect(cat.id)}
                       className="gap-1"
                     >
                       {cat.name}

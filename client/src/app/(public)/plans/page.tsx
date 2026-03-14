@@ -1,20 +1,3 @@
-/**
- * app/(public)/plans/page.tsx
- *
- * Pricing Plans Page — shows subscription options.
- *
- * Layout:
- *  [Hero — "Simple, transparent pricing"]
- *  [Billing toggle — Monthly / Yearly]
- *  [Plans grid — Free, Pro, Ultimate]
- *  [Feature comparison table — full checklist]
- *  [FAQ section]
- *  [Final CTA]
- *
- * Server Component — fetches plan data from API.
- * Falls back to static fallback plans if API is unavailable.
- */
-
 import Link from "next/link";
 import type { Metadata } from "next";
 import {
@@ -34,9 +17,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { BillingToggle } from "@/app/(public)/plans/BillingToggle";
-
-// ── Metadata ──────────────────────────────────────────────────────────────────
+import { PlansCTA } from "@/app/(public)/plans/PlansCTA";
 
 export const metadata: Metadata = {
   title: "Pricing Plans | QuizNow — Unlock All Exam Tests",
@@ -44,186 +25,52 @@ export const metadata: Metadata = {
     "Choose the plan that fits your preparation. Start free, upgrade anytime.",
 };
 
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-interface Plan {
-  id: string;
-  name: string;
-  tagline: string;
-  monthlyPrice: number;
-  yearlyPrice: number;
-  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
-  color: string;
-  bgColor: string;
-  borderColor: string;
-  isPopular?: boolean;
-  features: string[];
-  notIncluded?: string[];
-  ctaLabel: string;
-  ctaClass: string;
-}
-
-// ── Static plan config ────────────────────────────────────────────────────────
-
-const PLANS: Omit<Plan, "id">[] = [
+const STYLE_PROFILES = [
   {
-    name: "Free",
-    tagline: "For aspirants just getting started",
-    monthlyPrice: 0,
-    yearlyPrice: 0,
     icon: BookOpenIcon,
     color: "text-slate-600 dark:text-slate-400",
     bgColor: "bg-slate-100 dark:bg-slate-800",
     borderColor: "border-slate-200 dark:border-slate-700",
-    features: [
-      "500+ free mock tests",
-      "NTA-style exam interface",
-      "Bilingual (EN + HI) questions",
-      "Instant results & score",
-      "Basic section breakdown",
-      "5 leaderboard views/month",
-    ],
-    notIncluded: [
-      "Full solutions with explanations",
-      "Topic heatmap analytics",
-      "Unlimited leaderboard access",
-      "PDF download of solutions",
-      "Priority support",
-    ],
-    ctaLabel: "Get Started Free",
-    ctaClass:
-      "bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-slate-200 dark:text-slate-900 text-white",
+    ctaClass: "bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-slate-200 dark:text-slate-900 text-white",
   },
   {
-    name: "Pro",
-    tagline: "For serious exam aspirants",
-    monthlyPrice: 299,
-    yearlyPrice: 2499,
     icon: ZapIcon,
     color: "text-blue-600 dark:text-blue-400",
     bgColor: "bg-blue-100 dark:bg-blue-950",
     borderColor: "border-blue-300 dark:border-blue-700",
-    isPopular: true,
-    features: [
-      "Everything in Free",
-      "All 1000+ premium tests",
-      "Full solutions with explanations",
-      "Topic heatmap & weak area analysis",
-      "Unlimited leaderboard access",
-      "Attempt history (all time)",
-      "PDF download of solutions",
-      "Email support (24h response)",
-    ],
-    ctaLabel: "Start Pro Plan",
-    ctaClass:
-      "bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/25",
+    ctaClass: "bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/25",
   },
   {
-    name: "Ultimate",
-    tagline: "For toppers who want everything",
-    monthlyPrice: 499,
-    yearlyPrice: 3999,
     icon: CrownIcon,
     color: "text-amber-600 dark:text-amber-400",
     bgColor: "bg-amber-100 dark:bg-amber-950",
     borderColor: "border-amber-300 dark:border-amber-700",
-    features: [
-      "Everything in Pro",
-      "All current & future test series",
-      "Live test series (latest year papers)",
-      "Video explanations for hard questions",
-      "Performance comparison with toppers",
-      "1-on-1 doubt sessions (2/month)",
-      "WhatsApp support group",
-      "Priority support (2h response)",
-      "Early access to new test series",
-    ],
-    ctaLabel: "Go Ultimate",
-    ctaClass:
-      "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-lg shadow-amber-500/25",
-  },
+    ctaClass: "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-lg shadow-amber-500/25",
+  }
 ];
 
-// ── Feature comparison ────────────────────────────────────────────────────────
-
-const COMPARISON_ROWS = [
-  {
-    feature: "Free mock tests",
-    icon: BookOpenIcon,
-    free: "500+",
-    pro: "1000+",
-    ultimate: "All",
-  },
-  {
-    feature: "Premium test series",
-    icon: ZapIcon,
-    free: false,
-    pro: true,
-    ultimate: true,
-  },
-  {
-    feature: "Full solutions + explanations",
-    icon: BookOpenIcon,
-    free: false,
-    pro: true,
-    ultimate: true,
-  },
-  {
-    feature: "Bilingual (EN/HI)",
-    icon: BookOpenIcon,
-    free: true,
-    pro: true,
-    ultimate: true,
-  },
-  {
-    feature: "Topic heatmap analytics",
-    icon: BarChart3Icon,
-    free: false,
-    pro: true,
-    ultimate: true,
-  },
-  {
-    feature: "Leaderboard access",
-    icon: UsersIcon,
-    free: "5/month",
-    pro: "Unlimited",
-    ultimate: "Unlimited",
-  },
-  {
-    feature: "PDF download",
-    icon: DownloadIcon,
-    free: false,
-    pro: true,
-    ultimate: true,
-  },
-  {
-    feature: "Video explanations",
-    icon: StarIcon,
-    free: false,
-    pro: false,
-    ultimate: true,
-  },
-  {
-    feature: "Doubt sessions",
-    icon: HeadphonesIcon,
-    free: false,
-    pro: false,
-    ultimate: "2/month",
-  },
-  {
-    feature: "Priority support",
-    icon: ShieldCheckIcon,
-    free: false,
-    pro: "Email 24h",
-    ultimate: "WhatsApp 2h",
-  },
+const DEFAULT_FEATURES = [
+  'Unlimited premium tests',
+  'Detailed performance analytics',
+  'Personalised weak area insights',
+  'Priority support',
 ];
+
+function formatDuration(days: number): string {
+  if (days >= 365) {
+    const years = Math.floor(days / 365);
+    return years === 1 ? '1 Year' : `${years} Years`;
+  }
+  if (days >= 30) {
+    const months = Math.floor(days / 30);
+    return months === 1 ? '1 Month' : `${months} Months`;
+  }
+  return `${days} Days`;
+}
 
 function CheckOrX({ value }: { value: boolean | string }) {
   if (value === false)
-    return (
-      <XIcon className="h-4 w-4 text-slate-300 dark:text-slate-600 mx-auto" />
-    );
+    return <XIcon className="h-4 w-4 text-slate-300 dark:text-slate-600 mx-auto" />;
   if (value === true)
     return <CheckIcon className="h-4 w-4 text-green-500 mx-auto" />;
   return (
@@ -232,8 +79,6 @@ function CheckOrX({ value }: { value: boolean | string }) {
     </span>
   );
 }
-
-// ── FAQ ───────────────────────────────────────────────────────────────────────
 
 const FAQS = [
   {
@@ -254,12 +99,32 @@ const FAQS = [
   },
 ];
 
-// ── Page ──────────────────────────────────────────────────────────────────────
+async function getPlans() {
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/plans/public`, {
+      next: { revalidate: 60 }
+    });
+    if (!res.ok) return [];
+    const json = await res.json();
+    return Array.isArray(json) ? json : json.data ?? [];
+  } catch (error) {
+    return [];
+  }
+}
 
-export default function PlansPage() {
+export default async function PlansPage() {
+  const plansData = await getPlans();
+  const plans = plansData.length > 0 ? plansData : []; // API returns empty array if no plans
+
+  const allFeatures = new Set<string>();
+  plans.forEach((p: any) => {
+    (p.features?.length > 0 ? p.features : DEFAULT_FEATURES).forEach((f: string) => allFeatures.add(f));
+  });
+  const comparisonFeatures = Array.from(allFeatures);
+
   return (
     <div className="bg-white dark:bg-slate-950 min-h-screen">
-      {/* ── Hero ────────────────────────────────────────────────────────────── */}
+      {/* Hero */}
       <div className="bg-linear-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-950 border-b border-slate-200 dark:border-slate-800 py-14 text-center space-y-4 px-4">
         <Badge
           variant="outline"
@@ -274,105 +139,67 @@ export default function PlansPage() {
           Start free. Upgrade when you're ready to go all-in. Cancel anytime —
           no questions asked.
         </p>
-
-        {/* Billing toggle — client component */}
-        <div className="flex justify-center pt-2">
-          <BillingToggle />
-        </div>
       </div>
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-16">
-        {/* ── Plans grid ────────────────────────────────────────────────────── */}
-        <div className="grid md:grid-cols-3 gap-6 items-start">
-          {PLANS.map((plan) => {
-            const Icon = plan.icon;
+        {/* Plans Grid */}
+        <div className="grid md:grid-cols-3 justify-center gap-6 items-start">
+          {plans.map((plan: any, index: number) => {
+            const style = STYLE_PROFILES[Math.min(index, STYLE_PROFILES.length - 1)];
+            const Icon = style.icon;
+            const features = plan.features?.length > 0 ? plan.features : DEFAULT_FEATURES;
+            const showPopular = plan.isPopular || plan.durationDays > 30;
+            const badgeText = plan.badge || (showPopular ? 'Most Popular' : null);
+
             return (
               <div
-                key={plan.name}
-                className={`relative rounded-2xl border-2 bg-white dark:bg-slate-900 p-6 flex flex-col ${plan.borderColor} ${plan.isPopular ? "shadow-xl ring-1 ring-blue-500/20" : ""}`}
+                key={plan.id}
+                className={`relative rounded-2xl border-2 bg-white dark:bg-slate-900 p-6 flex flex-col h-full ${style.borderColor} ${showPopular ? "shadow-xl ring-1 ring-blue-500/20 scale-[1.02]" : ""}`}
               >
-                {plan.isPopular && (
+                {badgeText && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <Badge className="bg-blue-600 text-white border-transparent px-3 text-xs">
-                      Most Popular
+                    <Badge className="bg-blue-600 hover:bg-blue-700 text-white border-transparent px-3 text-xs gap-1">
+                      <StarIcon className="h-3 w-3 fill-current" />
+                      {badgeText}
                     </Badge>
                   </div>
                 )}
 
-                {/* Plan header */}
                 <div className="space-y-3 mb-5">
-                  <div
-                    className={`h-10 w-10 rounded-xl flex items-center justify-center ${plan.bgColor}`}
-                  >
-                    <Icon className={`h-5 w-5 ${plan.color}`} />
+                  <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${style.bgColor}`}>
+                    <Icon className={`h-5 w-5 ${style.color}`} />
                   </div>
                   <div>
                     <h2 className="text-lg font-bold text-slate-900 dark:text-white">
                       {plan.name}
                     </h2>
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                      {plan.tagline}
+                      {plan.description || "Unlock premium test series access"}
                     </p>
                   </div>
-                  {/* Price — updated by BillingToggle via data attribute */}
-                  <div className="flex items-end gap-1.5">
-                    {plan.monthlyPrice === 0 ? (
-                      <span className="text-3xl font-bold text-slate-900 dark:text-white">
-                        Free
-                      </span>
-                    ) : (
-                      <>
-                        <span
-                          className="text-3xl font-bold text-slate-900 dark:text-white tabular-nums"
-                          data-monthly={`₹${plan.monthlyPrice}`}
-                          data-yearly={`₹${Math.round(plan.yearlyPrice / 12)}`}
-                        >
-                          ₹{plan.monthlyPrice}
-                        </span>
-                        <span className="text-sm text-slate-400 dark:text-slate-500 mb-1">
-                          /month
-                        </span>
-                      </>
-                    )}
+                  <div className="flex items-end gap-1.5 pt-2">
+                    <span className="text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                      ₹{plan.price}
+                    </span>
+                    <span className="text-sm font-medium text-slate-400 dark:text-slate-500 mb-1.5">
+                      / {formatDuration(plan.durationDays)}
+                    </span>
                   </div>
-                  {plan.yearlyPrice > 0 && (
-                    <p
-                      className="text-xs text-green-600 dark:text-green-400 font-medium"
-                      data-yearly-note={`₹${plan.yearlyPrice}/year — save ₹${plan.monthlyPrice * 12 - plan.yearlyPrice}`}
-                    >
-                      Save ₹{plan.monthlyPrice * 12 - plan.yearlyPrice} with
-                      yearly plan
-                    </p>
-                  )}
                 </div>
 
-                {/* CTA */}
-                <Link href="/login" className="mb-5">
-                  <Button className={`w-full gap-1.5 ${plan.ctaClass}`}>
-                    {plan.ctaLabel}
-                    <ArrowRightIcon className="h-3.5 w-3.5" />
-                  </Button>
-                </Link>
+                <PlansCTA 
+                  planId={plan.id}
+                  planName={plan.name}
+                  price={plan.price}
+                  ctaClass={style.ctaClass}
+                />
 
                 <Separator className="mb-4" />
 
-                {/* Features */}
-                <ul className="space-y-2.5 flex-1">
-                  {plan.features.map((f) => (
-                    <li
-                      key={f}
-                      className="flex items-start gap-2 text-sm text-slate-700 dark:text-slate-300"
-                    >
+                <ul className="space-y-3 flex-1">
+                  {features.map((f: string) => (
+                    <li key={f} className="flex items-start gap-2.5 text-sm text-slate-700 dark:text-slate-300 leading-snug">
                       <CheckIcon className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />
-                      {f}
-                    </li>
-                  ))}
-                  {plan.notIncluded?.map((f) => (
-                    <li
-                      key={f}
-                      className="flex items-start gap-2 text-sm text-slate-400 dark:text-slate-600"
-                    >
-                      <XIcon className="h-4 w-4 text-slate-300 dark:text-slate-600 shrink-0 mt-0.5" />
                       {f}
                     </li>
                   ))}
@@ -380,61 +207,74 @@ export default function PlansPage() {
               </div>
             );
           })}
+
+          {plans.length === 0 && (
+            <div className="col-span-full py-20 text-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
+              <CrownIcon className="mx-auto h-10 w-10 text-slate-300 mb-3" />
+              <h3 className="text-lg font-medium text-slate-900 dark:text-white">No plans available</h3>
+              <p className="text-sm text-slate-500 mt-1">Check back later for new premium subscriptions!</p>
+            </div>
+          )}
         </div>
 
-        {/* ── Comparison table ──────────────────────────────────────────────── */}
-        <div>
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-5 text-center">
-            Full feature comparison
-          </h2>
-          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900">
-                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider w-2/5">
-                      Feature
-                    </th>
-                    {["Free", "Pro", "Ultimate"].map((p) => (
-                      <th
-                        key={p}
-                        className="px-5 py-3.5 text-center text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider"
-                      >
-                        {p}
+        {/* Feature Comparison */}
+        {plans.length > 1 && (
+          <div>
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-5 text-center">
+              Compare Features
+            </h2>
+            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900">
+                      <th className="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider min-w-[200px]">
+                        Feature
                       </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
-                  {COMPARISON_ROWS.map(
-                    ({ feature, icon: Icon, free, pro, ultimate }) => (
-                      <tr
-                        key={feature}
-                        className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors"
-                      >
-                        <td className="px-5 py-3 flex items-center gap-2 text-slate-700 dark:text-slate-300">
-                          <Icon className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                          {feature}
-                        </td>
-                        <td className="px-5 py-3 text-center">
-                          <CheckOrX value={free} />
-                        </td>
-                        <td className="px-5 py-3 text-center bg-blue-50/50 dark:bg-blue-950/10">
-                          <CheckOrX value={pro} />
-                        </td>
-                        <td className="px-5 py-3 text-center">
-                          <CheckOrX value={ultimate} />
-                        </td>
+                      {plans.map((p: any) => (
+                        <th
+                          key={p.id}
+                          className="px-5 py-3.5 text-center text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider"
+                        >
+                          {p.name}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
+                    <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                      <td className="px-5 py-3 text-slate-700 dark:text-slate-300 font-medium tracking-wide text-xs uppercase">Price</td>
+                      {plans.map((p: any) => (
+                        <td key={p.id} className="px-5 py-3 text-center font-bold">₹{p.price}</td>
+                      ))}
+                    </tr>
+                    <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                      <td className="px-5 py-3 text-slate-700 dark:text-slate-300 font-medium tracking-wide text-xs uppercase">Duration</td>
+                      {plans.map((p: any) => (
+                        <td key={p.id} className="px-5 py-3 text-center">{formatDuration(p.durationDays)}</td>
+                      ))}
+                    </tr>
+                    {comparisonFeatures.map((feature: string) => (
+                      <tr key={feature} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                        <td className="px-5 py-3 text-slate-700 dark:text-slate-300">{feature}</td>
+                        {plans.map((p: any) => {
+                          const pFeatures = p.features?.length > 0 ? p.features : DEFAULT_FEATURES;
+                          return (
+                            <td key={p.id} className="px-5 py-3 text-center">
+                              <CheckOrX value={pFeatures.includes(feature)} />
+                            </td>
+                          );
+                        })}
                       </tr>
-                    ),
-                  )}
-                </tbody>
-              </table>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
-        {/* ── FAQs ─────────────────────────────────────────────────────────── */}
+        {/* FAQs */}
         <div className="max-w-2xl mx-auto">
           <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-6 text-center">
             Frequently asked questions
@@ -456,13 +296,13 @@ export default function PlansPage() {
           </div>
         </div>
 
-        {/* ── Final CTA ─────────────────────────────────────────────────────── */}
+        {/* Final CTA */}
         <div className="text-center py-8 rounded-2xl bg-linear-to-r from-blue-600 to-indigo-600 px-6">
           <h3 className="text-xl font-bold text-white mb-2">
             Still not sure? Start free today.
           </h3>
           <p className="text-blue-100 text-sm mb-5">
-            500+ free tests available. No credit card needed.
+            100+ free tests available. No credit card needed.
           </p>
           <Link href="/login">
             <Button className="bg-white text-blue-600 hover:bg-blue-50 gap-2 font-semibold">

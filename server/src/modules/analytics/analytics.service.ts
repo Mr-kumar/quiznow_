@@ -29,8 +29,11 @@ export class AnalyticsService {
       activeTests,
       completedAttempts,
       avgPerformance,
+      thisMonthUsers,
       lastMonthUsers,
+      thisMonthTests,
       lastMonthTests,
+      thisMonthAttempts,
       lastMonthAttempts,
       lastMonthPerformance,
     ] = await Promise.all([
@@ -38,9 +41,23 @@ export class AnalyticsService {
       this.prisma.test.count({ where: { isActive: true, isLive: true } }),
       this.prisma.attempt.count({ where: { status: Status.SUBMITTED } }),
       this.getAveragePerformance(),
+      // This month's new users
+      this.prisma.user.count({
+        where: { createdAt: { gte: thisMonth } },
+      }),
+      // Last month's new users
       this.prisma.user.count({
         where: { createdAt: { gte: lastMonth, lt: thisMonth } },
       }),
+      // This month's new tests
+      this.prisma.test.count({
+        where: {
+          isActive: true,
+          isLive: true,
+          createdAt: { gte: thisMonth },
+        },
+      }),
+      // Last month's new tests
       this.prisma.test.count({
         where: {
           isActive: true,
@@ -48,6 +65,14 @@ export class AnalyticsService {
           createdAt: { gte: lastMonth, lt: thisMonth },
         },
       }),
+      // This month's attempts
+      this.prisma.attempt.count({
+        where: {
+          status: Status.SUBMITTED,
+          createdAt: { gte: thisMonth },
+        },
+      }),
+      // Last month's attempts
       this.prisma.attempt.count({
         where: {
           status: Status.SUBMITTED,
@@ -57,26 +82,23 @@ export class AnalyticsService {
       this.getAveragePerformance(lastMonth, thisMonth),
     ]);
 
-    // Calculate growth percentages
+    // Calculate month-over-month growth (compare this month to last month)
     const userGrowth =
       lastMonthUsers > 0
-        ? Math.round(((totalUsers - lastMonthUsers) / lastMonthUsers) * 100)
-        : 0;
+        ? Math.round(((thisMonthUsers - lastMonthUsers) / lastMonthUsers) * 100)
+        : thisMonthUsers > 0 ? 100 : 0;
     const testGrowth =
       lastMonthTests > 0
         ? Math.round(
-            ((activeTests - lastMonthTests) / Math.max(lastMonthTests, 1)) *
-              100,
+            ((thisMonthTests - lastMonthTests) / lastMonthTests) * 100,
           )
-        : 0;
+        : thisMonthTests > 0 ? 100 : 0;
     const attemptGrowth =
       lastMonthAttempts > 0
         ? Math.round(
-            ((completedAttempts - lastMonthAttempts) /
-              Math.max(lastMonthAttempts, 1)) *
-              100,
+            ((thisMonthAttempts - lastMonthAttempts) / lastMonthAttempts) * 100,
           )
-        : 0;
+        : thisMonthAttempts > 0 ? 100 : 0;
     const performanceGrowth =
       lastMonthPerformance > 0
         ? Math.round(
@@ -95,6 +117,9 @@ export class AnalyticsService {
       lastMonthTests,
       lastMonthAttempts,
       lastMonthPerformance,
+      thisMonthUsers,
+      thisMonthTests,
+      thisMonthAttempts,
       userGrowth,
       testGrowth,
       attemptGrowth,
@@ -294,13 +319,6 @@ export class AnalyticsService {
    */
   async getUserTopicStats(userId: string) {
     try {
-      // Get all topics first
-      const allTopics = await this.prisma.topic.findMany({
-        include: {
-          questions: true,
-        },
-      });
-
       // Get user stats for each topic
       const userStats = await this.prisma.userTopicStat.findMany({
         where: { userId },

@@ -2,13 +2,36 @@ import { Injectable, BadRequestException, NotFoundException } from '@nestjs/comm
 import { PrismaService } from '../../../services/prisma/prisma.service';
 import { CreateSubscriptionDto } from './dto/create-subscription.dto';
 import { UpdateSubscriptionDto } from './dto/update-subscription.dto';
-import { SubscriptionStatus } from '@prisma/client';
+import { SubscriptionStatus, Role } from '@prisma/client';
+import { AuditLogsService } from '../../admin/audit-logs/audit-logs.service';
+import { AuditAction } from '../../admin/audit-logs/dto/create-audit-log.dto';
 
 @Injectable()
 export class SubscriptionsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private auditLogs: AuditLogsService,
+  ) {}
 
-  async create(createSubscriptionDto: CreateSubscriptionDto) {
+  async create(
+    createSubscriptionDto: CreateSubscriptionDto,
+    actorId?: string,
+    actorRole?: string,
+  ) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: createSubscriptionDto.userId },
+    });
+
+    if (!user || (user as any).deletedAt) {
+      throw new BadRequestException('User not found');
+    }
+
+    if (user.role !== Role.STUDENT) {
+      throw new BadRequestException(
+        'Subscriptions can only be created for student accounts',
+      );
+    }
+
     const plan = await this.prisma.plan.findUnique({
       where: { id: createSubscriptionDto.planId },
     });
@@ -21,7 +44,7 @@ export class SubscriptionsService {
     const expiresAt = new Date(startAt);
     expiresAt.setDate(expiresAt.getDate() + plan.durationDays);
 
-    return this.prisma.subscription.create({
+    const subscription = await this.prisma.subscription.create({
       data: {
         userId: createSubscriptionDto.userId,
         planId: createSubscriptionDto.planId,
@@ -34,6 +57,20 @@ export class SubscriptionsService {
         user: true,
       },
     });
+    this.auditLogs.logAsync({
+      action: AuditAction.SUBSCRIPTION_CREATED,
+      targetType: 'Subscription',
+      targetId: subscription.id,
+      actorId,
+      actorRole,
+      metadata: {
+        userId: subscription.userId,
+        planId: subscription.planId,
+        startAt,
+        expiresAt,
+      },
+    });
+    return subscription;
   }
 
   async findAll(page = 1, limit = 10, search?: string, userId?: string) {
@@ -84,8 +121,13 @@ export class SubscriptionsService {
     });
   }
 
-  async update(id: string, updateSubscriptionDto: UpdateSubscriptionDto) {
-    return this.prisma.subscription.update({
+  async update(
+    id: string,
+    updateSubscriptionDto: UpdateSubscriptionDto,
+    actorId?: string,
+    actorRole?: string,
+  ) {
+    const sub = await this.prisma.subscription.update({
       where: { id },
       data: updateSubscriptionDto,
       include: {
@@ -93,10 +135,19 @@ export class SubscriptionsService {
         user: true,
       },
     });
+    this.auditLogs.logAsync({
+      action: AuditAction.SUBSCRIPTION_CREATED,
+      targetType: 'Subscription',
+      targetId: id,
+      actorId,
+      actorRole,
+      metadata: updateSubscriptionDto as any,
+    });
+    return sub;
   }
 
-  async delete(id: string) {
-    return this.prisma.subscription.update({
+  async delete(id: string, actorId?: string, actorRole?: string) {
+    const sub = await this.prisma.subscription.update({
       where: { id },
       data: {
         status: SubscriptionStatus.CANCELLED,
@@ -106,8 +157,25 @@ export class SubscriptionsService {
         user: true,
       },
     });
+    this.auditLogs.logAsync({
+      action: AuditAction.SUBSCRIPTION_CANCELLED,
+      targetType: 'Subscription',
+      targetId: id,
+      actorId,
+      actorRole,
+      metadata: {
+        userId: sub.userId,
+        planId: sub.planId,
+        status: sub.status,
+      },
+    });
+    return sub;
   }
-  async cancelWithRefundNote(id: string) {
+  async cancelWithRefundNote(
+    id: string,
+    actorId?: string,
+    actorRole?: string,
+  ) {
     const sub = await this.prisma.subscription.findUnique({
       where: { id },
       include: { payments: true },
@@ -115,7 +183,7 @@ export class SubscriptionsService {
 
     if (!sub) throw new NotFoundException('Subscription not found');
 
-    return this.prisma.$transaction([
+    const result = await this.prisma.$transaction([
       this.prisma.subscription.update({
         where: { id },
         data: { status: SubscriptionStatus.CANCELLED },
@@ -128,6 +196,19 @@ export class SubscriptionsService {
         }),
       ),
     ]);
+    this.auditLogs.logAsync({
+      action: AuditAction.SUBSCRIPTION_CANCELLED,
+      targetType: 'Subscription',
+      targetId: id,
+      actorId,
+      actorRole,
+      metadata: {
+        userId: sub.userId,
+        planId: sub.planId,
+        cancelledWithRefundNote: true,
+      },
+    });
+    return result;
   }
   async getUserActiveSubscription(userId: string) {
     return this.prisma.subscription.findFirst({

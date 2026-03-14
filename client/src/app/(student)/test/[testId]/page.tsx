@@ -95,7 +95,16 @@ async function getTestData(testId: string): Promise<{
     // Student API returns { success: true, data: test } structure
     const test: ExamTest = testJson?.data ?? testJson;
     const sections: ExamSection[] = (sectionsJson?.data ?? sectionsJson) || [];
-    const isSubscribed = subJson?.data?.plan !== "FREE";
+    // Student API returns { success: true, data: subscription | null } structure for /me/subscription
+    const subscription = subJson?.data; 
+    
+    // Check if the returned subscription is active and not expired
+    const hasActiveSubscription =
+      subscription &&
+      subscription.status === "ACTIVE" &&
+      new Date(subscription.expiresAt) > new Date();
+
+    const isSubscribed = !!hasActiveSubscription;
 
     return {
       test,

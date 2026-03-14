@@ -6,7 +6,7 @@ import {
   useAuditLogs,
   useCleanupAuditLogs,
 } from "@/features/admin-audit-logs/hooks/use-audit-logs";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -70,8 +70,16 @@ const AUDIT_ACTIONS = [
   "SECTION_DELETED",
   "SECTION_QUESTIONS_LINKED",
   "SECTION_QUESTION_UNLINKED",
+  "USER_CREATED",
+  "USER_UPDATED",
+  "USER_DELETED",
   "USER_ROLE_CHANGED",
   "USER_BANNED",
+  "PLAN_CREATED",
+  "PLAN_UPDATED",
+  "PLAN_DELETED",
+  "SUBSCRIPTION_CREATED",
+  "SUBSCRIPTION_CANCELLED",
   "BULK_UPLOAD",
   "AUDIT_LOGS_PRUNED",
 ] as const;
@@ -171,9 +179,7 @@ function TableSkeleton() {
 const PAGE_SIZE = 20;
 
 export default function AuditLogsPage() {
-  const { toast } = useToast();
-
-  // State
+// State
   const [page, setPage] = useState(1);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -245,7 +251,7 @@ export default function AuditLogsPage() {
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-sm">
+            <div className="h-8 w-8 rounded-lg bg-linear-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-sm">
               <Shield className="h-4 w-4 text-white" />
             </div>
             <h1 className="text-lg font-bold text-slate-900 dark:text-slate-50">

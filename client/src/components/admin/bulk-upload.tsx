@@ -5,7 +5,7 @@ import { adminQuestionsApi, adminTopicsApi, type Topic } from "@/lib/admin-api";
 import api from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 import { useErrorHandler } from "@/hooks/use-error-handler";
 import { ErrorDisplay } from "@/components/ui/error-display";
 import {
@@ -50,8 +50,7 @@ export default function BulkQuestionUpload({
   sectionId,
   onSuccess,
 }: BulkUploadProps) {
-  const { toast } = useToast();
-  const { handleError, errors, clearError } = useErrorHandler();
+const { handleError, errors, clearError } = useErrorHandler();
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [selectedTopicId, setSelectedTopicId] = useState<string>("");
@@ -69,11 +68,7 @@ export default function BulkQuestionUpload({
         // ✅ FIX: adminTopicsApi.getAll returns Topic[] directly, not wrapped
         setTopics(Array.isArray(response) ? response : []);
       } catch {
-        toast({
-          title: "Error",
-          description: "Failed to load topics",
-          variant: "destructive",
-        });
+        toast.error("Error", { description: "Failed to load topics" });
       } finally {
         setTopicsLoading(false);
       }
@@ -109,10 +104,7 @@ export default function BulkQuestionUpload({
       });
       setShowValidation(true);
 
-      toast({
-        title: "Validation Complete",
-        description: `${response.data.validCount ?? 0} valid rows, ${response.data.errors?.length ?? 0} errors`,
-      });
+      toast("Validation Complete", { description: `${response.data.validCount ?? 0} valid rows, ${response.data.errors?.length ?? 0} errors` });
     } catch (error: any) {
       handleError(error, { showToast: true });
     } finally {
@@ -129,11 +121,7 @@ export default function BulkQuestionUpload({
 
     // Guard: warn if file changed after validation
     if (validation && file !== validation._file) {
-      toast({
-        title: "File Changed",
-        description: "Please re-validate before importing",
-        variant: "destructive",
-      });
+      toast.error("File Changed", { description: "Please re-validate before importing" });
       setShowValidation(false);
       setValidation(null);
       return;
@@ -147,10 +135,7 @@ export default function BulkQuestionUpload({
         sectionId,
         selectedTopicId || undefined,
       );
-      toast({
-        title: "Import Successful",
-        description: `${response.data.count} questions uploaded successfully`,
-      });
+      toast("Import Successful", { description: `${response.data.count} questions uploaded successfully` });
       onSuccess?.(response.data.count);
       // Reset state
       setFile(null);
@@ -169,10 +154,7 @@ export default function BulkQuestionUpload({
     setIsUploading(true);
     try {
       const response = await adminQuestionsApi.bulkUpload(file, sectionId);
-      toast({
-        title: "Upload Successful",
-        description: `${response.data.count} questions uploaded successfully`,
-      });
+      toast("Upload Successful", { description: `${response.data.count} questions uploaded successfully` });
       onSuccess?.(response.data.count);
       setFile(null);
     } catch (error: any) {

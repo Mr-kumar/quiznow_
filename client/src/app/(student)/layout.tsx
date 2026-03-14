@@ -39,6 +39,7 @@ import {
   ZapIcon,
   BellIcon,
   CrownIcon,
+  SearchIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -55,19 +56,38 @@ interface NavItem {
   matchExact?: boolean;
 }
 
-const NAV_ITEMS: NavItem[] = [
+export const NAV_GROUPS = [
   {
-    href: "/dashboard",
-    label: "Dashboard",
-    icon: LayoutDashboardIcon,
-    matchExact: true,
+    label: "LEARNING",
+    items: [
+      {
+        href: "/dashboard",
+        label: "Dashboard",
+        icon: LayoutDashboardIcon,
+        matchExact: true,
+      },
+      { href: "/dashboard/tests", label: "My Tests", icon: BookOpenIcon },
+      { href: "/exams", label: "Browse Exams", icon: SearchIcon },
+      { href: "/test/history", label: "History", icon: ClockIcon },
+    ],
   },
-  { href: "/dashboard/tests", label: "My Tests", icon: BookOpenIcon },
-  { href: "/test/history", label: "History", icon: ClockIcon },
-  { href: "/leaderboard", label: "Leaderboard", icon: TrophyIcon }, // BUG-5 FIX: Added missing leaderboard nav item
-  { href: "/profile", label: "Profile", icon: UserIcon },
-  { href: "/upgrade", label: "Upgrade", icon: CrownIcon },
+  {
+    label: "COMPETE",
+    items: [
+      { href: "/leaderboard", label: "Leaderboard", icon: TrophyIcon },
+    ],
+  },
+  {
+    label: "ACCOUNT",
+    items: [
+      { href: "/profile", label: "Profile", icon: UserIcon },
+      { href: "/upgrade", label: "Upgrade", icon: CrownIcon },
+    ],
+  },
 ];
+
+// Flat list for mobile bottom nav
+const NAV_ITEMS = NAV_GROUPS.flatMap(g => g.items);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -248,8 +268,17 @@ export default function StudentLayout({
 
         {/* Nav links */}
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-          {NAV_ITEMS.map((item) => (
-            <SidebarLink key={item.href} item={item} pathname={pathname} />
+          {NAV_GROUPS.map((group) => (
+            <div key={group.label} className="mt-4 first:mt-0">
+              <p className="px-3 mb-2 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                {group.label}
+              </p>
+              <div className="space-y-1">
+                {group.items.map((item) => (
+                  <SidebarLink key={item.href} item={item} pathname={pathname} />
+                ))}
+              </div>
+            </div>
           ))}
         </nav>
 
@@ -314,13 +343,22 @@ export default function StudentLayout({
 
             {/* Mobile nav */}
             <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-              {NAV_ITEMS.map((item) => (
-                <SidebarLink
-                  key={item.href}
-                  item={item}
-                  pathname={pathname}
-                  onClick={() => setMobileSidebarOpen(false)}
-                />
+              {NAV_GROUPS.map((group) => (
+                <div key={group.label} className="mt-4 first:mt-0">
+                  <p className="px-3 mb-2 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                    {group.label}
+                  </p>
+                  <div className="space-y-1">
+                    {group.items.map((item) => (
+                      <SidebarLink
+                        key={item.href}
+                        item={item}
+                        pathname={pathname}
+                        onClick={() => setMobileSidebarOpen(false)}
+                      />
+                    ))}
+                  </div>
+                </div>
               ))}
             </nav>
 

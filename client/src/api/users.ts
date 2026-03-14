@@ -12,6 +12,18 @@ export interface User {
   status: UserStatus;
   createdAt: string;
   updatedAt: string;
+  // Present only in admin users listing responses; indicates active paid access
+  subscriptions?: {
+    id: string;
+    status: "ACTIVE" | "EXPIRED" | "CANCELLED";
+    expiresAt: string;
+    plan: {
+      id: string;
+      name: string;
+      price: number;
+      durationDays: number;
+    };
+  }[];
 }
 
 export interface DeepUserProfile {

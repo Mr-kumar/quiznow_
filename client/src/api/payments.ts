@@ -1,10 +1,11 @@
 import api from "@/lib/api";
 
 export interface CreateOrderResponse {
-  orderId: string;
+  isFree?: boolean;
+  orderId?: string;
   amount: number;
-  currency: string;
-  keyId: string;
+  currency?: string;
+  keyId?: string;
   planName: string;
   userEmail: string;
   userName: string;

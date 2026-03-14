@@ -197,10 +197,28 @@ export class TestsService {
     await this.validateTestNotLive(id, 'edit');
 
     try {
-      return this.prisma.test.update({
-        where: { id },
-        data: dto,
-      });
+      // Map DTO field names → Prisma column names
+      const data: Record<string, any> = {};
+      if (dto.title !== undefined) data.title = dto.title;
+      if (dto.duration !== undefined) data.durationMins = dto.duration;
+      if (dto.totalMarks !== undefined) data.totalMarks = dto.totalMarks;
+      if (dto.passingMarks !== undefined) data.passMarks = dto.passingMarks;
+      if (dto.positiveMark !== undefined) data.positiveMark = dto.positiveMark;
+      if (dto.negativeMarking !== undefined)
+        data.negativeMark = dto.negativeMarking;
+      if (dto.startAt !== undefined) {
+        data.startAt = dto.startAt ? new Date(dto.startAt) : null;
+      }
+      if (dto.endAt !== undefined) {
+        data.endAt = dto.endAt ? new Date(dto.endAt) : null;
+      }
+      if (dto.testSeriesId !== undefined) data.seriesId = dto.testSeriesId;
+      if ('isPremium' in dto) data.isPremium = (dto as any).isPremium;
+      if ('isActive' in dto) data.isActive = (dto as any).isActive;
+      if ('maxAttempts' in dto)
+        data.maxAttempts = (dto as any).maxAttempts ?? null;
+
+      return this.prisma.test.update({ where: { id }, data });
     } catch (error) {
       throw new ResourceNotFoundException('Test', id);
     }
@@ -271,6 +289,7 @@ export class TestsService {
             durationMins: originalTest.durationMins,
             totalMarks: originalTest.totalMarks,
             passMarks: originalTest.passMarks,
+            positiveMark: originalTest.positiveMark,
             negativeMark: originalTest.negativeMark,
             seriesId: originalTest.seriesId,
             isLive: false, // Start as draft
@@ -326,6 +345,12 @@ export class TestsService {
                 question: {
                   include: {
                     translations: true,
+                    options: {
+                      orderBy: { order: 'asc' },
+                      include: {
+                        translations: true,
+                      },
+                    },
                     topic: true,
                   },
                 },
@@ -360,8 +385,12 @@ export class TestsService {
         const translation = question.translations[0];
 
         if (translation) {
-          const tAny: any = translation as any;
-          const options = (tAny.options as string[]) || [];
+          // Read options from QuestionOption → OptionTranslation (not from translation)
+          const options = (question.options ?? []).map((opt: any) => {
+            const tr = opt.translations?.find((t: any) => t.lang === 'EN') ?? opt.translations?.[0];
+            return tr?.text ?? '';
+          });
+          const correctIndex = (question.options ?? []).findIndex((o: any) => o.isCorrect);
           const correctMap = ['A', 'B', 'C', 'D'];
           worksheetData.push([
             translation.content,
@@ -369,7 +398,7 @@ export class TestsService {
             options[1] || '',
             options[2] || '',
             options[3] || '',
-            correctMap[(question as any).correctAnswer] || 'A',
+            correctMap[correctIndex] || 'A',
             translation.explanation || '',
           ]);
         }
@@ -487,8 +516,33 @@ export class TestsService {
           status: 'ACTIVE',
           expiresAt: { gt: new Date() },
         },
+        include: {
+          plan: {
+            include: {
+              accesses: true,
+            },
+          },
+        },
       });
-      hasActiveSubscription = !!activeSub;
+
+      if (activeSub) {
+        if (seriesId) {
+          // If a specific series is requested, check if the plan grants access to it or its parent exam
+          const series = await this.prisma.testSeries.findUnique({ where: { id: seriesId } });
+          const hasAccess = activeSub.plan.accesses.some(
+            (a) =>
+              (a.seriesId && a.seriesId === seriesId) ||
+              (a.examId && series?.examId && a.examId === series.examId),
+          );
+          hasActiveSubscription = hasAccess;
+        } else {
+          // If no specific series is requested (just listing tests generally),
+          // we just pass whether they have ANY valid plan access configured.
+          // In a perfect system, we'd check per-test, but for the list view, this is a reasonable approximation 
+          // to unlock the UI. Actual attempt will still be blocked securely by attempts.service.ts
+          hasActiveSubscription = activeSub.plan.accesses.length > 0;
+        }
+      }
     }
 
     return {

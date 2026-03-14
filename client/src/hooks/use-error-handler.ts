@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 
 export type ErrorHandlerOptions = {
   showToast?: boolean;
@@ -11,8 +11,7 @@ export type ErrorHandlerOptions = {
 };
 
 export function useErrorHandler() {
-  const { toast } = useToast();
-  const [errors, setErrors] = useState<
+const [errors, setErrors] = useState<
     Array<{ id: string; error: any; type: string }>
   >([]);
 
@@ -42,11 +41,7 @@ export function useErrorHandler() {
 
       // Show toast notification
       if (showToast) {
-        toast({
-          title: errorInfo.title,
-          description: errorInfo.message,
-          variant: errorInfo.type === "success" ? "default" : "destructive",
-        });
+        toast(errorInfo.title, { description: errorInfo.message });
       }
 
       return errorInfo;

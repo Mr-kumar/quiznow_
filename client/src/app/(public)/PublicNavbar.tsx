@@ -63,18 +63,71 @@ export function PublicNavbar() {
 
           {/* Desktop Links & Search */}
           <div className="hidden md:flex items-center gap-6">
-            <div className="flex items-center gap-1">
-              <Link
-                href="/exams"
+            <div className="flex items-center gap-1 relative group">
+              {/* Exams Dropdown (Testbook style) */}
+              <div
                 className={cn(
-                  "px-3 py-2 rounded-full text-sm font-medium transition-all duration-300",
+                  "px-3 py-2 rounded-full text-sm font-medium transition-all duration-300 flex items-center gap-1 cursor-pointer",
                   pathname.startsWith("/exams")
                     ? "text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-900/40"
                     : "text-slate-600 hover:text-blue-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:text-blue-400 dark:hover:bg-slate-800",
                 )}
               >
-                Browse Exams
-              </Link>
+                Exams
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="ml-1 h-3 w-3 opacity-70 group-hover:rotate-180 transition-transform duration-200"
+                >
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+              </div>
+
+              {/* Mega Menu Dropdown */}
+              <div className="absolute top-full left-0 pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform origin-top-left z-50">
+                <div className="w-[400px] bg-white dark:bg-slate-900 rounded-xl shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col">
+                  <div className="p-4 grid grid-cols-2 gap-2">
+                    {[
+                      { value: "upsc", label: "UPSC", emoji: "🏛️" },
+                      { value: "ssc", label: "SSC", emoji: "📋" },
+                      { value: "banking", label: "Banking", emoji: "🏦" },
+                      { value: "railways", label: "Railways", emoji: "🚂" },
+                      { value: "gate", label: "GATE", emoji: "💻" },
+                      { value: "neet", label: "NEET", emoji: "🧬" },
+                      { value: "jee", label: "JEE", emoji: "⚗️" },
+                      { value: "state", label: "State PSC", emoji: "🗺️" },
+                    ].map((cat) => (
+                      <Link
+                        key={cat.value}
+                        href={`/exams?category=${cat.value}`}
+                        className="flex items-center gap-2 px-3 py-2.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                      >
+                        <span className="text-xl">{cat.emoji}</span>
+                        <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                          {cat.label}
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                  <div className="bg-slate-50 dark:bg-slate-950 p-3 border-t border-slate-100 dark:border-slate-800">
+                    <Link
+                      href="/exams"
+                      className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline flex items-center justify-center gap-1"
+                    >
+                      <BookOpenIcon className="h-4 w-4" />
+                      Browse all exams
+                    </Link>
+                  </div>
+                </div>
+              </div>
+
               <Link
                 href="/plans"
                 className={cn(

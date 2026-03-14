@@ -52,7 +52,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -79,8 +79,7 @@ const subscriptionFormSchema = z.object({
 type SubscriptionFormValues = z.infer<typeof subscriptionFormSchema>;
 
 export default function SubscriptionsPage() {
-  const { toast } = useToast();
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [subscriptionToDelete, setSubscriptionToDelete] =
     useState<Subscription | null>(null);
@@ -122,6 +121,7 @@ export default function SubscriptionsPage() {
   const users = Array.isArray(usersData)
     ? usersData
     : ((usersData as any)?.data ?? []);
+  const studentUsers = users.filter((user: User) => user.role === "STUDENT");
 
   const isCrudLoading =
     createMutation.isPending ||
@@ -309,7 +309,7 @@ export default function SubscriptionsPage() {
                               <SelectValue placeholder="Select user" />
                             </SelectTrigger>
                             <SelectContent>
-                              {users.map((user: User) => (
+                              {studentUsers.map((user: User) => (
                                 <SelectItem key={user.id} value={user.id}>
                                   {user.name} ({user.email})
                                 </SelectItem>

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useDebounce } from "@/hooks/use-debounce"; // W-4 FIX: Import debounce hook
+import { useState, useMemo } from "react";
+import { useDebounce } from "@/hooks/use-debounce";
 import { DataTable, ActionDropdown } from "@/components/admin/admin-data-table";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import {
@@ -14,11 +14,11 @@ import {
   useCreateUser,
   useUpdateUser,
   useDeleteUser,
+  useUpdateUserStatus,
 } from "@/features/admin-users/hooks/use-user-mutations";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -52,7 +52,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-// FIX: removed unused useToast — mutation hooks use sonner internally
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -69,11 +68,17 @@ import {
   AlertCircle,
   CheckCircle,
   Eye,
+  Search,
+  Crown,
+  CreditCard,
+  X,
 } from "lucide-react";
 import { ColumnDef } from "@tanstack/react-table";
 import { User as UserType } from "@/api/users";
-import { useUpdateUserStatus } from "@/features/admin-users/hooks/use-user-mutations";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
+
+// ─── Schema ───────────────────────────────────────────────────────────────────
 
 const userFormSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -83,29 +88,163 @@ const userFormSchema = z.object({
 
 type UserFormValues = z.infer<typeof userFormSchema>;
 
-export default function UsersAnalyticsPage() {
+// ─── Tab types ────────────────────────────────────────────────────────────────
+
+type Tab = "all" | "students" | "paid" | "free" | "staff";
+type RoleFilter = "ALL" | "STUDENT" | "INSTRUCTOR" | "ADMIN";
+type StatusFilter = "ALL" | "ACTIVE" | "SUSPENDED" | "BANNED";
+
+const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
+  { key: "all", label: "All Users", icon: <Users className="h-3.5 w-3.5" /> },
+  { key: "students", label: "Students", icon: <UserIcon className="h-3.5 w-3.5" /> },
+  { key: "paid", label: "Paid", icon: <Crown className="h-3.5 w-3.5" /> },
+  { key: "free", label: "Free", icon: <CreditCard className="h-3.5 w-3.5" /> },
+  { key: "staff", label: "Staff", icon: <Shield className="h-3.5 w-3.5" /> },
+];
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function getActiveSubscription(user: UserType) {
+  return (user.subscriptions ?? []).find(
+    (s) => s.status === "ACTIVE" && new Date(s.expiresAt) > new Date()
+  );
+}
+
+function getSubscriptionStatus(user: UserType): "active" | "expired" | "none" {
+  const subs = user.subscriptions ?? [];
+  if (subs.length === 0) return "none";
+  const active = getActiveSubscription(user);
+  return active ? "active" : "expired";
+}
+
+function formatRelativeDate(iso: string) {
+  const d = new Date(iso);
+  const now = new Date();
+  const diffMs = now.getTime() - d.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 30) return `${diffDays}d ago`;
+  if (diffDays < 365) return `${Math.floor(diffDays / 30)}mo ago`;
+  return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+}
+
+// ─── Stat Card ────────────────────────────────────────────────────────────────
+
+function StatCard({
+  label,
+  value,
+  icon,
+  gradient,
+}: {
+  label: string;
+  value: number;
+  icon: React.ReactNode;
+  gradient: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-xl p-4 border",
+        gradient,
+      )}
+    >
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs font-bold uppercase tracking-wider opacity-80">
+          {label}
+        </span>
+        <span className="opacity-60">{icon}</span>
+      </div>
+      <div className="text-2xl font-bold">{value}</div>
+    </div>
+  );
+}
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
+
+export default function UsersManagementPage() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserType | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<UserType | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const debouncedSearch = useDebounce(searchTerm, 300); // W-4 FIX: Debounce search input
-  // FIX: removed roleFilter and statusFilter — they were declared but never applied to the query
+  const debouncedSearch = useDebounce(searchTerm, 300);
+
+  // Filters
+  const [activeTab, setActiveTab] = useState<Tab>("all");
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>("ALL");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
 
   const { data: usersData, isLoading } = useUsers({
     page: 1,
-    limit: 50, // W-3 FIX: Reduced from 1000 to 50 for pagination
+    limit: 100,
     search: debouncedSearch,
   });
 
-  const users = usersData?.data || [];
+  const allUsers = usersData?.data || [];
 
+  // Derived stats
+  const stats = useMemo(() => {
+    const students = allUsers.filter((u) => u.role === "STUDENT");
+    const paid = students.filter((u) => getSubscriptionStatus(u) === "active");
+    const free = students.filter((u) => getSubscriptionStatus(u) !== "active");
+    const staff = allUsers.filter((u) => u.role === "ADMIN" || u.role === "INSTRUCTOR");
+    const suspended = allUsers.filter((u) => u.status === "SUSPENDED");
+    const banned = allUsers.filter((u) => u.status === "BANNED");
+
+    return {
+      total: allUsers.length,
+      students: students.length,
+      paid: paid.length,
+      free: free.length,
+      staff: staff.length,
+      suspended: suspended.length,
+      banned: banned.length,
+    };
+  }, [allUsers]);
+
+  // Filtered users based on tab + role + status
+  const filteredUsers = useMemo(() => {
+    let filtered = allUsers;
+
+    // Tab filtering
+    if (activeTab === "students") {
+      filtered = filtered.filter((u) => u.role === "STUDENT");
+    } else if (activeTab === "paid") {
+      filtered = filtered.filter(
+        (u) => u.role === "STUDENT" && getSubscriptionStatus(u) === "active"
+      );
+    } else if (activeTab === "free") {
+      filtered = filtered.filter(
+        (u) => u.role === "STUDENT" && getSubscriptionStatus(u) !== "active"
+      );
+    } else if (activeTab === "staff") {
+      filtered = filtered.filter(
+        (u) => u.role === "ADMIN" || u.role === "INSTRUCTOR"
+      );
+    }
+
+    // Role filter (only applies when tab is "all")
+    if (roleFilter !== "ALL" && activeTab === "all") {
+      filtered = filtered.filter((u) => u.role === roleFilter);
+    }
+
+    // Status filter
+    if (statusFilter !== "ALL") {
+      filtered = filtered.filter((u) => u.status === statusFilter);
+    }
+
+    return filtered;
+  }, [allUsers, activeTab, roleFilter, statusFilter]);
+
+  // Mutations
   const createMutation = useCreateUser();
   const updateMutation = useUpdateUser();
   const deleteMutation = useDeleteUser();
   const updateStatusMutation = useUpdateUserStatus();
 
+  // Forms
   const createForm = useForm<UserFormValues>({
     resolver: zodResolver(userFormSchema),
     defaultValues: { email: "", name: "", role: "STUDENT" },
@@ -161,6 +300,8 @@ export default function UsersAnalyticsPage() {
     setIsEditDialogOpen(true);
   };
 
+  // ─── Table Columns ─────────────────────────────────────────────────────────
+
   const columns: ColumnDef<UserType>[] = [
     {
       accessorKey: "name",
@@ -169,19 +310,21 @@ export default function UsersAnalyticsPage() {
         const user = row.original;
         return (
           <div className="flex items-center gap-3">
-            <Avatar className="h-8 w-8">
+            <Avatar className="h-9 w-9">
               <AvatarImage src={user.image} />
-              <AvatarFallback className="bg-linear-to-br from-blue-500 to-purple-600 text-white">
+              <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-violet-600 text-white text-xs font-bold">
                 {user.name?.charAt(0).toUpperCase() ||
                   user.email.charAt(0).toUpperCase()}
               </AvatarFallback>
             </Avatar>
-            <div>
-              <div className="font-medium">{user.name || "No name"}</div>
-              <div className="text-sm text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
-                <Mail className="h-3 w-3" />
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">
+                {user.name || "Unnamed"}
+              </p>
+              <p className="text-xs text-slate-400 truncate flex items-center gap-1">
+                <Mail className="h-2.5 w-2.5 shrink-0" />
                 {user.email}
-              </div>
+              </p>
             </div>
           </div>
         );
@@ -192,22 +335,24 @@ export default function UsersAnalyticsPage() {
       header: "Role",
       cell: ({ row }) => {
         const role = row.getValue("role") as string;
-        const roleColors = {
-          ADMIN: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
-          INSTRUCTOR:
-            "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400",
-          STUDENT:
-            "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
+        const cfg = {
+          ADMIN: {
+            cls: "bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400 border-red-200 dark:border-red-800",
+            icon: <Shield className="h-3 w-3" />,
+          },
+          INSTRUCTOR: {
+            cls: "bg-violet-50 text-violet-700 dark:bg-violet-950/30 dark:text-violet-400 border-violet-200 dark:border-violet-800",
+            icon: <Users className="h-3 w-3" />,
+          },
+          STUDENT: {
+            cls: "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800",
+            icon: <UserIcon className="h-3 w-3" />,
+          },
         };
-        const roleIcons = {
-          ADMIN: Shield,
-          INSTRUCTOR: Users,
-          STUDENT: UserIcon,
-        };
-        const Icon = roleIcons[role as keyof typeof roleIcons];
+        const c = cfg[role as keyof typeof cfg] ?? cfg.STUDENT;
         return (
-          <Badge className={roleColors[role as keyof typeof roleColors]}>
-            <Icon className="w-3 h-3 mr-1" />
+          <Badge variant="outline" className={cn("gap-1 text-[10px] font-semibold", c.cls)}>
+            {c.icon}
             {role}
           </Badge>
         );
@@ -218,43 +363,83 @@ export default function UsersAnalyticsPage() {
       header: "Status",
       cell: ({ row }) => {
         const status = row.getValue("status") as string;
-        const statusConfig = {
-          ACTIVE: { color: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400", icon: CheckCircle },
-          SUSPENDED: { color: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400", icon: AlertCircle },
-          BANNED: { color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400", icon: Ban },
+        const cfg = {
+          ACTIVE: {
+            cls: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800",
+            icon: <CheckCircle className="h-3 w-3" />,
+          },
+          SUSPENDED: {
+            cls: "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400 border-amber-200 dark:border-amber-800",
+            icon: <AlertCircle className="h-3 w-3" />,
+          },
+          BANNED: {
+            cls: "bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400 border-red-200 dark:border-red-800",
+            icon: <Ban className="h-3 w-3" />,
+          },
         };
-        const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.ACTIVE;
-        const Icon = config.icon;
-        
+        const c = cfg[status as keyof typeof cfg] ?? cfg.ACTIVE;
         return (
-          <Badge className={config.color}>
-            <Icon className="w-3 h-3 mr-1" />
+          <Badge variant="outline" className={cn("gap-1 text-[10px] font-semibold", c.cls)}>
+            {c.icon}
             {status}
           </Badge>
         );
       },
     },
     {
-      accessorKey: "createdAt",
-      header: "Created",
+      id: "subscription",
+      header: "Subscription",
       cell: ({ row }) => {
-        const date = new Date(row.getValue("createdAt"));
-        return (
-          <div className="text-sm">
-            <div className="font-medium">{date.toLocaleDateString()}</div>
-            <div className="text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
-              <Calendar className="h-3 w-3" />
-              {date.toLocaleTimeString()}
+        const user = row.original;
+        if (user.role !== "STUDENT") {
+          return <span className="text-xs text-slate-300 dark:text-slate-600">—</span>;
+        }
+        const subStatus = getSubscriptionStatus(user);
+        const activeSub = getActiveSubscription(user);
+        if (subStatus === "active" && activeSub) {
+          return (
+            <div className="space-y-0.5">
+              <Badge variant="outline" className="gap-1 text-[10px] font-semibold bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400 border-amber-200 dark:border-amber-800">
+                <Crown className="h-3 w-3" />
+                {activeSub.plan.name}
+              </Badge>
+              <p className="text-[10px] text-slate-400">
+                Expires {new Date(activeSub.expiresAt).toLocaleDateString("en-IN", {
+                  day: "numeric",
+                  month: "short",
+                })}
+              </p>
             </div>
-          </div>
+          );
+        }
+        if (subStatus === "expired") {
+          return (
+            <Badge variant="outline" className="text-[10px] font-semibold text-slate-400 border-slate-200 dark:border-slate-700">
+              Expired
+            </Badge>
+          );
+        }
+        return (
+          <Badge variant="outline" className="text-[10px] font-semibold text-slate-400 border-slate-200 dark:border-slate-700">
+            Free
+          </Badge>
         );
       },
+    },
+    {
+      accessorKey: "createdAt",
+      header: "Joined",
+      cell: ({ row }) => (
+        <div className="flex items-center gap-1.5 text-xs text-slate-500">
+          <Calendar className="h-3 w-3 text-slate-400" />
+          {formatRelativeDate(row.getValue("createdAt"))}
+        </div>
+      ),
     },
     {
       id: "actions",
       cell: ({ row }) => {
         const user = row.original;
-        
         return (
           <ActionDropdown>
             <DropdownMenuItem asChild>
@@ -267,39 +452,38 @@ export default function UsersAnalyticsPage() {
               <Edit className="mr-2 h-4 w-4" />
               Edit Details
             </DropdownMenuItem>
-            
+
             {user.status !== "ACTIVE" && (
-              <DropdownMenuItem 
+              <DropdownMenuItem
                 onClick={() => updateStatusMutation.mutate({ id: user.id, status: "ACTIVE" })}
                 className="text-emerald-600 focus:text-emerald-600"
               >
                 <CheckCircle className="mr-2 h-4 w-4" />
-                Activate User
+                Activate
               </DropdownMenuItem>
             )}
-            
+
             {user.status !== "SUSPENDED" && (
-              <DropdownMenuItem 
+              <DropdownMenuItem
                 onClick={() => updateStatusMutation.mutate({ id: user.id, status: "SUSPENDED" })}
                 className="text-amber-600 focus:text-amber-600"
               >
                 <AlertCircle className="mr-2 h-4 w-4" />
-                Suspend Account
+                Suspend
               </DropdownMenuItem>
             )}
 
             {user.status !== "BANNED" && (
-              <DropdownMenuItem 
+              <DropdownMenuItem
                 onClick={() => updateStatusMutation.mutate({ id: user.id, status: "BANNED" })}
                 className="text-red-600 focus:text-red-600"
               >
                 <Ban className="mr-2 h-4 w-4" />
-                Ban Permanently
+                Ban
               </DropdownMenuItem>
             )}
-            
-            {/* Divider */}
-            <div className="h-px bg-zinc-200 dark:bg-zinc-800 my-1" />
+
+            <div className="h-px bg-slate-200 dark:bg-slate-800 my-1" />
 
             <DropdownMenuItem
               onClick={() => {
@@ -317,186 +501,253 @@ export default function UsersAnalyticsPage() {
     },
   ];
 
+  // ─── Render ─────────────────────────────────────────────────────────────────
+
   return (
-    <div className="space-y-6">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">
-            Users Management
-          </h1>
-          <p className="text-zinc-500 dark:text-zinc-400">
-            Manage all users in the system
-          </p>
-        </div>
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-linear-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700">
-              <UserPlus className="mr-2 h-4 w-4" />
-              Add User
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Create New User</DialogTitle>
-            </DialogHeader>
-            <Form {...createForm}>
-              <form
-                onSubmit={createForm.handleSubmit(handleCreateUser)}
-                className="space-y-4"
-              >
-                <FormField
-                  control={createForm.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl>
-                        <Input placeholder="user@example.com" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={createForm.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="John Doe" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={createForm.control}
-                  name="role"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Role</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                      >
+      <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-10">
+        <div className="max-w-[1400px] mx-auto px-5 h-14 flex items-center gap-4">
+          <div className="flex items-center gap-2.5">
+            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center">
+              <Users className="h-4 w-4 text-white" />
+            </div>
+            <h1 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+              Users Management
+            </h1>
+          </div>
+          <div className="flex-1" />
+          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" className="h-8 text-xs gap-1.5 bg-indigo-600 hover:bg-indigo-700">
+                <UserPlus className="h-3.5 w-3.5" />
+                Add User
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Create New User</DialogTitle>
+              </DialogHeader>
+              <Form {...createForm}>
+                <form onSubmit={createForm.handleSubmit(handleCreateUser)} className="space-y-4">
+                  <FormField
+                    control={createForm.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email</FormLabel>
                         <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select role" />
-                          </SelectTrigger>
+                          <Input placeholder="user@example.com" {...field} />
                         </FormControl>
-                        <SelectContent>
-                          <SelectItem value="STUDENT">Student</SelectItem>
-                          <SelectItem value="INSTRUCTOR">Instructor</SelectItem>
-                          <SelectItem value="ADMIN">Admin</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="flex justify-end space-x-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setIsCreateDialogOpen(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button type="submit">Create User</Button>
-                </div>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={createForm.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="John Doe" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={createForm.control}
+                    name="role"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Role</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select role" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="STUDENT">Student</SelectItem>
+                            <SelectItem value="INSTRUCTOR">Instructor</SelectItem>
+                            <SelectItem value="ADMIN">Admin</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div className="flex justify-end space-x-2">
+                    <Button type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700">Create User</Button>
+                  </div>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card className="border-0 bg-linear-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-blue-700 dark:text-blue-300">
-              Total Users
-            </CardTitle>
-            <Users className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">
-              {users.length}
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-0 bg-linear-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-green-700 dark:text-green-300">
-              Students
-            </CardTitle>
-            <UserIcon className="h-4 w-4 text-green-600 dark:text-green-400" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-700 dark:text-green-300">
-              {users.filter((u: UserType) => u.role === "STUDENT").length}
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-0 bg-linear-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-purple-700 dark:text-purple-300">
-              Instructors
-            </CardTitle>
-            <Users className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-purple-700 dark:text-purple-300">
-              {users.filter((u: UserType) => u.role === "INSTRUCTOR").length}
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-0 bg-linear-to-br from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-red-700 dark:text-red-300">
-              Admins
-            </CardTitle>
-            <Shield className="h-4 w-4 text-red-600 dark:text-red-400" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-700 dark:text-red-300">
-              {users.filter((u: UserType) => u.role === "ADMIN").length}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <div className="max-w-[1400px] mx-auto px-5 py-5 space-y-5">
+        {/* ── Stats Row ── */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+          <StatCard
+            label="Total"
+            value={stats.total}
+            icon={<Users className="h-4 w-4" />}
+            gradient="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200"
+          />
+          <StatCard
+            label="Students"
+            value={stats.students}
+            icon={<UserIcon className="h-4 w-4" />}
+            gradient="bg-gradient-to-br from-indigo-50 to-indigo-100/50 dark:from-indigo-950/30 dark:to-indigo-900/20 border-indigo-200 dark:border-indigo-800/40 text-indigo-700 dark:text-indigo-300"
+          />
+          <StatCard
+            label="Paid"
+            value={stats.paid}
+            icon={<Crown className="h-4 w-4" />}
+            gradient="bg-gradient-to-br from-amber-50 to-amber-100/50 dark:from-amber-950/30 dark:to-amber-900/20 border-amber-200 dark:border-amber-800/40 text-amber-700 dark:text-amber-300"
+          />
+          <StatCard
+            label="Free"
+            value={stats.free}
+            icon={<CreditCard className="h-4 w-4" />}
+            gradient="bg-gradient-to-br from-emerald-50 to-emerald-100/50 dark:from-emerald-950/30 dark:to-emerald-900/20 border-emerald-200 dark:border-emerald-800/40 text-emerald-700 dark:text-emerald-300"
+          />
+          <StatCard
+            label="Staff"
+            value={stats.staff}
+            icon={<Shield className="h-4 w-4" />}
+            gradient="bg-gradient-to-br from-violet-50 to-violet-100/50 dark:from-violet-950/30 dark:to-violet-900/20 border-violet-200 dark:border-violet-800/40 text-violet-700 dark:text-violet-300"
+          />
+          <StatCard
+            label="Suspended"
+            value={stats.suspended}
+            icon={<AlertCircle className="h-4 w-4" />}
+            gradient="bg-gradient-to-br from-orange-50 to-orange-100/50 dark:from-orange-950/30 dark:to-orange-900/20 border-orange-200 dark:border-orange-800/40 text-orange-700 dark:text-orange-300"
+          />
+          <StatCard
+            label="Banned"
+            value={stats.banned}
+            icon={<Ban className="h-4 w-4" />}
+            gradient="bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-950/30 dark:to-red-900/20 border-red-200 dark:border-red-800/40 text-red-700 dark:text-red-300"
+          />
+        </div>
 
-      {/* Search */}
-      <div className="max-w-sm">
-        <Input
-          placeholder="Search users..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+        {/* ── Tab Bar ── */}
+        <div className="flex items-center gap-1 p-1 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 overflow-x-auto">
+          {TABS.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => {
+                setActiveTab(tab.key);
+                // Reset role filter when switching tabs
+                setRoleFilter("ALL");
+              }}
+              className={cn(
+                "flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap",
+                activeTab === tab.key
+                  ? "bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400 shadow-sm"
+                  : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+              )}
+            >
+              {tab.icon}
+              {tab.label}
+              <span
+                className={cn(
+                  "ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold",
+                  activeTab === tab.key
+                    ? "bg-indigo-200/60 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-400"
+                )}
+              >
+                {tab.key === "all"
+                  ? stats.total
+                  : tab.key === "students"
+                    ? stats.students
+                    : tab.key === "paid"
+                      ? stats.paid
+                      : tab.key === "free"
+                        ? stats.free
+                        : stats.staff}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {/* ── Filters Row ── */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="relative flex-1 min-w-[200px] max-w-xs">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+            <Input
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search users by name or email…"
+              className="pl-8 h-9 text-sm bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700"
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+
+          {activeTab === "all" && (
+            <Select value={roleFilter} onValueChange={(v) => setRoleFilter(v as RoleFilter)}>
+              <SelectTrigger className="h-9 w-[140px] text-xs bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All Roles</SelectItem>
+                <SelectItem value="STUDENT">Students</SelectItem>
+                <SelectItem value="INSTRUCTOR">Instructors</SelectItem>
+                <SelectItem value="ADMIN">Admins</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+
+          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
+            <SelectTrigger className="h-9 w-[140px] text-xs bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Status</SelectItem>
+              <SelectItem value="ACTIVE">Active</SelectItem>
+              <SelectItem value="SUSPENDED">Suspended</SelectItem>
+              <SelectItem value="BANNED">Banned</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <span className="text-xs text-slate-400 ml-auto">
+            {filteredUsers.length} user{filteredUsers.length !== 1 ? "s" : ""}
+          </span>
+        </div>
+
+        {/* ── Users Table ── */}
+        <DataTable
+          columns={columns}
+          data={filteredUsers}
+          searchKey=""
+          title=""
+          description=""
         />
       </div>
 
-      {/* Users Table */}
-      <DataTable
-        columns={columns}
-        data={users}
-        searchKey="users"
-        title="All Users"
-        description="Manage user accounts and permissions"
-      />
-
-      {/* Edit Dialog */}
+      {/* ── Edit Dialog ── */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Edit User</DialogTitle>
           </DialogHeader>
           <Form {...editForm}>
-            <form
-              onSubmit={editForm.handleSubmit(handleUpdateUser)}
-              className="space-y-4"
-            >
+            <form onSubmit={editForm.handleSubmit(handleUpdateUser)} className="space-y-4">
               <FormField
                 control={editForm.control}
                 name="email"
@@ -529,10 +780,7 @@ export default function UsersAnalyticsPage() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Role</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                    >
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select role" />
@@ -549,29 +797,30 @@ export default function UsersAnalyticsPage() {
                 )}
               />
               <div className="flex justify-end space-x-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsEditDialogOpen(false)}
-                >
+                <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button type="submit">Update User</Button>
+                <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700">
+                  Update User
+                </Button>
               </div>
             </form>
           </Form>
         </DialogContent>
       </Dialog>
 
-      {/* Delete Dialog */}
+      {/* ── Delete Dialog ── */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogTitle className="flex items-center gap-2 text-red-600">
+              <Trash2 className="h-4 w-4" />
+              Delete user data?
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the
-              user "{userToDelete?.name || userToDelete?.email}" and remove
-              their data from the servers.
+              This permanently deletes{" "}
+              <strong>"{userToDelete?.name || userToDelete?.email}"</strong> and
+              all associated data. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -580,7 +829,7 @@ export default function UsersAnalyticsPage() {
               onClick={handleDeleteUser}
               className="bg-red-600 hover:bg-red-700"
             >
-              Delete
+              Delete Forever
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

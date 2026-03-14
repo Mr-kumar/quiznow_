@@ -111,6 +111,8 @@ export class AttemptsController {
   }
 
   @Get()
+  @Roles(Role.ADMIN) // Override class-level STUDENT role — only admins can list all attempts
+  @ApiOperation({ summary: 'Admin: list all attempts (paginated)' })
   findAll() {
     return this.attemptsService.findAll();
   }

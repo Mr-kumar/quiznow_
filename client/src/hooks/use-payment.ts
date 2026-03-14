@@ -27,14 +27,20 @@ export function usePayment({ onSuccess, onError }: UsePaymentOptions = {}) {
         // Step 1: Create order on backend
         const { data: order } = await paymentsApi.createOrder(planId);
 
+        if (order.isFree) {
+          onSuccess?.();
+          router.push('/dashboard?payment=success');
+          return;
+        }
+
         // Step 2: Open Razorpay checkout
         const rzp = new window.Razorpay({
-          key: order.keyId,
+          key: order.keyId || '',
           amount: order.amount,
-          currency: order.currency,
+          currency: order.currency || 'INR',
           name: 'QuizNow',
           description: `Subscribe to ${order.planName}`,
-          order_id: order.orderId,
+          order_id: order.orderId || '',
           prefill: {
             name: order.userName,
             email: order.userEmail,

@@ -52,17 +52,17 @@ enum Language {
 //
 
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
+  id            String     @id @default(cuid())
+  email         String     @unique
   name          String?
   image         String?
   role          Role       @default(STUDENT)
   status        UserStatus @default(ACTIVE)
   preferredLang Language   @default(EN)
 
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  deletedAt     DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   attempts      Attempt[]
   leaderboard   LeaderboardEntry[]
@@ -74,31 +74,31 @@ model User {
 }
 
 model Category {
-  id        String    @id @default(cuid())
-  name      String
-  parentId  String?
-  isActive  Boolean   @default(true)
+  id       String  @id @default(cuid())
+  name     String
+  parentId String?
+  isActive Boolean @default(true)
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  parent    Category?  @relation("SubCategories", fields: [parentId], references: [id], onDelete: Restrict)
-  children  Category[] @relation("SubCategories")
-  exams     Exam[]
+  parent   Category?  @relation("SubCategories", fields: [parentId], references: [id], onDelete: Restrict)
+  children Category[] @relation("SubCategories")
+  exams    Exam[]
 
   @@index([parentId])
 }
 
 model Exam {
-  id         String    @id @default(cuid())
+  id         String  @id @default(cuid())
   name       String
   categoryId String
-  isActive   Boolean   @default(true)
+  isActive   Boolean @default(true)
 
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-  deletedAt  DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   category   Category     @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   planAccess PlanAccess[]
@@ -108,14 +108,14 @@ model Exam {
 }
 
 model TestSeries {
-  id         String    @id @default(cuid())
-  title      String
-  examId     String
-  isActive   Boolean   @default(true)
+  id       String  @id @default(cuid())
+  title    String
+  examId   String
+  isActive Boolean @default(true)
 
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-  deletedAt  DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   exam       Exam         @relation(fields: [examId], references: [id], onDelete: Restrict)
   tests      Test[]
@@ -129,19 +129,19 @@ model TestSeries {
 //
 
 model Subject {
-  id        String    @id @default(cuid())
-  name      String    @unique
-  isActive  Boolean   @default(true)
+  id       String  @id @default(cuid())
+  name     String  @unique
+  isActive Boolean @default(true)
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  topics    Topic[]
+  topics Topic[]
 }
 
 model Topic {
-  id        String    @id @default(cuid())
+  id        String  @id @default(cuid())
   name      String
   subjectId String
   parentId  String?
@@ -150,14 +150,14 @@ model Topic {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  subject   Subject   @relation(fields: [subjectId], references: [id], onDelete: Restrict)
-  parent    Topic?    @relation("SubTopics", fields: [parentId], references: [id], onDelete: Restrict)
-  children  Topic[]   @relation("SubTopics")
+  subject  Subject @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  parent   Topic?  @relation("SubTopics", fields: [parentId], references: [id], onDelete: Restrict)
+  children Topic[] @relation("SubTopics")
 
   questions Question[]
   userStats UserTopicStat[]
 
-  @@unique([subjectId, name])   // Prevent duplicate topic under same subject
+  @@unique([subjectId, name]) // Prevent duplicate topic under same subject
   @@index([subjectId])
   @@index([parentId])
 }
@@ -167,19 +167,19 @@ model Topic {
 //
 
 model Question {
-  id        String    @id @default(cuid())
-  topicId   String
-  isActive  Boolean   @default(true)
-  hash      String    @unique
+  id       String  @id @default(cuid())
+  topicId  String
+  isActive Boolean @default(true)
+  hash     String  @unique
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  topic        Topic                  @relation(fields: [topicId], references: [id], onDelete: Restrict)
-  options      QuestionOption[]
-  translations QuestionTranslation[]
-  sectionLinks SectionQuestion[]
+  topic          Topic                 @relation(fields: [topicId], references: [id], onDelete: Restrict)
+  options        QuestionOption[]
+  translations   QuestionTranslation[]
+  sectionLinks   SectionQuestion[]
   attemptAnswers AttemptAnswer[]
 
   @@index([topicId])
@@ -200,13 +200,13 @@ model QuestionTranslation {
 }
 
 model QuestionOption {
-  id         String   @id @default(cuid())
+  id         String  @id @default(cuid())
   questionId String
-  isCorrect  Boolean  @default(false)
+  isCorrect  Boolean @default(false)
   order      Int
 
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   question     Question            @relation(fields: [questionId], references: [id], onDelete: Cascade)
   translations OptionTranslation[]
@@ -232,13 +232,13 @@ model OptionTranslation {
 //
 
 model Test {
-  id           String   @id @default(cuid())
+  id           String @id @default(cuid())
   title        String
   durationMins Int
   totalMarks   Float
   passMarks    Float
-  positiveMark Float    @default(1.0)
-  negativeMark Float    @default(0.33)
+  positiveMark Float  @default(1.0)
+  negativeMark Float  @default(0.33)
 
   startAt     DateTime?
   endAt       DateTime?
@@ -249,11 +249,11 @@ model Test {
 
   seriesId String
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  series      TestSeries        @relation(fields: [seriesId], references: [id], onDelete: Restrict)
+  series      TestSeries         @relation(fields: [seriesId], references: [id], onDelete: Restrict)
   sections    Section[]
   attempts    Attempt[]
   leaderboard LeaderboardEntry[]
@@ -264,7 +264,7 @@ model Test {
 }
 
 model Section {
-  id           String   @id @default(cuid())
+  id           String @id @default(cuid())
   testId       String
   name         String
   durationMins Int?
@@ -296,32 +296,32 @@ model SectionQuestion {
 //
 
 model Attempt {
-  id               BigInt   @id @default(autoincrement())
-  userId           String
-  testId           String
-  attemptNumber    Int      @default(1)
-  status           Status   @default(STARTED)
+  id            BigInt @id @default(autoincrement())
+  userId        String
+  testId        String
+  attemptNumber Int    @default(1)
+  status        Status @default(STARTED)
 
-  startTime        DateTime @default(now())
-  endTime          DateTime?
+  startTime DateTime  @default(now())
+  endTime   DateTime?
 
-  ipAddress        String?
-  userAgent        String?
-  deviceInfo       String?
-  suspiciousScore  Float    @default(0)
+  ipAddress       String?
+  userAgent       String?
+  deviceInfo      String?
+  suspiciousScore Float   @default(0)
 
-  score            Float    @default(0)
-  correctCount     Int      @default(0)
-  wrongCount       Int      @default(0)
-  unattemptedCount Int      @default(0)
+  score            Float  @default(0)
+  correctCount     Int    @default(0)
+  wrongCount       Int    @default(0)
+  unattemptedCount Int    @default(0)
   accuracy         Float?
   timeTaken        Int?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user  User @relation(fields: [userId], references: [id], onDelete: Restrict)
-  test  Test @relation(fields: [testId], references: [id], onDelete: Restrict)
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  test Test @relation(fields: [testId], references: [id], onDelete: Restrict)
 
   answers AttemptAnswer[]
 
@@ -329,6 +329,7 @@ model Attempt {
   @@index([status])
   @@index([testId, createdAt])
   @@index([userId, createdAt])
+  @@index([userId, testId])
 }
 
 model AttemptAnswer {
@@ -336,12 +337,12 @@ model AttemptAnswer {
   questionId String
   optionId   String?
 
-  isCorrect    Boolean  @default(false)
+  isCorrect    Boolean @default(false)
   marksAwarded Float?
-  isMarked     Boolean  @default(false)
+  isMarked     Boolean @default(false)
 
   answeredAt DateTime?
-  createdAt  DateTime @default(now())
+  createdAt  DateTime  @default(now())
 
   attempt  Attempt         @relation(fields: [attemptId], references: [id], onDelete: Cascade)
   question Question        @relation(fields: [questionId], references: [id], onDelete: Restrict)
@@ -367,13 +368,13 @@ model LeaderboardEntry {
 }
 
 model UserTopicStat {
-  id       BigInt @id @default(autoincrement())
-  userId   String
-  topicId  String
+  id      BigInt @id @default(autoincrement())
+  userId  String
+  topicId String
 
-  attempts Int @default(0)
-  correct  Int @default(0)
-  wrong    Int @default(0)
+  attempts Int    @default(0)
+  correct  Int    @default(0)
+  wrong    Int    @default(0)
   accuracy Float?
 
   user  User  @relation(fields: [userId], references: [id], onDelete: Restrict)
@@ -384,7 +385,7 @@ model UserTopicStat {
 }
 
 model AuditLog {
-  id         BigInt @id @default(autoincrement())
+  id         BigInt  @id @default(autoincrement())
   actorId    String?
   actorRole  Role?
   action     String
@@ -408,12 +409,12 @@ model Plan {
   price        Float
   durationDays Int
   description  String?
-  features     String[]   // e.g. ["Full mock tests", "Video solutions"]
-  isPopular    Boolean    @default(false)
-  badge        String?    // e.g. "Best Value"
+  features     String[] // e.g. ["Full mock tests", "Video solutions"]
+  isPopular    Boolean  @default(false)
+  badge        String? // e.g. "Best Value"
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
   accesses      PlanAccess[]
@@ -442,8 +443,8 @@ model Subscription {
   startAt        DateTime
   expiresAt      DateTime
   status         SubscriptionStatus
-  paymentOrderId String?            // Razorpay order ID (order_xxx)
-  paymentId      String?            // Razorpay payment ID after success
+  paymentOrderId String? // Razorpay order ID (order_xxx)
+  paymentId      String? // Razorpay payment ID after success
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -463,7 +464,7 @@ model Payment {
   razorpayOrderId   String        @unique
   razorpayPaymentId String?
   razorpaySignature String?
-  amount            Int           // in paise (₹1 = 100 paise)
+  amount            Int // in paise (₹1 = 100 paise)
   currency          String        @default("INR")
   status            PaymentStatus @default(PENDING)
   createdAt         DateTime      @default(now())

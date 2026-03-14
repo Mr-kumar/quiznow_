@@ -32,31 +32,65 @@ export class PaymentsService {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
 
-    // Check if user already has an active subscription
+    // Check if user already has an active subscription to the *same* plan
     const existingSub = await this.prisma.subscription.findFirst({
       where: {
         userId,
-        status: SubscriptionStatus.ACTIVE,
+        status: SubscriptionStatus.ACTIVE, // Ensure this enum exists
         expiresAt: { gt: new Date() },
       },
     });
-    if (existingSub) {
+    if (existingSub && existingSub.planId === plan.id) {
       throw new BadRequestException(
-        'You already have an active subscription. Wait for it to expire or contact support.',
+        'You already have an active subscription for this plan. Wait for it to expire or contact support.',
       );
     }
 
     // amount is in paise (₹1 = 100 paise)
     const amountInPaise = Math.round(plan.price * 100);
 
+    // Bypass Razorpay if the plan is completely free (₹0)
+    if (amountInPaise === 0) {
+      const startAt = new Date();
+      const expiresAt = new Date(startAt);
+      expiresAt.setDate(expiresAt.getDate() + plan.durationDays);
+
+      await this.prisma.$transaction([
+        this.prisma.subscription.updateMany({
+          where: { userId, status: SubscriptionStatus.ACTIVE },
+          data: { status: SubscriptionStatus.CANCELLED },
+        }),
+        this.prisma.subscription.create({
+          data: {
+            userId,
+            planId: plan.id,
+            startAt,
+            expiresAt,
+            status: SubscriptionStatus.ACTIVE,
+          },
+        }),
+      ]);
+
+      this.logger.log(`Free plan ${plan.name} activated directly for user ${userId}`);
+      return {
+        isFree: true,
+        planName: plan.name,
+        amount: 0,
+      };
+    }
+
+    // Receipt string must be <= 40 characters for Razorpay
+    const shortUserId = userId.substring(userId.length - 8);
+    const receiptStr = `rcpt_${shortUserId}_${Date.now()}`;
+
     const razorpayOrder = await this.razorpay.orders.create({
       amount: amountInPaise,
       currency: 'INR',
-      receipt: `order_${userId}_${Date.now()}`,
+      receipt: receiptStr,
       notes: {
         planId: plan.id,
-        planName: plan.name,
-        userId,
+        planName: plan.name.substring(0, 30), // Max 255 chars safe
+        shortUserId,
       },
     });
 
@@ -112,12 +146,21 @@ export class PaymentsService {
       return { message: 'Already activated', alreadyDone: true };
     }
 
-    // Step C: Create subscription + mark payment SUCCESS in one transaction
+    // Step C: Cancel previous active subscriptions, Create new subscription + mark payment SUCCESS in one transaction
     const startAt = new Date();
     const expiresAt = new Date(startAt);
     expiresAt.setDate(expiresAt.getDate() + payment.plan.durationDays);
 
-    const [subscription] = await this.prisma.$transaction([
+    const [_, subscription] = await this.prisma.$transaction([
+      this.prisma.subscription.updateMany({
+        where: {
+          userId,
+          status: SubscriptionStatus.ACTIVE,
+        },
+        data: {
+          status: SubscriptionStatus.CANCELLED,
+        },
+      }),
       this.prisma.subscription.create({
         data: {
           userId,
