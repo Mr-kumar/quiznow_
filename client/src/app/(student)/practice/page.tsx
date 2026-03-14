@@ -2,17 +2,18 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
 import {
   BookOpenIcon,
   SearchIcon,
   TargetIcon,
   ZapIcon,
-  ChevronRightIcon,
   BrainIcon,
   ClockIcon,
-  TrophyIcon,
   FilterIcon,
   ArrowRightIcon,
+  Loader2Icon,
+  AlertCircleIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,90 +27,87 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { EXAM_CATEGORIES as CATEGORIES } from "@/constants/exams";
+import { publicSubjectsApi } from "@/api/subjects";
+import { subjectKeys } from "@/api/query-keys";
+import { Skeleton } from "@/components/ui/skeleton";
 
-// ── Practice Subjects Mock Data ──────────────────────────────────────────────
+// ── Icons mapping based on subject name keywords ────────────────────────────
+function getSubjectIcon(name: string) {
+  const n = name.toLowerCase();
+  if (n.includes("quant") || n.includes("math") || n.includes("aptitude"))
+    return "🔢";
+  if (n.includes("reasoning") || n.includes("logic")) return "🧠";
+  if (n.includes("english") || n.includes("verbal") || n.includes("lang"))
+    return "📖";
+  if (
+    n.includes("general") ||
+    n.includes("awareness") ||
+    n.includes("gk") ||
+    n.includes("current")
+  )
+    return "🌍";
+  if (n.includes("data") || n.includes("interpretation") || n.includes("graph"))
+    return "📊";
+  if (n.includes("computer") || n.includes("tech") || n.includes("it"))
+    return "💻";
+  if (n.includes("science")) return "🧪";
+  if (n.includes("history") || n.includes("civics")) return "🏛️";
+  return "�";
+}
 
-const PRACTICE_SUBJECTS = [
-  {
-    id: "quantitative-aptitude",
-    name: "Quantitative Aptitude",
-    icon: "🔢",
-    topicCount: 45,
-    testCount: 120,
-    color: "from-blue-500 to-indigo-600",
-    topics: [
-      "Number System",
-      "Percentages",
-      "Profit & Loss",
-      "Time & Work",
-      "Algebra",
-    ],
-  },
-  {
-    id: "logical-reasoning",
-    name: "Logical Reasoning",
-    icon: "🧠",
-    topicCount: 38,
-    testCount: 95,
-    color: "from-purple-500 to-pink-600",
-    topics: [
-      "Syllogism",
-      "Blood Relations",
-      "Coding-Decoding",
-      "Puzzles",
-      "Series",
-    ],
-  },
-  {
-    id: "english-language",
-    name: "English Language",
-    icon: "📖",
-    topicCount: 32,
-    testCount: 80,
-    color: "from-green-500 to-emerald-600",
-    topics: [
-      "Reading Comprehension",
-      "Cloze Test",
-      "Error Spotting",
-      "Vocabulary",
-    ],
-  },
-  {
-    id: "general-awareness",
-    name: "General Awareness",
-    icon: "🌍",
-    topicCount: 50,
-    testCount: 150,
-    color: "from-orange-500 to-amber-600",
-    topics: ["Current Affairs", "History", "Geography", "Polity", "Economics"],
-  },
-  {
-    id: "data-interpretation",
-    name: "Data Interpretation",
-    icon: "📊",
-    topicCount: 15,
-    testCount: 40,
-    color: "from-cyan-500 to-blue-600",
-    topics: ["Bar Graphs", "Pie Charts", "Line Graphs", "Table Charts"],
-  },
-  {
-    id: "computer-aptitude",
-    name: "Computer Aptitude",
-    icon: "💻",
-    topicCount: 20,
-    testCount: 35,
-    color: "from-indigo-500 to-purple-600",
-    topics: ["Fundamentals", "Networking", "Security", "MS Office"],
-  },
+const COLORS = [
+  "from-blue-500 to-indigo-600",
+  "from-purple-500 to-pink-600",
+  "from-green-500 to-emerald-600",
+  "from-orange-500 to-amber-600",
+  "from-cyan-500 to-blue-600",
+  "from-indigo-500 to-purple-600",
 ];
+
+function PracticeSkeleton() {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      {[1, 2, 3, 4, 5, 6].map((i) => (
+        <Card key={i} className="overflow-hidden">
+          <Skeleton className="h-48 w-full" />
+          <CardContent className="p-6 space-y-4">
+            <Skeleton className="h-4 w-20" />
+            <div className="flex flex-wrap gap-2">
+              <Skeleton className="h-8 w-24 rounded-lg" />
+              <Skeleton className="h-8 w-20 rounded-lg" />
+              <Skeleton className="h-8 w-28 rounded-lg" />
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
 
 export default function PracticeLandingPage() {
   const [search, setSearch] = useState("");
 
-  const filteredSubjects = PRACTICE_SUBJECTS.filter(
-    (s) =>
+  const {
+    data: subjects,
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
+    queryKey: subjectKeys.lists(),
+    queryFn: async () => {
+      const res = await publicSubjectsApi.getAll();
+      return (res.data as any) ?? res;
+    },
+    staleTime: 1000 * 60 * 10, // 10 minutes
+  });
+
+  const filteredSubjects = subjects?.filter(
+    (s: any) =>
       s.name.toLowerCase().includes(search.toLowerCase()) ||
-      s.topics.some((t) => t.toLowerCase().includes(search.toLowerCase()))
+      (s.topics &&
+        s.topics.some((t: any) =>
+          t.name.toLowerCase().includes(search.toLowerCase())
+        ))
   );
 
   return (
@@ -138,7 +136,7 @@ export default function PracticeLandingPage() {
 
           <div className="max-w-xl mx-auto relative group">
             <div className="absolute inset-0 bg-white/20 rounded-2xl blur-xl group-hover:bg-white/30 transition-all" />
-            <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-2xl p-2 flex items-center">
+            <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-2xl p-2 border border-white/10 flex items-center">
               <SearchIcon className="h-5 w-5 text-slate-400 ml-4" />
               <Input
                 type="text"
@@ -172,57 +170,80 @@ export default function PracticeLandingPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {filteredSubjects.map((subject) => (
-            <Link
-              key={subject.id}
-              href={`/exams?q=${encodeURIComponent(subject.name)}`}
-            >
-              <Card className="group h-full hover:shadow-2xl hover:-translate-y-1.5 transition-all duration-300 border-slate-200 dark:border-slate-800 overflow-hidden">
-                <CardHeader
-                  className={`bg-linear-to-br ${subject.color} p-8 text-white relative`}
-                >
-                  <div className="absolute top-4 right-4 text-4xl opacity-20 group-hover:scale-125 transition-transform duration-500">
-                    {subject.icon}
-                  </div>
-                  <div className="h-12 w-12 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-2xl mb-4">
-                    {subject.icon}
-                  </div>
-                  <CardTitle className="text-2xl font-bold">
-                    {subject.name}
-                  </CardTitle>
-                  <CardDescription className="text-blue-100 font-medium">
-                    {subject.topicCount} Topics · {subject.testCount} Practice
-                    Sets
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="p-6">
-                  <div className="space-y-4">
-                    <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-                      Popular Topics
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {subject.topics.map((topic) => (
-                        <span
-                          key={topic}
-                          className="text-xs px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 group-hover:bg-blue-50 dark:group-hover:bg-blue-900/30 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors font-medium"
-                        >
-                          {topic}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </CardContent>
-                <CardFooter className="px-6 py-4 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                  <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">
-                    Explore All Topics
-                  </span>
-                  <ArrowRightIcon className="h-4 w-4 text-blue-600 dark:text-blue-400 group-hover:translate-x-1 transition-transform" />
-                </CardFooter>
-              </Card>
-            </Link>
-          ))}
-        </div>
+        {isLoading ? (
+          <PracticeSkeleton />
+        ) : isError ? (
+          <div className="py-20 text-center">
+            <div className="h-16 w-16 bg-red-50 dark:bg-red-950/30 rounded-full flex items-center justify-center mx-auto mb-6">
+              <AlertCircleIcon className="h-8 w-8 text-red-500" />
+            </div>
+            <h3 className="text-xl font-bold mb-2">Failed to load subjects</h3>
+            <p className="text-muted-foreground mb-6">
+              Please check your connection and try again.
+            </p>
+            <Button onClick={() => refetch()} variant="outline">
+              Retry
+            </Button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {filteredSubjects?.map((subject: any, idx: number) => {
+              const icon = getSubjectIcon(subject.name);
+              const color = COLORS[idx % COLORS.length];
+              return (
+                <Link key={subject.id} href={`/practice/${subject.id}`}>
+                  <Card className="group h-full hover:shadow-2xl hover:-translate-y-1.5 transition-all duration-300 border-slate-200 dark:border-slate-800 overflow-hidden">
+                    <CardHeader
+                      className={`bg-linear-to-br ${color} p-8 text-white relative`}
+                    >
+                      <div className="absolute top-4 right-4 text-4xl opacity-20 group-hover:scale-125 transition-transform duration-500">
+                        {icon}
+                      </div>
+                      <div className="h-12 w-12 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-2xl mb-4">
+                        {icon}
+                      </div>
+                      <CardTitle className="text-2xl font-bold">
+                        {subject.name}
+                      </CardTitle>
+                      <CardDescription className="text-blue-100 font-medium">
+                        {subject._count?.topics || 0} Topics ·{" "}
+                        {subject._count?.tests || "Multiple"} Practice Sets
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="p-6">
+                      <div className="space-y-4">
+                        <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                          Popular Topics
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {subject.topics?.slice(0, 5).map((topic: any) => (
+                            <span
+                              key={topic.id}
+                              className="text-xs px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 group-hover:bg-blue-50 dark:group-hover:bg-blue-900/30 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors font-medium"
+                            >
+                              {topic.name}
+                            </span>
+                          ))}
+                          {!subject.topics?.length && (
+                            <span className="text-xs text-slate-400 italic">
+                              Topics coming soon...
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                    <CardFooter className="px-6 py-4 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                      <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">
+                        Explore All Topics
+                      </span>
+                      <ArrowRightIcon className="h-4 w-4 text-blue-600 dark:text-blue-400 group-hover:translate-x-1 transition-transform" />
+                    </CardFooter>
+                  </Card>
+                </Link>
+              );
+            })}
+          </div>
+        )}
 
         {/* ── Features Strip ───────────────────────────────────────────────── */}
         <div className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-8">

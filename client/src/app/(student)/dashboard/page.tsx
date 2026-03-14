@@ -621,27 +621,29 @@ export default function StudentDashboardPage() {
             </div>
           </div>
 
-          {/* Browse Categories */}
-          <div className="space-y-4 pt-4">
-            <h2 className="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-              <LayersIcon className="h-6 w-6 text-indigo-600" />
-              Popular Categories
-            </h2>
+          {/* Browse Categories & Practice */}
+          <div className="space-y-6 pt-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+                <LayersIcon className="h-6 w-6 text-indigo-600" />
+                Practice by Subject
+              </h2>
+              <Link href="/practice" className="text-sm font-bold text-blue-600 dark:text-blue-400 hover:underline">
+                View All Subjects
+              </Link>
+            </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              {EXAM_CATEGORIES.slice(0, 4).map((cat) => (
-                <Link key={cat.id} href={`/exams?category=${cat.id}`}>
-                  <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:shadow-lg transition-all text-center group">
-                    <div
-                      className={`h-12 w-12 mx-auto mb-3 rounded-xl bg-linear-to-br ${cat.color} flex items-center justify-center text-2xl shadow-md group-hover:scale-110 transition-transform`}
-                    >
-                      {cat.emoji}
+               {EXAM_CATEGORIES.slice(0, 4).map((cat) => (
+                 <Link key={cat.id} href={`/practice`}>
+                    <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:shadow-xl hover:-translate-y-1 transition-all text-center group">
+                       <div className={`h-14 w-14 mx-auto mb-4 rounded-2xl bg-linear-to-br ${cat.color} flex items-center justify-center text-3xl shadow-lg group-hover:scale-110 transition-transform`}>
+                          {cat.emoji}
+                       </div>
+                       <p className="font-bold text-sm text-slate-900 dark:text-white truncate">{cat.shortLabel}</p>
+                       <p className="text-[10px] text-slate-400 font-bold mt-1 uppercase tracking-tighter">Start Practice</p>
                     </div>
-                    <p className="font-bold text-xs text-slate-900 dark:text-white truncate">
-                      {cat.shortLabel}
-                    </p>
-                  </div>
-                </Link>
-              ))}
+                 </Link>
+               ))}
             </div>
           </div>
         </div>

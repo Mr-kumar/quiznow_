@@ -122,3 +122,17 @@ export const studentKeys = {
     [...studentKeys.topicStats(), subjectId] as const,
   profile: () => [...studentKeys.all(), "profile"] as const,
 };
+
+/**
+ * Public keys (no auth)
+ */
+export const publicKeys = {
+  all: () => ["public"] as const,
+  testSeries: (params: object) =>
+    [...publicKeys.all(), "test-series", params] as const,
+  testSeriesDetail: (id: string) =>
+    [...publicKeys.all(), "test-series", "detail", id] as const,
+  latestTests: (limit: number) =>
+    [...publicKeys.all(), "latest-tests", limit] as const,
+  categories: () => [...publicKeys.all(), "categories"] as const,
+};

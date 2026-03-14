@@ -15,22 +15,24 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../iam/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../iam/auth/guards/roles.guard';
 import { Roles } from '../../iam/auth/decorators/roles.decorator';
+import { Public } from '../../iam/auth/decorators/public.decorator';
 import { Role } from '@prisma/client';
 
 @ApiTags('Catalog (Categories)') // 👈 Groups this in Swagger
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.ADMIN)
 @Controller('categories')
 export class CategoriesController {
   constructor(private readonly categoriesService: CategoriesService) {}
 
+  @Roles(Role.ADMIN)
   @Post()
   @ApiOperation({ summary: 'Create a new Category' })
   create(@Body() createCategoryDto: CreateCategoryDto) {
     return this.categoriesService.create(createCategoryDto);
   }
 
+  @Public()
   @Get()
   @ApiOperation({ summary: 'Get all Root Categories (with children)' })
   findAll() {
@@ -38,18 +40,21 @@ export class CategoriesController {
   }
 
   // 🚀 NEW: Get Full Tree for Enterprise Syllabus Manager
+  @Public()
   @Get('tree')
   @ApiOperation({ summary: 'Get Full Recursive Tree (Enterprise Feature)' })
   async getFullTree() {
     return this.categoriesService.getFullTree();
   }
 
+  @Public()
   @Get(':id')
   @ApiOperation({ summary: 'Get details of one Category' })
   findOne(@Param('id') id: string) {
     return this.categoriesService.findOne(id);
   }
 
+  @Roles(Role.ADMIN)
   @Patch(':id')
   update(
     @Param('id') id: string,
@@ -58,6 +63,7 @@ export class CategoriesController {
     return this.categoriesService.update(id, updateCategoryDto);
   }
 
+  @Roles(Role.ADMIN)
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.categoriesService.remove(id);

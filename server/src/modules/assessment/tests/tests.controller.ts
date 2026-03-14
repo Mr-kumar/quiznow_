@@ -22,10 +22,8 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../iam/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../iam/auth/guards/roles.guard';
 import { Roles } from '../../iam/auth/decorators/roles.decorator';
+import { Public } from '../../iam/auth/decorators/public.decorator';
 import { Role } from '@prisma/client';
-
-// Custom decorator to mark public endpoints
-const Public = () => SetMetadata('isPublic', true);
 
 @ApiTags('Assessment (Tests)')
 @ApiBearerAuth()

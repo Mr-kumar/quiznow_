@@ -213,4 +213,25 @@ export class TestSeriesService {
       })),
     };
   }
+
+  // 8. Public Latest Tests
+  async findLatestTests(limit: number = 6) {
+    return this.prisma.test.findMany({
+      where: {
+        isActive: true,
+        isLive: true,
+        sections: { some: { questions: { some: {} } } },
+      },
+      include: {
+        series: {
+          select: {
+            title: true,
+            exam: { select: { name: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limit ? Number(limit) : 6,
+    });
+  }
 }

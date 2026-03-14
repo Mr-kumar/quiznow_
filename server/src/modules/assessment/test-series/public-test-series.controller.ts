@@ -18,6 +18,12 @@ export class PublicTestSeriesController {
     return this.testSeriesService.findPublicSeries(examId, category, q, limit);
   }
 
+  @Get('latest-tests')
+  @ApiOperation({ summary: 'Get latest published tests (public)' })
+  findLatestTests(@Query('limit') limit?: number) {
+    return this.testSeriesService.findLatestTests(limit);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get details of one test series (public)' })
   findOne(@Param('id') id: string) {

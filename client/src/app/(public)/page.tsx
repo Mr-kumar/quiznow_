@@ -7,7 +7,6 @@
 
 import Link from "next/link";
 import {
-  ZapIcon,
   BarChart3Icon,
   ShieldCheckIcon,
   ClockIcon,
@@ -24,6 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { CategoryLanding } from "@/app/(public)/exams/page";
+import { LatestTestsSection } from "./LatestTestsSection";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Sub-components
@@ -228,6 +228,9 @@ export default function PublicLandingPage() {
       {/* ── CORE FEATURES ─────────────────────────────────────────────────── */}
       <section className="py-24 md:py-32">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Latest Tests Section */}
+          <LatestTestsSection />
+
           <div className="text-center mb-20">
             <Badge
               variant="outline"

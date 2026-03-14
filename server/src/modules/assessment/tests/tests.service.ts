@@ -387,10 +387,14 @@ export class TestsService {
         if (translation) {
           // Read options from QuestionOption → OptionTranslation (not from translation)
           const options = (question.options ?? []).map((opt: any) => {
-            const tr = opt.translations?.find((t: any) => t.lang === 'EN') ?? opt.translations?.[0];
+            const tr =
+              opt.translations?.find((t: any) => t.lang === 'EN') ??
+              opt.translations?.[0];
             return tr?.text ?? '';
           });
-          const correctIndex = (question.options ?? []).findIndex((o: any) => o.isCorrect);
+          const correctIndex = (question.options ?? []).findIndex(
+            (o: any) => o.isCorrect,
+          );
           const correctMap = ['A', 'B', 'C', 'D'];
           worksheetData.push([
             translation.content,
@@ -462,6 +466,28 @@ export class TestsService {
     return transformed;
   }
 
+  /**
+   * 🌳 RECURSIVE CATEGORY FINDER
+   * Finds all children, grandchildren, etc. of a category ID.
+   */
+  private async getDescendantCategoryIds(parentId: string): Promise<string[]> {
+    const children = await this.prisma.category.findMany({
+      where: { parentId, isActive: true },
+      select: { id: true },
+    });
+
+    const ids: string[] = children.map((c) => c.id);
+    const descendantIdsArrays = await Promise.all(
+      children.map((child) => this.getDescendantCategoryIds(child.id)),
+    );
+
+    for (const descendantIds of descendantIdsArrays) {
+      ids.push(...descendantIds);
+    }
+
+    return ids;
+  }
+
   // Public/Student methods
   async findAvailableForStudents(
     page: number = 1,
@@ -469,6 +495,7 @@ export class TestsService {
     search?: string,
     seriesId?: string,
     userId?: string,
+    categoryId?: string,
   ) {
     const skip = (page - 1) * limit;
 
@@ -490,6 +517,19 @@ export class TestsService {
 
     if (seriesId) {
       where.seriesId = seriesId;
+    }
+
+    if (categoryId) {
+      // 🌳 Recursive Category Filter: Find all descendant categories
+      // This ensures if a user filters by "Railways", they also see tests from "RRB JE", etc.
+      const descendantIds = await this.getDescendantCategoryIds(categoryId);
+      const allCategoryIds = [categoryId, ...descendantIds];
+
+      where.series = {
+        exam: {
+          categoryId: { in: allCategoryIds },
+        },
+      };
     }
 
     const [tests, total] = await Promise.all([
@@ -528,7 +568,9 @@ export class TestsService {
       if (activeSub) {
         if (seriesId) {
           // If a specific series is requested, check if the plan grants access to it or its parent exam
-          const series = await this.prisma.testSeries.findUnique({ where: { id: seriesId } });
+          const series = await this.prisma.testSeries.findUnique({
+            where: { id: seriesId },
+          });
           const hasAccess = activeSub.plan.accesses.some(
             (a) =>
               (a.seriesId && a.seriesId === seriesId) ||
@@ -538,7 +580,7 @@ export class TestsService {
         } else {
           // If no specific series is requested (just listing tests generally),
           // we just pass whether they have ANY valid plan access configured.
-          // In a perfect system, we'd check per-test, but for the list view, this is a reasonable approximation 
+          // In a perfect system, we'd check per-test, but for the list view, this is a reasonable approximation
           // to unlock the UI. Actual attempt will still be blocked securely by attempts.service.ts
           hasActiveSubscription = activeSub.plan.accesses.length > 0;
         }

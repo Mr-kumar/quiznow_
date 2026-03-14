@@ -90,6 +90,21 @@ export interface CursorPaginationResponse<T> {
   };
 }
 
+export const questionsApi = {
+  getCursorPaginated: (params: CursorPaginationParams = {}) =>
+    api.get<CursorPaginationResponse<Question>>("/questions/cursor-paginated", {
+      params: {
+        cursor: params.cursor,
+        limit: params.limit ?? 50,
+        direction: params.direction ?? "forward",
+        search: params.search,
+        topicId: params.topicId,
+        subject: params.subject,
+        lang: params.lang,
+      },
+    }),
+};
+
 export const adminQuestionsApi = {
   // Cursor-based pagination (primary)
   getCursorPaginated: (params: CursorPaginationParams = {}) =>

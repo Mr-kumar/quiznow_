@@ -47,13 +47,13 @@ import { Role } from '@prisma/client';
 @ApiTags('Assessment (Questions)')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.ADMIN)
 @Controller('questions')
 export class QuestionsController {
   constructor(private readonly questionsService: QuestionsService) {}
 
   // ── GET: specific named routes first ─────────────────────────────────────
 
+  @Roles(Role.ADMIN, Role.STUDENT)
   @Get('paginated')
   @ApiOperation({ summary: 'Get paginated questions (cursor-based)' })
   async getPaginatedQuestions(
@@ -76,7 +76,7 @@ export class QuestionsController {
   // GET /questions/cursor-paginated was matching @Get(':id') and returning a
   // "question not found" error instead of the paginated list.
   @Get('cursor-paginated')
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.STUDENT)
   @ApiOperation({
     summary: 'Get questions with cursor-based pagination (Enterprise Scale)',
   })
@@ -119,6 +119,7 @@ export class QuestionsController {
       skip: cursor ? 1 : 0,
       where,
       orderBy,
+      topicId, // Explicitly pass topicId to ensure it's filtered correctly
     });
 
     const metadata = await this.questionsService.getCursorMetadata(
@@ -143,12 +144,14 @@ export class QuestionsController {
 
   // ✅ FIX: Moved ABOVE @Get(':id') — was being shadowed by the :id wildcard.
   @Get('public')
+  @Roles(Role.ADMIN, Role.STUDENT)
   @ApiOperation({ summary: 'Public list of Questions (for testing)' })
   publicFindAll() {
     return this.questionsService.findAll();
   }
 
   @Get()
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'List all Questions' })
   findAll() {
     return this.questionsService.findAll();
@@ -157,6 +160,7 @@ export class QuestionsController {
   // ── GET: wildcard (must be last) ──────────────────────────────────────────
 
   @Get(':id')
+  @Roles(Role.ADMIN, Role.STUDENT)
   @ApiOperation({ summary: 'Get Question Details' })
   findOne(@Param('id') id: string) {
     return this.questionsService.findOne(id);
@@ -165,6 +169,7 @@ export class QuestionsController {
   // ── POST: specific named routes first ────────────────────────────────────
 
   @Post('upload')
+  @Roles(Role.ADMIN)
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Bulk upload questions via Excel' })

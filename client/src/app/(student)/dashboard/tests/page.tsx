@@ -59,7 +59,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { studentTestsApi, adminCategoriesApi } from "@/api/tests";
+import { studentTestsApi, publicApi } from "@/api/tests";
 import { attemptsApi } from "@/api/attempts";
 import { testKeys, attemptKeys } from "@/api/query-keys";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -91,7 +91,7 @@ type TestCTA = "start" | "resume" | "result" | "locked" | "upcoming";
 function getTestCTA(
   test: Test,
   attempts: AttemptSummary[],
-  hasActiveSubscription: boolean,
+  hasActiveSubscription: boolean
 ): TestCTA {
   if (test.isPremium && !hasActiveSubscription) return "locked";
   if (test.startAt && new Date(test.startAt) > new Date()) return "upcoming";
@@ -121,18 +121,18 @@ function TestCard({ test, attempts, hasActiveSubscription }: TestCardProps) {
     .filter((a) => a.testId === test.id && a.status === "SUBMITTED")
     .sort(
       (a, b) =>
-        new Date(b.endTime ?? 0).getTime() - new Date(a.endTime ?? 0).getTime(),
+        new Date(b.endTime ?? 0).getTime() - new Date(a.endTime ?? 0).getTime()
     )[0];
 
   const inProgressAttempt = attempts.find(
-    (a) => a.testId === test.id && a.status === "STARTED",
+    (a) => a.testId === test.id && a.status === "STARTED"
   );
 
   return (
     <Card
       className={cn(
         "transition-all duration-200 hover:shadow-lg",
-        live && "ring-2 ring-green-500 ring-offset-2",
+        live && "ring-2 ring-green-500 ring-offset-2"
       )}
     >
       <CardHeader className="pb-3">
@@ -150,7 +150,7 @@ function TestCard({ test, attempts, hasActiveSubscription }: TestCardProps) {
                   variant={cta === "locked" ? "secondary" : "default"}
                   className={cn(
                     "text-xs gap-1",
-                    cta !== "locked" && "bg-amber-500 hover:bg-amber-600",
+                    cta !== "locked" && "bg-amber-500 hover:bg-amber-600"
                   )}
                 >
                   {cta === "locked" ? (
@@ -223,8 +223,8 @@ function TestCard({ test, attempts, hasActiveSubscription }: TestCardProps) {
                   (latestAttempt.accuracy ?? 0) >= 70
                     ? "text-green-600"
                     : (latestAttempt.accuracy ?? 0) >= 40
-                      ? "text-amber-600"
-                      : "text-red-500",
+                    ? "text-amber-600"
+                    : "text-red-500"
                 )}
               >
                 {latestAttempt.accuracy?.toFixed(1) ?? "—"}%
@@ -247,7 +247,9 @@ function TestCard({ test, attempts, hasActiveSubscription }: TestCardProps) {
           </Link>
         ) : cta === "resume" ? (
           <Link
-            href={`/test/${test.id}/attempt?attemptId=${inProgressAttempt?.attemptId ?? ""}`}
+            href={`/test/${test.id}/attempt?attemptId=${
+              inProgressAttempt?.attemptId ?? ""
+            }`}
             className="w-full"
           >
             <Button className="w-full gap-2">
@@ -258,7 +260,9 @@ function TestCard({ test, attempts, hasActiveSubscription }: TestCardProps) {
         ) : cta === "result" ? (
           <div className="flex gap-2 w-full">
             <Link
-              href={`/test/${test.id}/result?attemptId=${latestAttempt?.attemptId ?? ""}`}
+              href={`/test/${test.id}/result?attemptId=${
+                latestAttempt?.attemptId ?? ""
+              }`}
               className="flex-1"
             >
               <Button variant="outline" className="w-full gap-2">
@@ -335,7 +339,7 @@ export default function DashboardTestsPage() {
   const { data: categories = [] } = useQuery({
     queryKey: ["categories"],
     queryFn: async () => {
-      const res = await adminCategoriesApi.getAll();
+      const res = await publicApi.getCategories();
       return (
         (res.data as unknown as { data?: typeof res.data }).data ??
         res.data ??
@@ -355,8 +359,9 @@ export default function DashboardTestsPage() {
       ) {
         setActiveCategoryId(savedCategory);
       } else {
-        // Default to the first category instead of showing ALL tests
-        setActiveCategoryId(categories[0].id);
+        // Default to "All Categories" (null) instead of force-selecting the first one
+        // This gives a better "first impression" showing all content
+        setActiveCategoryId(null);
       }
     }
   }, [categories, activeCategoryId]);
@@ -386,6 +391,8 @@ export default function DashboardTestsPage() {
         page,
         LIMIT,
         debouncedSearch || undefined,
+        undefined, // seriesId
+        activeCategoryId || undefined
       );
       // Server returns { success, data: { data: Test[], total, page, limit } }
       // Axios res.data = { success, data: { data, total } }
@@ -428,14 +435,8 @@ export default function DashboardTestsPage() {
 
   const attempts: AttemptSummary[] = historyData ?? [];
 
-  // Client-side category filter
-  const filteredTests = useMemo(() => {
-    const safeTests = Array.isArray(tests) ? tests : [];
-    if (!activeCategoryId) return safeTests;
-    return safeTests.filter(
-      (t: Test) => t.series?.exam?.categoryId === activeCategoryId,
-    );
-  }, [tests, activeCategoryId]);
+  // No client-side filter needed as backend now handles categoryId
+  const filteredTests = tests;
 
   const handleClearSearch = useCallback(() => {
     setSearchInput("");

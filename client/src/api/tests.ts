@@ -159,9 +159,15 @@ export const adminTestSeriesApi = {
 
 // Student Tests API (for students, not admins)
 export const studentTestsApi = {
-  getAll: (page?: number, limit?: number, search?: string, seriesId?: string) =>
+  getAll: (
+    page?: number,
+    limit?: number,
+    search?: string,
+    seriesId?: string,
+    categoryId?: string
+  ) =>
     api.get("/student/tests", {
-      params: { page, limit, search, seriesId },
+      params: { page, limit, search, seriesId, categoryId },
     }),
 
   getById: (id: string) => api.get(`/student/tests/${id}`),
@@ -169,4 +175,22 @@ export const studentTestsApi = {
   getSections: (id: string) => api.get(`/student/tests/${id}/sections`),
 
   start: (id: string) => api.post(`/student/tests/${id}/start`),
+};
+
+// Public API (no auth required)
+export const publicApi = {
+  getTestSeries: (params: {
+    examId?: string;
+    category?: string;
+    q?: string;
+    limit?: number;
+  }) => api.get<TestSeries[]>("/public/test-series", { params }),
+
+  getTestSeriesById: (id: string) =>
+    api.get<TestSeries>(`/public/test-series/${id}`),
+
+  getLatestTests: (limit: number = 6) =>
+    api.get<Test[]>("/public/test-series/latest-tests", { params: { limit } }),
+
+  getCategories: () => api.get<Category[]>("/categories/tree"),
 };

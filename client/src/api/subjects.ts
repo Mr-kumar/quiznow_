@@ -42,3 +42,8 @@ export const adminTopicsApi = {
 
   delete: (id: string) => api.delete(`/topics/${id}`),
 };
+
+export const publicSubjectsApi = {
+  getAll: () => api.get<Subject[]>("/subjects"),
+  getById: (id: string) => api.get<Subject>(`/subjects/${id}`),
+};

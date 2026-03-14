@@ -49,6 +49,9 @@ import { useAuthStore } from "@/stores/auth-store";
 import { cn } from "@/lib/utils";
 
 import { EXAM_CATEGORIES } from "@/constants/exams";
+import { publicApi } from "@/api/tests";
+import { useQuery } from "@tanstack/react-query";
+import { publicKeys } from "@/api/query-keys";
 
 // Helper for initials
 function getInitials(name: string): string {
@@ -92,6 +95,24 @@ const NAV_LINKS = [
 // ─── Mega Menu ────────────────────────────────────────────────────────────────
 
 function ExamMegaMenu({ onClose }: { onClose: () => void }) {
+  const { data: categories } = useQuery({
+    queryKey: publicKeys.categories(),
+    queryFn: async () => {
+      const res = await publicApi.getCategories();
+      return (res.data as any) ?? res;
+    },
+    staleTime: 1000 * 60 * 60, // 1 hour
+  });
+
+  // Helper to find category metadata from constants
+  const getCatMeta = (id: string) =>
+    EXAM_CATEGORIES.find((c) => c.id === id) || EXAM_CATEGORIES[0];
+
+  // If we have live categories from API, use them, otherwise fallback to constants for UI
+  const displayCategories = categories?.length
+    ? categories.slice(0, 8)
+    : EXAM_CATEGORIES;
+
   return (
     <div className="absolute top-full left-1/2 -translate-x-1/2 mt-3 w-[min(96vw,920px)] z-50">
       <div className="relative">
@@ -116,50 +137,60 @@ function ExamMegaMenu({ onClose }: { onClose: () => void }) {
 
           {/* 4-column category grid */}
           <div className="p-4 grid grid-cols-2 md:grid-cols-4 gap-3">
-            {EXAM_CATEGORIES.map((cat) => (
-              <div
-                key={cat.id}
-                className={cn(
-                  "rounded-xl border p-3 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5",
-                  cat.navbarBg,
-                  cat.border
-                )}
-              >
-                {/* Header — links to category listing */}
-                <Link
-                  href={`/exams?category=${cat.id}`}
-                  onClick={onClose}
-                  className="flex items-center gap-2 mb-2.5 group"
+            {displayCategories.map((cat: any) => {
+              const meta = getCatMeta(cat.id || cat.name?.toLowerCase());
+              return (
+                <div
+                  key={cat.id}
+                  className={cn(
+                    "rounded-xl border p-3 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5",
+                    meta.navbarBg,
+                    meta.border
+                  )}
                 >
-                  <span className="text-lg">{cat.emoji}</span>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-semibold text-slate-800 dark:text-slate-100 leading-tight truncate group-hover:text-blue-700 dark:group-hover:text-blue-400 transition-colors">
-                      {cat.label}
-                    </p>
-                    <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
-                      {cat.count} tests
-                    </p>
-                  </div>
-                  <ChevronRightIcon className="h-3 w-3 text-slate-300 dark:text-slate-600 group-hover:text-blue-500 transition-colors shrink-0" />
-                </Link>
+                  {/* Header — links to category listing */}
+                  <Link
+                    href={`/exams?category=${cat.id}`}
+                    onClick={onClose}
+                    className="flex items-center gap-2 mb-2.5 group"
+                  >
+                    <span className="text-lg">{meta.emoji}</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-semibold text-slate-800 dark:text-slate-100 leading-tight truncate group-hover:text-blue-700 dark:group-hover:text-blue-400 transition-colors">
+                        {cat.label || cat.name}
+                      </p>
+                      <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
+                        {cat.count || meta.count} tests
+                      </p>
+                    </div>
+                    <ChevronRightIcon className="h-3 w-3 text-slate-300 dark:text-slate-600 group-hover:text-blue-500 transition-colors shrink-0" />
+                  </Link>
 
-                {/* Sub-exam pills — direct links, no extra hover needed */}
-                <div className="flex flex-wrap gap-1">
-                  {cat.subs.slice(0, 4).map((sub) => (
-                    <Link
-                      key={sub}
-                      href={`/exams?category=${cat.id}&q=${encodeURIComponent(
-                        sub
-                      )}`}
-                      onClick={onClose}
-                      className="text-[10px] font-medium px-1.5 py-0.5 rounded-md bg-white/80 dark:bg-slate-800/70 text-slate-600 dark:text-slate-300 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 dark:hover:text-white transition-colors border border-white/60 dark:border-slate-700/40 whitespace-nowrap"
-                    >
-                      {sub}
-                    </Link>
-                  ))}
+                  {/* Sub-exam pills — direct links, no extra hover needed */}
+                  <div className="flex flex-wrap gap-1">
+                    {(cat.subs || cat.children?.slice(0, 4) || []).map(
+                      (sub: any) => {
+                        const subName =
+                          typeof sub === "string" ? sub : sub.name;
+                        const subId = typeof sub === "string" ? sub : sub.id;
+                        return (
+                          <Link
+                            key={subId}
+                            href={`/exams?category=${
+                              cat.id
+                            }&q=${encodeURIComponent(subName)}`}
+                            onClick={onClose}
+                            className="text-[10px] font-medium px-1.5 py-0.5 rounded-md bg-white/80 dark:bg-slate-800/70 text-slate-600 dark:text-slate-300 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 dark:hover:text-white transition-colors border border-white/60 dark:border-slate-700/40 whitespace-nowrap"
+                          >
+                            {subName}
+                          </Link>
+                        );
+                      }
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Footer */}

@@ -21,41 +21,46 @@ import { Role } from '@prisma/client';
 @ApiTags('Assessment (Topics)')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.ADMIN)
 @Controller('topics')
 export class TopicsController {
   constructor(private readonly topicsService: TopicsService) {}
 
+  @Roles(Role.ADMIN)
   @Post()
   @ApiOperation({ summary: 'Create a new topic' })
   create(@Body() createTopicDto: CreateTopicDto) {
     return this.topicsService.create(createTopicDto);
   }
 
+  @Roles(Role.ADMIN, Role.STUDENT)
   @Get()
   @ApiOperation({ summary: 'Get all topics' })
   findAll() {
     return this.topicsService.findAll();
   }
 
+  @Roles(Role.ADMIN, Role.STUDENT)
   @Get('subjects')
   @ApiOperation({ summary: 'Get all unique subjects' })
   getUniqueSubjects() {
     return this.topicsService.getUniqueSubjects();
   }
 
+  @Roles(Role.ADMIN, Role.STUDENT)
   @Get(':id')
   @ApiOperation({ summary: 'Get topic by ID' })
   findOne(@Param('id') id: string) {
     return this.topicsService.findOne(id);
   }
 
+  @Roles(Role.ADMIN)
   @Patch(':id')
   @ApiOperation({ summary: 'Update topic' })
   update(@Param('id') id: string, @Body() updateTopicDto: UpdateTopicDto) {
     return this.topicsService.update(id, updateTopicDto);
   }
 
+  @Roles(Role.ADMIN)
   @Delete(':id')
   @ApiOperation({ summary: 'Delete topic' })
   remove(@Param('id') id: string) {

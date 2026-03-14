@@ -43,7 +43,7 @@ import {
 } from "@/components/ui/card";
 import { ExamSearchBar } from "@/app/(public)/exams/ExamSearchBar";
 import { EXAM_CATEGORIES as CATEGORIES } from "@/constants/exams";
-import type { TestSeries } from "@/api/tests";
+import { publicApi, type TestSeries } from "@/api/tests";
 
 // ── Metadata ──────────────────────────────────────────────────────────────────
 
@@ -59,19 +59,15 @@ export const metadata: Metadata = {
 
 async function getExamSeries(
   category?: string,
-  q?: string,
+  q?: string
 ): Promise<TestSeries[]> {
   try {
-    const params = new URLSearchParams();
-    if (category) params.set("category", category);
-    if (q) params.set("q", q);
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/public/test-series?${params.toString()}&limit=24`,
-      { next: { revalidate: 300 } },
-    );
-    if (!res.ok) throw new Error("API error");
-    const json = await res.json();
-    return (json?.data ?? json) as TestSeries[];
+    const params: any = { limit: 24 };
+    if (category) params.category = category;
+    if (q) params.q = q;
+
+    const res = await publicApi.getTestSeries(params);
+    return (res.data as any) ?? res;
   } catch {
     return [];
   }
@@ -303,8 +299,8 @@ function CategoryPage({
   // Data-driven level filters based on actual series.level values
   const availableLevels = Array.from(
     new Set(
-      seriesList.map((s) => s.level).filter((l): l is string => Boolean(l)),
-    ),
+      seriesList.map((s) => s.level).filter((l): l is string => Boolean(l))
+    )
   );
   const filteredSeries =
     level && availableLevels.includes(level)
@@ -362,10 +358,14 @@ function CategoryPage({
               {cat.subs.map((sub) => (
                 <Link
                   key={sub}
-                  href={`/exams?category=${cat.id}&q=${encodeURIComponent(sub)}`}
+                  href={`/exams?category=${cat.id}&q=${encodeURIComponent(
+                    sub
+                  )}`}
                 >
                   <span
-                    className={`inline-block text-xs font-medium px-3 py-1.5 rounded-full border bg-white/70 dark:bg-black/30 border-white/50 dark:border-white/10 text-slate-700 dark:text-slate-200 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-colors cursor-pointer ${q === sub ? "bg-blue-600 text-white border-blue-600" : ""}`}
+                    className={`inline-block text-xs font-medium px-3 py-1.5 rounded-full border bg-white/70 dark:bg-black/30 border-white/50 dark:border-white/10 text-slate-700 dark:text-slate-200 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-colors cursor-pointer ${
+                      q === sub ? "bg-blue-600 text-white border-blue-600" : ""
+                    }`}
                   >
                     {sub}
                   </span>
@@ -421,7 +421,9 @@ function CategoryPage({
           {availableLevels.length > 0 && (
             <div className="flex flex-wrap gap-2">
               <Link
-                href={`/exams?category=${cat.id}${q ? `&q=${encodeURIComponent(q)}` : ""}`}
+                href={`/exams?category=${cat.id}${
+                  q ? `&q=${encodeURIComponent(q)}` : ""
+                }`}
                 className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
                   !level
                     ? "bg-blue-600 text-white border-blue-600"

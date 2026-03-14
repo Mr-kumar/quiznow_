@@ -30,6 +30,7 @@ export class PublicTestsController {
     @Query('limit') limit?: string,
     @Query('search') search?: string,
     @Query('seriesId') seriesId?: string,
+    @Query('categoryId') categoryId?: string,
     @Request() req?: any,
   ) {
     // Get tests that are active and available for the user's subscription
@@ -42,6 +43,7 @@ export class PublicTestsController {
       search,
       seriesId,
       req?.user?.userId,
+      categoryId,
     );
 
     return {

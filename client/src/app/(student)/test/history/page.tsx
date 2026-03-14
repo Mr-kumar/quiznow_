@@ -44,6 +44,8 @@ import { unwrap } from "@/lib/unwrap";
 import type { AttemptSummary, AttemptStatus } from "@/api/attempts";
 import { formatTimeTaken } from "@/lib/utils/time";
 
+import { useAuthStore } from "@/stores/auth-store";
+
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const PAGE_SIZE = 10;
@@ -122,6 +124,7 @@ function HistorySkeleton() {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function HistoryPage() {
+  const { token } = useAuthStore();
   const [page, setPage] = useState(1);
   const [filter, setFilter] = useState<FilterType>("ALL");
 
@@ -130,11 +133,13 @@ export default function HistoryPage() {
       page,
       limit: PAGE_SIZE,
       status: filter !== "ALL" ? filter : undefined,
+      token, // Adding token to query key forces refetch after hydration
     }),
     queryFn: () =>
       attemptsApi.getMyHistory(page, PAGE_SIZE).then((res) => res.data),
     staleTime: 1000 * 60 * 2,
     placeholderData: (prev) => prev,
+    enabled: !!token,
   });
 
   const allAttempts = data?.data ?? [];
@@ -148,13 +153,10 @@ export default function HistoryPage() {
       : allAttempts.filter((a) => a.status === filter);
 
   // Count per status for filter badges
-  const counts = allAttempts.reduce(
-    (acc, a) => {
-      acc[a.status] = (acc[a.status] ?? 0) + 1;
-      return acc;
-    },
-    {} as Record<AttemptStatus, number>,
-  );
+  const counts = allAttempts.reduce((acc, a) => {
+    acc[a.status] = (acc[a.status] ?? 0) + 1;
+    return acc;
+  }, {} as Record<AttemptStatus, number>);
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
@@ -278,7 +280,7 @@ export default function HistoryPage() {
                               <p className="font-semibold text-sm">
                                 {format(
                                   new Date(attempt.startTime),
-                                  "dd MMM yyyy",
+                                  "dd MMM yyyy"
                                 )}
                               </p>
                             </div>
@@ -307,9 +309,9 @@ export default function HistoryPage() {
                                     attempt.accuracy >= 70
                                     ? "text-green-600 dark:text-green-400"
                                     : attempt.accuracy !== null &&
-                                        attempt.accuracy >= 40
-                                      ? "text-amber-600 dark:text-amber-400"
-                                      : "text-red-500 dark:text-red-400",
+                                      attempt.accuracy >= 40
+                                    ? "text-amber-600 dark:text-amber-400"
+                                    : "text-red-500 dark:text-red-400"
                                 )}
                               >
                                 {attempt.accuracy !== null
