@@ -20,6 +20,7 @@
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { formatDistanceToNow, format, differenceInDays } from "date-fns";
+import { useState, useEffect } from "react";
 import {
   ClockIcon,
   TrophyIcon,
@@ -36,6 +37,9 @@ import {
   TrendingUpIcon,
   SparkleIcon,
   CrownIcon,
+  GraduationCapIcon,
+  ChevronDownIcon,
+  CheckIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -59,6 +63,7 @@ import { unwrap } from "@/lib/unwrap";
 import { cn } from "@/lib/utils";
 import type { AttemptSummary } from "@/api/attempts";
 import type { UserTopicStat } from "@/api/leaderboard";
+import { EXAM_CATEGORIES } from "@/constants/exams";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -348,10 +353,96 @@ function DashboardSkeleton() {
   );
 }
 
+
+// ── Target Exam config ────────────────────────────────────────────────────────
+
+const TARGET_EXAMS = [
+  { id: "", label: "All Exams", emoji: "✨", color: "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200" },
+  ...EXAM_CATEGORIES.map(c => ({ id: c.id, label: c.label, emoji: c.emoji, color: c.dashboardColor }))
+];
+
+// ── Target Exam Selector ──────────────────────────────────────────────────────
+
+function TargetExamSelector({
+  selected,
+  onChange,
+}: {
+  selected: string;
+  onChange: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const active = TARGET_EXAMS.find((e) => e.id === selected) ?? TARGET_EXAMS[0];
+
+  return (
+    <div className="relative inline-block">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className={cn(
+          "flex items-center gap-2 px-4 py-2 rounded-xl border font-medium text-sm transition-all hover:shadow-md",
+          active.color,
+          "border-current/20",
+        )}
+      >
+        <span className="text-base">{active.emoji}</span>
+        <span>{active.label}</span>
+        <ChevronDownIcon
+          className={cn(
+            "h-4 w-4 opacity-60 transition-transform",
+            open && "rotate-180",
+          )}
+        />
+      </button>
+
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute left-0 top-full mt-2 w-64 z-20 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden py-1.5">
+            <p className="px-4 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Your target exam
+            </p>
+            {TARGET_EXAMS.map((exam) => (
+              <button
+                key={exam.id}
+                type="button"
+                onClick={() => {
+                  onChange(exam.id);
+                  setOpen(false);
+                }}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+              >
+                <span className="text-base w-6 text-center">{exam.emoji}</span>
+                <span className="flex-1 text-left font-medium">{exam.label}</span>
+                {selected === exam.id && (
+                  <CheckIcon className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0" />
+                )}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
   const user = useAuthStore((s) => s.user);
+
+  // Target exam filter (persisted to localStorage)
+  const [targetExam, setTargetExam] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("targetExam") ?? "";
+    }
+    return "";
+  });
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("targetExam", targetExam);
+    }
+  }, [targetExam]);
 
   // Recent attempts (last 10, we'll show 5)
   const attemptsQuery = useQuery({
@@ -419,7 +510,7 @@ export default function DashboardPage() {
   const avgAccuracy =
     submitted.length > 0
       ? submitted.reduce((sum, a) => sum + (a.accuracy ?? 0), 0) /
-        submitted.length
+      submitted.length
       : null;
 
   const recentFive = attempts.slice(0, 5);
@@ -450,8 +541,19 @@ export default function DashboardPage() {
               <p className="text-muted-foreground text-lg">
                 {format(new Date(), "EEEE, MMMM d, yyyy")}
               </p>
+              {/* Target exam selector */}
+              <div className="flex items-center gap-3 pt-1">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <GraduationCapIcon className="h-4 w-4" />
+                  <span className="font-medium">Target exam:</span>
+                </div>
+                <TargetExamSelector
+                  selected={targetExam}
+                  onChange={setTargetExam}
+                />
+              </div>
               <div className="flex items-center gap-4 pt-2">
-                <Link href="/dashboard/tests">
+                <Link href={targetExam ? `/exams?category=${targetExam}` : "/dashboard/tests"}>
                   <Button className="gap-2">
                     <PlayIcon className="h-4 w-4" />
                     Start New Test
@@ -479,9 +581,24 @@ export default function DashboardPage() {
 
       {/* ── Quick Stats ────────────────────────────────────────────────────── */}
       <div>
-        <h2 className="text-xl font-semibold text-foreground mb-4">
-          Performance Overview
-        </h2>
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+          <h2 className="text-xl font-semibold text-foreground">
+            Performance Overview
+          </h2>
+          {targetExam && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted px-3 py-1.5 rounded-full">
+              <span>Filtered: {TARGET_EXAMS.find((e) => e.id === targetExam)?.emoji}</span>
+              <span className="font-medium">{TARGET_EXAMS.find((e) => e.id === targetExam)?.label}</span>
+              <button
+                type="button"
+                onClick={() => setTargetExam("")}
+                className="ml-1 hover:text-foreground transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
             icon={BookOpenIcon}
@@ -547,7 +664,7 @@ export default function DashboardPage() {
                 Start your first test to see your recent attempts and
                 performance data here.
               </p>
-              <Link href="/dashboard/tests">
+              <Link href={targetExam ? `/exams?category=${targetExam}` : "/dashboard/tests"}>
                 <Button className="gap-2">
                   <PlayIcon className="h-4 w-4" />
                   Browse Tests

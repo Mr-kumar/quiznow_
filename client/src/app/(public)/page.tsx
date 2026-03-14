@@ -46,6 +46,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HeroSearch } from "./HeroSearch";
 import { AnimatedFeatures } from "./AnimatedFeatures";
 import { AnimatedStatBlock } from "./AnimatedStatBlock";
+import { CategoryLanding } from "@/app/(public)/exams/page";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Sub-components
@@ -184,80 +185,8 @@ export default function PublicLandingPage() {
         }
       `}</style>
 
-      {/* ── HERO ──────────────────────────────────────────────────────────── */}
-      <section className="relative min-h-screen flex items-center justify-center bg-background">
-        {/* Subtle background elements */}
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute -top-40 -right-40 h-80 w-80 rounded-full bg-primary/5"></div>
-          <div className="absolute -bottom-40 -left-40 h-80 w-80 rounded-full bg-accent/5"></div>
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-96 w-96 rounded-full bg-primary/3 blur-3xl"></div>
-        </div>
-
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
-          {/* Badge */}
-          <Badge className="mb-6 px-4 py-2 bg-primary text-primary-foreground">
-            <AwardIcon className="h-4 w-4 mr-2" />
-            India's #1 Exam Preparation Platform
-            <SparkleIcon className="h-4 w-4 ml-2 animate-pulse" />
-          </Badge>
-
-          {/* Headline */}
-          <h1 className="font-inter text-5xl md:text-7xl font-bold text-foreground leading-tight mb-6">
-            Your Journey to
-            <br />
-            <span className="hero-gradient">Exam Success</span>
-          </h1>
-
-          <p className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed mb-10">
-            Join{" "}
-            <span className="font-semibold text-foreground">2 Million+</span>{" "}
-            aspirants who've already cracked their exams. Practice with{" "}
-            <span className="font-semibold text-primary">NTA-style tests</span>,
-            get detailed analytics, and rank higher.
-          </p>
-
-          {/* Search bar */}
-          <div className="max-w-2xl mx-auto mb-8">
-            <Card className="shadow-lg">
-              <CardContent className="p-2">
-                <HeroSearch />
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Trending */}
-          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-            <TrendingUpIcon className="h-4 w-4 text-green-600" />
-            <span>Trending now:</span>
-            {["UPSC CSE", "JEE Main", "NEET PG", "IBPS PO"].map((e, i) => (
-              <span key={e}>
-                <Link
-                  href={`/exams?q=${e}`}
-                  className="text-primary hover:text-primary/80 font-medium transition-colors"
-                >
-                  {e}
-                </Link>
-                {i < 3 && <span className="text-muted-foreground mx-2">·</span>}
-              </span>
-            ))}
-          </div>
-
-          {/* Trust indicators */}
-          <div className="flex flex-wrap items-center justify-center gap-8 mt-12 text-sm text-muted-foreground">
-            {[
-              "NTA Pattern Tests",
-              "Detailed Solutions",
-              "All-India Rank",
-              "Previous Year Papers",
-            ].map((text) => (
-              <div key={text} className="flex items-center gap-2">
-                <CheckCircle2Icon className="h-4 w-4 text-green-600" />
-                {text}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* ── EXAMS LANDING HERO (from /exams) ───────────────────────────────── */}
+      <CategoryLanding />
 
       {/* ── STATS ─────────────────────────────────────────────────────────── */}
       <section className="relative py-16 md:py-20 bg-muted/30">

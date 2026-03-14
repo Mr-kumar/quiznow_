@@ -42,6 +42,7 @@ import { attemptsApi } from "@/api/attempts";
 import { attemptKeys } from "@/api/query-keys";
 import { unwrap } from "@/lib/unwrap";
 import type { AttemptSummary, AttemptStatus } from "@/api/attempts";
+import { formatTimeTaken } from "@/lib/utils/time";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -50,14 +51,6 @@ const PAGE_SIZE = 10;
 type FilterType = "ALL" | "SUBMITTED" | "STARTED" | "EXPIRED";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-function formatTimeTaken(secs: number | null): string {
-  if (!secs) return "—";
-  const h = Math.floor(secs / 3600);
-  const m = Math.floor((secs % 3600) / 60);
-  if (h > 0) return `${h}h ${m}m`;
-  return `${m}m`;
-}
 
 // ── Status badge ──────────────────────────────────────────────────────────────
 

@@ -24,18 +24,9 @@ import {
   StarIcon,
 } from "lucide-react";
 import type { AttemptResult } from "@/api/attempts";
+import { formatTimeTaken } from "@/lib/utils/time";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-function formatTime(seconds: number | null): string {
-  if (!seconds) return "—";
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = seconds % 60;
-  if (h > 0) return `${h}h ${m}m`;
-  if (m > 0) return `${m}m ${s}s`;
-  return `${s}s`;
-}
 
 // ── Ring chart (SVG) ─────────────────────────────────────────────────────────
 
@@ -258,7 +249,7 @@ export function ScoreCard({ result, className }: ScoreCardProps) {
         <StatBox
           icon={ClockIcon}
           label="Time Taken"
-          value={formatTime(timeTaken)}
+          value={formatTimeTaken(timeTaken)}
           valueColor="text-blue-600 dark:text-blue-400"
           bg="bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400"
         />

@@ -312,7 +312,7 @@ export default function UsersManagementPage() {
           <div className="flex items-center gap-3">
             <Avatar className="h-9 w-9">
               <AvatarImage src={user.image} />
-              <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-violet-600 text-white text-xs font-bold">
+              <AvatarFallback className="bg-linear-to-br from-indigo-500 to-violet-600 text-white text-xs font-bold">
                 {user.name?.charAt(0).toUpperCase() ||
                   user.email.charAt(0).toUpperCase()}
               </AvatarFallback>
@@ -509,7 +509,7 @@ export default function UsersManagementPage() {
       <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-10">
         <div className="max-w-[1400px] mx-auto px-5 h-14 flex items-center gap-4">
           <div className="flex items-center gap-2.5">
-            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center">
+            <div className="h-8 w-8 rounded-lg bg-linear-to-br from-indigo-500 to-violet-600 flex items-center justify-center">
               <Users className="h-4 w-4 text-white" />
             </div>
             <h1 className="text-sm font-bold text-slate-900 dark:text-slate-100">

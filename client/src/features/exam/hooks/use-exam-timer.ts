@@ -19,6 +19,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useExamStore, selectTimestamp } from "../stores/exam-store";
+import { formatTime as formatTimerTime } from "@/lib/utils/time";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -34,24 +35,6 @@ export interface TimerState {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-function formatTime(ms: number): string {
-  if (ms <= 0) return "00:00:00";
-
-  const totalSeconds = Math.floor(ms / 1000);
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-
-  const pad = (n: number) => String(n).padStart(2, "0");
-
-  if (hours > 0) {
-    return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
-  }
-  // When < 1 hour, show MM:SS — less cluttered on mobile
-  return `${pad(minutes)}:${pad(seconds)}`;
-}
-
 const WARNING_MS = 5 * 60 * 1000; // 5 minutes
 const CRITICAL_MS = 1 * 60 * 1000; // 1 minute
 
@@ -92,7 +75,7 @@ export function useExamTimer(): TimerState {
       return;
     }
 
-    setDisplay(formatTime(remaining));
+    setDisplay(formatTimerTime(remaining));
     setRemainingMs(remaining);
   }, [endTimestamp, examStatus]);
 

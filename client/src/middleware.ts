@@ -64,7 +64,12 @@ function isTokenExpired(payload: JwtPayload): boolean {
 // ── Route matchers ────────────────────────────────────────────────────────────
 
 // W-8 FIX: Added /profile and /leaderboard to protected routes
-const PROTECTED_PREFIXES = ["/dashboard", "/test", "/profile", "/leaderboard"] as const;
+const PROTECTED_PREFIXES = [
+  "/dashboard",
+  "/test",
+  "/profile",
+  "/leaderboard",
+] as const;
 
 function isProtectedRoute(pathname: string): boolean {
   return PROTECTED_PREFIXES.some((prefix) => pathname.startsWith(prefix));

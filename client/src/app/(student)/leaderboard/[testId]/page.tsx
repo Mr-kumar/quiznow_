@@ -41,15 +41,9 @@ import { leaderboardKeys } from "@/api/query-keys";
 import { unwrap } from "@/lib/unwrap";
 import { cn } from "@/lib/utils";
 import type { LeaderboardEntry, LeaderboardResponse } from "@/api/leaderboard";
+import { formatTimeTaken } from "@/lib/utils/time";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-function formatTime(secs: number | null): string {
-  if (!secs) return "—";
-  const m = Math.floor(secs / 60);
-  const s = secs % 60;
-  return `${m}m ${s < 10 ? "0" : ""}${s}s`;
-}
 
 function getInitials(name: string): string {
   return name
@@ -204,7 +198,7 @@ function LeaderboardRow({
 
       {/* Time taken */}
       <td className="px-4 py-3 tabular-nums text-sm text-slate-500 dark:text-slate-400">
-        {formatTime(entry.timeTaken)}
+        {formatTimeTaken(entry.timeTaken)}
       </td>
     </tr>
   );
@@ -324,7 +318,7 @@ export default function LeaderboardPage() {
             <div>
               <p className="text-xs text-blue-200">Time</p>
               <p className="text-sm font-bold tabular-nums">
-                {formatTime(myEntry.timeTaken)}
+                {formatTimeTaken(myEntry.timeTaken)}
               </p>
             </div>
           </div>
