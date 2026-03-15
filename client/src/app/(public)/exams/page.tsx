@@ -45,6 +45,8 @@ import { ExamSearchBar } from "@/app/(public)/exams/ExamSearchBar";
 import { EXAM_CATEGORIES as CATEGORIES } from "@/constants/exams";
 import { publicApi } from "@/api/public";
 import type { TestSeries } from "@/api/test-types";
+import type { Category } from "@/api/test-types";
+import { cookies } from "next/headers";
 
 // ── Metadata ──────────────────────────────────────────────────────────────────
 
@@ -69,6 +71,15 @@ async function getExamSeries(
 
     const res = await publicApi.getTestSeries(params);
     return (res.data as any) ?? res;
+  } catch {
+    return [];
+  }
+}
+
+async function getCategories(page: number = 1, q?: string): Promise<any[]> {
+  try {
+    const res = await publicApi.getPublicCategories(page, 24, q);
+    return (res.data as any)?.data ?? res.data;
   } catch {
     return [];
   }
@@ -144,7 +155,8 @@ function SeriesCard({ series }: { series: TestSeries }) {
           </span>
         </div>
         <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
-          {series.description}
+          {series.description ??
+            `Practice tests for ${series.examName ?? "competitive exams"}.`}
         </p>
       </CardContent>
       <CardFooter className="pt-0">
@@ -171,7 +183,20 @@ function SeriesCard({ series }: { series: TestSeries }) {
 
 // ── Category Landing (no filter selected) ─────────────────────────────────────
 
-export function CategoryLanding({ q }: { q?: string }) {
+export async function CategoryLanding({ q }: { q?: string }) {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("qn_token")?.value;
+  const categories = token ? await getCategories(1, q) : [];
+  // Simple accent palette for visual variety
+  const accents = [
+    "text-blue-600",
+    "text-indigo-600",
+    "text-purple-600",
+    "text-pink-600",
+    "text-rose-600",
+    "text-amber-600",
+    "text-green-600",
+  ];
   return (
     <div className="min-h-screen bg-background">
       {/* Hero */}
@@ -211,74 +236,100 @@ export function CategoryLanding({ q }: { q?: string }) {
           </h2>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {CATEGORIES.map((cat) => (
-            <Link key={cat.id} href={`/exams?category=${cat.id}`}>
-              <div
-                className={`group h-full rounded-2xl border p-5 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 cursor-pointer ${cat.lightBg} ${cat.darkBg} ${cat.border}`}
-              >
-                {/* Top row */}
-                <div className="flex items-start justify-between mb-3">
-                  <span className="text-3xl">{cat.emoji}</span>
-                  <span className="text-xs font-semibold bg-white/70 dark:bg-black/30 px-2 py-1 rounded-full text-slate-600 dark:text-slate-300 border border-white/50 dark:border-white/10">
-                    {cat.count} tests
-                  </span>
-                </div>
-
-                {/* Title */}
-                <h3
-                  className={`font-bold text-slate-800 dark:text-slate-100 mb-1 group-hover:${cat.accent} transition-colors leading-tight`}
-                >
-                  {cat.label}
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mb-3 leading-relaxed">
-                  {cat.tagline}
-                </p>
-
-                {/* Sub-exam chips */}
-                <div className="flex flex-wrap gap-1 mb-3">
-                  {cat.subs.slice(0, 3).map((sub) => (
-                    <span
-                      key={sub}
-                      className="text-[10px] px-2 py-0.5 rounded-full bg-white/70 dark:bg-black/30 border border-white/50 dark:border-white/10 text-slate-600 dark:text-slate-300 font-medium"
-                    >
-                      {sub}
-                    </span>
-                  ))}
-                  {cat.subs.length > 3 && (
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/70 dark:bg-black/30 border border-white/50 dark:border-white/10 text-slate-400 dark:text-slate-500">
-                      +{cat.subs.length - 3} more
-                    </span>
-                  )}
-                </div>
-
-                {/* Students */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
-                    <UsersIcon className="h-3.5 w-3.5" />
-                    {cat.students} students
-                  </div>
-                  <ArrowRightIcon className="h-4 w-4 text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-all group-hover:translate-x-0.5" />
-                </div>
-              </div>
+        {token ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {categories.length > 0
+              ? categories.map((cat: any, idx: number) => {
+                  const accent = accents[idx % accents.length];
+                  const rootCount = (cat as any)._count?.exams ?? 0;
+                  const childNames = (cat.children ?? []).map(
+                    (c: any) => c.name as string
+                  );
+                  const childCountSum = (cat.children ?? []).reduce(
+                    (sum: number, c: any) => {
+                      return sum + (c._count?.exams ?? 0);
+                    },
+                    0
+                  );
+                  const totalTests = rootCount + childCountSum;
+                  return (
+                    <Link key={cat.id} href={`/exams?category=${cat.id}`}>
+                      <div className="group h-full rounded-2xl border p-5 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 cursor-pointer bg-white dark:bg-black/20 border-slate-200 dark:border-slate-800">
+                        {/* Top row */}
+                        <div className="flex items-start justify-between mb-3">
+                          <span className={`text-3xl ${accent}`}>📚</span>
+                          <span className="text-xs font-semibold bg-white/70 dark:bg-black/30 px-2 py-1 rounded-full text-slate-600 dark:text-slate-300 border border-white/50 dark:border-white/10">
+                            {totalTests} tests
+                          </span>
+                        </div>
+                        {/* Title */}
+                        <h3
+                          className={`font-bold text-slate-800 dark:text-slate-100 mb-1 group-hover:${accent} transition-colors leading-tight`}
+                        >
+                          {cat.name}
+                        </h3>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mb-3 leading-relaxed">
+                          {(cat.children ?? []).length > 0
+                            ? `${
+                                (cat.children ?? []).length
+                              } sub-exams available`
+                            : "Explore test series"}
+                        </p>
+                        {/* Sub-exam chips */}
+                        <div className="flex flex-wrap gap-1 mb-3">
+                          {childNames.slice(0, 3).map((sub: string) => (
+                            <span
+                              key={sub}
+                              className="text-[10px] px-2 py-0.5 rounded-full bg-white/70 dark:bg-black/30 border border-white/50 dark:border-white/10 text-slate-600 dark:text-slate-300 font-medium"
+                            >
+                              {sub}
+                            </span>
+                          ))}
+                          {childNames.length > 3 && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/70 dark:bg-black/30 border border-white/50 dark:border-white/10 text-slate-400 dark:text-slate-500">
+                              +{childNames.length - 3} more
+                            </span>
+                          )}
+                        </div>
+                        {/* Action */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
+                            <UsersIcon className="h-3.5 w-3.5" />
+                            {totalTests} tests
+                          </div>
+                          <ArrowRightIcon className="h-4 w-4 text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-all group-hover:translate-x-0.5" />
+                        </div>
+                      </div>
+                    </Link>
+                  );
+                })
+              : Array.from({ length: 4 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="h-40 rounded-2xl border border-slate-200 dark:border-slate-800 bg-muted animate-pulse"
+                  />
+                ))}
+          </div>
+        ) : (
+          <div className="max-w-3xl mx-auto text-center py-12">
+            <div className="h-14 w-14 rounded-2xl bg-blue-600/10 text-blue-600 border border-blue-200 dark:border-blue-900/40 flex items-center justify-center mx-auto mb-4">
+              <UsersIcon className="h-7 w-7" />
+            </div>
+            <h3 className="text-xl font-bold mb-2">Login to view categories</h3>
+            <p className="text-sm text-muted-foreground mb-6">
+              Please sign in to browse exam categories and test series tailored
+              for you.
+            </p>
+            <Link href="/login">
+              <Button className="h-11 px-6 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold">
+                Sign In
+              </Button>
             </Link>
-          ))}
-        </div>
+          </div>
+        )}
 
         {/* Stats strip */}
-        <div className="mt-12 rounded-2xl bg-linear-to-r from-blue-600 to-indigo-600 p-6 flex flex-wrap items-center justify-around gap-4 text-white">
-          {[
-            { n: "1500+", l: "Mock Tests" },
-            { n: "8", l: "Exam Categories" },
-            { n: "2M+", l: "Students" },
-            { n: "10 yrs", l: "Previous Year Papers" },
-          ].map((s) => (
-            <div key={s.l} className="text-center">
-              <p className="text-2xl font-bold">{s.n}</p>
-              <p className="text-sm text-blue-100">{s.l}</p>
-            </div>
-          ))}
-        </div>
+        {/* Stats strip removed — now shown dynamically on the landing page */}
       </section>
     </div>
   );

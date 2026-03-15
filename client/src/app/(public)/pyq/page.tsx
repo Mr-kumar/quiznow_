@@ -68,6 +68,7 @@ function PYQSkeleton() {
 
 export default function PYQLandingPage() {
   const [search, setSearch] = useState("");
+  const [sortOrder, setSortOrder] = useState<"latest" | "oldest">("latest");
 
   const {
     data: pyqSeries,
@@ -83,11 +84,25 @@ export default function PYQLandingPage() {
     staleTime: 1000 * 60 * 30, // 30 minutes
   });
 
-  const filteredGroups = pyqSeries?.filter(
-    (g: any) =>
-      g.title.toLowerCase().includes(search.toLowerCase()) ||
-      g.examName?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredGroups = pyqSeries
+    ?.filter(
+      (g: any) =>
+        g.title.toLowerCase().includes(search.toLowerCase()) ||
+        g.examName?.toLowerCase().includes(search.toLowerCase())
+    )
+    .sort((a: any, b: any) => {
+      const dateA = new Date(a.createdAt || 0).getTime();
+      const dateB = new Date(b.createdAt || 0).getTime();
+      return sortOrder === "latest" ? dateB - dateA : dateA - dateB;
+    });
+
+  const handleBulkDownload = () => {
+    // For now, we'll show a "coming soon" message since real bulk download
+    // would require a zip-generation endpoint on the server.
+    alert(
+      "Bulk Download feature is coming soon! You can currently download individual papers from the series detail pages."
+    );
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -146,13 +161,17 @@ export default function PYQLandingPage() {
           <div className="flex items-center gap-3">
             <Button
               variant="outline"
+              onClick={() =>
+                setSortOrder((v) => (v === "latest" ? "oldest" : "latest"))
+              }
               className="rounded-xl h-11 px-6 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors"
             >
               <FilterIcon className="h-4 w-4 mr-2 text-slate-400" />
-              Latest First
+              {sortOrder === "latest" ? "Latest First" : "Oldest First"}
             </Button>
             <Button
               variant="outline"
+              onClick={handleBulkDownload}
               className="rounded-xl h-11 px-6 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors"
             >
               <DownloadIcon className="h-4 w-4 mr-2 text-slate-400" />

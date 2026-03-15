@@ -52,15 +52,19 @@ export class AttemptsController {
   }
 
   @Get(':id/review')
+  @Roles(Role.STUDENT, Role.ADMIN) // Both students and admins can view reviews
   @ApiOperation({ summary: 'Get full solutions and analysis (After Submit)' })
   getReview(@Param('id') id: string, @Request() req: any) {
-    return this.attemptsService.getReview(id, req.user.userId);
+    const userId = req.user.role === Role.ADMIN ? undefined : req.user.userId;
+    return this.attemptsService.getReview(id, userId);
   }
 
   @Get(':id/result')
+  @Roles(Role.STUDENT, Role.ADMIN) // Both students and admins can view scores
   @ApiOperation({ summary: 'Get the scorecard' })
   findOne(@Param('id') id: string, @Request() req: any) {
-    return this.attemptsService.findOne(id, req.user.userId);
+    const userId = req.user.role === Role.ADMIN ? undefined : req.user.userId;
+    return this.attemptsService.findOne(id, userId);
   }
 
   @Patch(':id/answers')

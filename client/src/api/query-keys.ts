@@ -121,6 +121,7 @@ export const studentKeys = {
   topicStatsBySubject: (subjectId: string) =>
     [...studentKeys.topicStats(), subjectId] as const,
   profile: () => [...studentKeys.all(), "profile"] as const,
+  subscription: () => [...studentKeys.all(), "subscription"] as const,
 };
 
 /**
@@ -135,4 +136,9 @@ export const publicKeys = {
   latestTests: (limit: number) =>
     [...publicKeys.all(), "latest-tests", limit] as const,
   categories: () => [...publicKeys.all(), "categories"] as const,
+  subjects: () => [...publicKeys.all(), "subjects"] as const,
+  subjectDetail: (id: string) =>
+    [...publicKeys.subjects(), "detail", id] as const,
+  userProfile: (id: string) =>
+    [...publicKeys.all(), "user-profile", id] as const,
 };

@@ -724,8 +724,9 @@ export class AttemptsService {
     const cacheKey = `attempt:${attemptId}:result`;
     const cachedResult = await this.cacheService.get<any>(cacheKey);
     if (cachedResult) {
-      // Ownership check for cached data
-      if (userId && cachedResult.userId !== userId) {
+      // Ownership check for cached data (Use studentId as fallback if userId is not in cache)
+      const cachedOwnerId = cachedResult.userId || cachedResult.studentId;
+      if (userId && cachedOwnerId !== userId) {
         throw new ForbiddenException(
           'Access denied — this attempt does not belong to you',
         );
@@ -857,6 +858,7 @@ export class AttemptsService {
       startTime: attempt.createdAt,
       endTime: attempt.endTime,
       // Student information
+      userId: attempt.userId, // Added for cache ownership check consistency
       studentId: attempt.userId,
       studentName: attempt.user?.name || 'Anonymous',
       studentEmail: attempt.user?.email || null,

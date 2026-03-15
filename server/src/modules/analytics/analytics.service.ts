@@ -12,6 +12,29 @@ export class AnalyticsService {
     private readonly cacheService: CacheService,
   ) {}
 
+  async getPublicSummary() {
+    const cacheKey = 'public:analytics:summary';
+    const cached = await this.cacheService.get<any>(cacheKey);
+    if (cached) return cached;
+
+    const [totalUsers, totalTests, liveTests, submittedAttempts] =
+      await Promise.all([
+        this.prisma.user.count(),
+        this.prisma.test.count(),
+        this.prisma.test.count({ where: { isActive: true, isLive: true } }),
+        this.prisma.attempt.count({ where: { status: Status.SUBMITTED } }),
+      ]);
+
+    const summary = {
+      totalUsers,
+      totalTests,
+      liveTests,
+      submittedAttempts,
+    };
+
+    await this.cacheService.set(cacheKey, summary, 300);
+    return summary;
+  }
   async getDashboardMetrics() {
     // Try to get from cache first
     const cached = await this.cacheService.get('dashboard:metrics');

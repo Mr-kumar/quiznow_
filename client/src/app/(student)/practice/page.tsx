@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/card";
 import { EXAM_CATEGORIES as CATEGORIES } from "@/constants/exams";
 import { publicSubjectsApi } from "@/api/subjects";
-import { subjectKeys } from "@/api/query-keys";
+import { publicKeys } from "@/api/query-keys";
 import { Skeleton } from "@/components/ui/skeleton";
 
 // ── Icons mapping based on subject name keywords ────────────────────────────
@@ -93,7 +93,7 @@ export default function PracticeLandingPage() {
     isError,
     refetch,
   } = useQuery({
-    queryKey: subjectKeys.lists(),
+    queryKey: publicKeys.subjects(),
     queryFn: async () => {
       const res = await publicSubjectsApi.getAll();
       return (res.data as any) ?? res;
@@ -207,7 +207,7 @@ export default function PracticeLandingPage() {
                       </CardTitle>
                       <CardDescription className="text-blue-100 font-medium">
                         {subject._count?.topics || 0} Topics ·{" "}
-                        {subject._count?.tests || "Multiple"} Practice Sets
+                        {subject._count?.questions || 0} Questions
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="p-6">

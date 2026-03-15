@@ -302,6 +302,70 @@ export class UsersService {
 
     return subscription;
   }
+  async getPublicProfile(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        image: true,
+        createdAt: true,
+      },
+    });
+
+    if (!user) throw new NotFoundException('User not found');
+
+    // Fetch stats
+    const [attempts, leaderboardEntries, totalTests] = await Promise.all([
+      this.prisma.attempt.findMany({
+        where: { userId, status: 'SUBMITTED' },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+        include: {
+          test: {
+            select: { title: true, totalMarks: true },
+          },
+        },
+      }),
+      this.prisma.leaderboardEntry.findMany({
+        where: { userId },
+        include: {
+          test: { select: { title: true } },
+        },
+        orderBy: { score: 'desc' },
+        take: 5,
+      }),
+      this.prisma.attempt.count({
+        where: { userId, status: 'SUBMITTED' },
+      }),
+    ]);
+
+    const avgAccuracy = attempts.length
+      ? attempts.reduce((acc, curr) => acc + (curr.accuracy || 0), 0) /
+        attempts.length
+      : 0;
+
+    return {
+      user,
+      stats: {
+        totalTests,
+        avgAccuracy: Math.round(avgAccuracy),
+        topPerformances: leaderboardEntries.map((e) => ({
+          testTitle: e.test.title,
+          score: e.score,
+          accuracy: e.accuracy,
+        })),
+      },
+      recentActivity: attempts.map((a) => ({
+        id: a.id,
+        testTitle: a.test.title,
+        score: a.score,
+        accuracy: a.accuracy,
+        date: a.createdAt,
+      })),
+    };
+  }
+
   // ─── Admin Deep-Dive methods ───────────────────────────────────────────────────
 
   async updateStatus(

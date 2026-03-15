@@ -1,6 +1,19 @@
-import { Controller, Get, Param, Query, Request } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  Query,
+  Request,
+  UseGuards,
+} from '@nestjs/common';
 import { LeaderboardService } from './leaderboard.service';
-import { ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiQuery,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
+import { JwtAuthGuard } from '../../iam/auth/guards/jwt-auth.guard';
 
 @ApiTags('Analytics (Leaderboard)')
 @Controller('leaderboard')
@@ -85,5 +98,27 @@ export class LeaderboardController {
       score: result.score,
       accuracy: result.accuracy,
     };
+  }
+
+  @Get('me/best-rank')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "Get current user's best rank across all tests" })
+  async getMyBestRank(@Request() req: any) {
+    const userId = req.user.userId;
+    return this.leaderboardService.getMyBestRank(userId);
+  }
+
+  @Get('global-toppers')
+  @ApiOperation({ summary: 'Get global toppers across all tests' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'search', required: false, type: String })
+  async getGlobalToppers(
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 10,
+    @Query('search') search?: string,
+  ) {
+    return this.leaderboardService.getGlobalToppers(page, limit, search);
   }
 }

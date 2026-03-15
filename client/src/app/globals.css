@@ -123,10 +123,51 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+@layer utilities {
+  @keyframes float {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-20px);
+    }
+  }
+  @keyframes pulse-slow {
+    0%,
+    100% {
+      opacity: 0.6;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+
+  .hero-gradient {
+    background: linear-gradient(135deg, #2563eb 0%, #4f46e5 50%, #7c3aed 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+}
+
+@layer base {
   .bg-grid-pattern {
-    background-image:
-      linear-gradient(rgba(255, 255, 255, 0.3) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255, 255, 255, 0.3) 1px, transparent 1px);
+    background-image: radial-gradient(
+      circle at 1px 1px,
+      #e2e8f0 1px,
+      transparent 0
+    );
     background-size: 40px 40px;
+  }
+
+  .dark .bg-grid-pattern {
+    background-image: radial-gradient(
+      circle at 1px 1px,
+      #1e293b 1px,
+      transparent 0
+    );
   }
 }

@@ -105,16 +105,14 @@ const FAQS = [
 ];
 
 async function getPlans() {
-  try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/plans/public`, {
-      next: { revalidate: 60 },
-    });
-    if (!res.ok) return [];
-    const json = await res.json();
-    return Array.isArray(json) ? json : (json.data ?? []);
-  } catch (error) {
-    return [];
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/plans/public`, {
+    next: { revalidate: 60 },
+  });
+  if (!res.ok) {
+    throw new Error(`Plans API returned ${res.status}: ${res.statusText}`);
   }
+  const json = await res.json();
+  return Array.isArray(json) ? json : (json.data ?? []);
 }
 
 export default async function PlansPage() {

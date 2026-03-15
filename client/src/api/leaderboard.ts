@@ -77,4 +77,20 @@ export const leaderboardApi = {
     api.get<UserTopicStat[]>("/users/me/topic-stats", {
       params: { subjectId },
     }),
+
+  /**
+   * Get the current user's best rank across all tests.
+   */
+  getMyBestRank: () => api.get<number | null>("/leaderboard/me/best-rank"),
+
+  /**
+   * Get global toppers across all tests (Hall of Fame).
+   */
+  getGlobalToppers: (page = 1, limit = 10, search?: string) =>
+    api.get<{
+      toppers: any[];
+      pagination: { page: number; limit: number; total: number };
+    }>("/leaderboard/global-toppers", {
+      params: { page, limit, search },
+    }),
 };

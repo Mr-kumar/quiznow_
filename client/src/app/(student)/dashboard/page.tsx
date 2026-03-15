@@ -40,6 +40,8 @@ import {
   ZapIcon,
   FlameIcon,
   ActivityIcon,
+  History as HistoryIcon,
+  Layers as LayersIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -59,6 +61,7 @@ import { leaderboardApi } from "@/api/leaderboard";
 import { attemptKeys, studentKeys } from "@/api/query-keys";
 import { useAuthStore } from "@/stores/auth-store";
 import { studentUsersApi } from "@/api/student-users";
+import { useSubscription } from "@/hooks/use-subscription";
 import { cn } from "@/lib/utils";
 import type { AttemptSummary } from "@/api/attempts";
 import type { UserTopicStat } from "@/api/leaderboard";
@@ -143,20 +146,26 @@ function StatCard({
 
 // ── Subscription widget ───────────────────────────────────────────────────────
 
-function SubscriptionWidget({
-  subscription,
-}: {
+interface SubscriptionWidgetProps {
   subscription: {
-    data?: { plan?: any; status?: string; currentPeriodEnd?: string };
+    data?: {
+      plan?: { name: string; price?: number } | string | null;
+      status?: "ACTIVE" | "EXPIRED" | "CANCELLED";
+      expiresAt?: string;
+    };
   } | null;
-}) {
+}
+
+function SubscriptionWidget({ subscription }: SubscriptionWidgetProps) {
   const planObj = subscription?.data?.plan;
   const planName =
     (typeof planObj === "object" && planObj !== null
-      ? (planObj as any).name
-      : planObj) || "Free";
+      ? (planObj as { name?: string }).name
+      : typeof planObj === "string"
+      ? planObj
+      : undefined) || "Free";
   const status = subscription?.data?.status ?? "ACTIVE";
-  const expiresAt = subscription?.data?.currentPeriodEnd;
+  const expiresAt = subscription?.data?.expiresAt;
   const isPremium = planName !== "Free" && planName !== "FREE";
   const daysLeft = expiresAt
     ? differenceInDays(new Date(expiresAt), new Date())
@@ -330,7 +339,7 @@ function AttemptRow({ attempt }: { attempt: AttemptSummary }) {
             </div>
           ) : attempt.status === "STARTED" && attempt.testId ? (
             <div className="shrink-0 flex gap-2">
-              <Link href={`/test/${attempt.testId}`}>
+              <Link href={`/test/${attempt.testId}/attempt`}>
                 <Button
                   size="sm"
                   className="h-9 px-4 text-xs font-bold rounded-xl bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/20"
@@ -420,9 +429,9 @@ export default function StudentDashboardPage() {
 
   // 1. Attempts (for stats + recent)
   const attemptsQuery = useQuery({
-    queryKey: attemptKeys.history({ page: 1, limit: 10 }),
+    queryKey: attemptKeys.history({ page: 1, limit: 50 }),
     queryFn: async () => {
-      const res = await attemptsApi.getMyHistory(1, 10);
+      const res = await attemptsApi.getMyHistory(1, 50);
       return (res.data as any)?.data ?? res.data;
     },
   });
@@ -437,15 +446,22 @@ export default function StudentDashboardPage() {
   });
 
   // 3. Subscription (for premium state)
-  const subQuery = useQuery({
-    queryKey: ["my-subscription"],
+  const { queryData: subQueryData, isLoading: subLoading } = useSubscription();
+
+  // 4. Best Rank
+  const bestRankQuery = useQuery({
+    queryKey: ["best-rank"],
     queryFn: async () => {
-      const res = await studentUsersApi.getMySubscription();
-      return (res.data as any) ?? res;
+      const res = await leaderboardApi.getMyBestRank();
+      return (res.data as any)?.data ?? res.data;
     },
   });
 
-  const isLoading = attemptsQuery.isLoading || topicStatsQuery.isLoading;
+  const isLoading =
+    attemptsQuery.isLoading ||
+    topicStatsQuery.isLoading ||
+    subLoading ||
+    bestRankQuery.isLoading;
   const isError = attemptsQuery.isError;
 
   if (isLoading) return <DashboardSkeleton />;
@@ -475,6 +491,7 @@ export default function StudentDashboardPage() {
 
   const attempts = (attemptsQuery.data as AttemptSummary[]) || [];
   const topicStats = (topicStatsQuery.data as UserTopicStat[]) || [];
+  const bestRankValue = bestRankQuery.data;
 
   // Derived stats
   const totalAttempts = attempts.length;
@@ -487,6 +504,80 @@ export default function StudentDashboardPage() {
     : 0;
 
   const resumeAttempt = attempts.find((a) => a.status === "STARTED");
+
+  // Streak logic
+  const calculateStreak = (allAttempts: AttemptSummary[]) => {
+    const dates = Array.from(
+      new Set(
+        allAttempts
+          .filter((a) => a.status === "SUBMITTED")
+          .map((a) => format(new Date(a.startTime), "yyyy-MM-dd"))
+      )
+    ).sort((a, b) => b.localeCompare(a));
+
+    if (dates.length === 0) return 0;
+
+    const today = format(new Date(), "yyyy-MM-dd");
+    const yesterday = format(new Date(Date.now() - 86400000), "yyyy-MM-dd");
+
+    if (dates[0] !== today && dates[0] !== yesterday) return 0;
+
+    let streak = 1;
+    for (let i = 0; i < dates.length - 1; i++) {
+      const current = new Date(dates[i]);
+      const next = new Date(dates[i + 1]);
+      const diff = differenceInDays(current, next);
+      if (diff === 1) streak++;
+      else break;
+    }
+    return streak;
+  };
+
+  // Trends logic (simple month-over-month)
+  const calculateTrends = (allAttempts: AttemptSummary[]) => {
+    const now = new Date();
+    const thisMonth = allAttempts.filter(
+      (a) => new Date(a.startTime).getMonth() === now.getMonth()
+    );
+    const lastMonth = allAttempts.filter(
+      (a) => new Date(a.startTime).getMonth() === (now.getMonth() - 1 + 12) % 12
+    );
+
+    const attemptsTrend =
+      lastMonth.length > 0
+        ? Math.round(
+            ((thisMonth.length - lastMonth.length) / lastMonth.length) * 100
+          )
+        : 0;
+
+    const getAvgAccuracy = (list: AttemptSummary[]) => {
+      const sub = list.filter((a) => a.status === "SUBMITTED");
+      return sub.length
+        ? sub.reduce((acc, curr) => acc + (curr.accuracy || 0), 0) / sub.length
+        : 0;
+    };
+
+    const thisMonthAcc = getAvgAccuracy(thisMonth);
+    const lastMonthAcc = getAvgAccuracy(lastMonth);
+    const accuracyTrend =
+      lastMonthAcc > 0
+        ? Math.round(((thisMonthAcc - lastMonthAcc) / lastMonthAcc) * 100)
+        : 0;
+
+    return {
+      attempts: {
+        value: `${Math.abs(attemptsTrend)}%`,
+        isUp: attemptsTrend >= 0,
+      },
+      accuracy: {
+        value: `${Math.abs(accuracyTrend)}%`,
+        isUp: accuracyTrend >= 0,
+      },
+    };
+  };
+
+  const streak = calculateStreak(attempts);
+  const trends = calculateTrends(attempts);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -503,6 +594,16 @@ export default function StudentDashboardPage() {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          {user?.id && (
+            <Link href={`/profile/${user.id}`}>
+              <Button
+                variant="outline"
+                className="rounded-2xl h-12 px-6 border-slate-200 dark:border-slate-800 font-bold"
+              >
+                View Public Profile
+              </Button>
+            </Link>
+          )}
           <Link href="/dashboard/tests">
             <Button className="bg-blue-600 hover:bg-blue-700 text-white font-bold h-12 px-8 rounded-2xl shadow-xl shadow-blue-600/20 group">
               Browse New Tests
@@ -520,7 +621,7 @@ export default function StudentDashboardPage() {
           value={totalAttempts.toString()}
           sub="Across all exams"
           color="bg-blue-500"
-          trend={{ value: "12%", isUp: true }}
+          trend={trends.attempts.value !== "0%" ? trends.attempts : undefined}
         />
         <StatCard
           icon={TargetIcon}
@@ -528,22 +629,22 @@ export default function StudentDashboardPage() {
           value={`${avgAccuracy}%`}
           sub="Last 10 tests"
           color="bg-green-500"
-          trend={{ value: "5%", isUp: true }}
+          trend={trends.accuracy.value !== "0%" ? trends.accuracy : undefined}
         />
         <StatCard
           icon={TrophyIcon}
           label="Best Rank"
-          value="#42"
+          value={bestRankValue ? `#${bestRankValue}` : "—"}
           sub="Global ranking"
           color="bg-amber-500"
         />
         <StatCard
           icon={FlameIcon}
           label="Study Streak"
-          value="12"
+          value={streak.toString()}
           sub="Days in a row"
           color="bg-orange-500"
-          trend={{ value: "2d", isUp: true }}
+          trend={streak > 0 ? { value: "Live", isUp: true } : undefined}
         />
       </div>
 
@@ -569,7 +670,7 @@ export default function StudentDashboardPage() {
                     off.
                   </p>
                 </div>
-                <Link href={`/test/${resumeAttempt.testId}`}>
+                <Link href={`/test/${resumeAttempt.testId}/attempt`}>
                   <Button className="h-14 px-10 rounded-2xl bg-white text-blue-600 hover:bg-blue-50 font-black text-lg shadow-xl shrink-0">
                     <PlayIcon className="h-5 w-5 mr-2 fill-current" />
                     Resume Now
@@ -628,29 +729,40 @@ export default function StudentDashboardPage() {
                 <LayersIcon className="h-6 w-6 text-indigo-600" />
                 Practice by Subject
               </h2>
-              <Link href="/practice" className="text-sm font-bold text-blue-600 dark:text-blue-400 hover:underline">
+              <Link
+                href="/practice"
+                className="text-sm font-bold text-blue-600 dark:text-blue-400 hover:underline"
+              >
                 View All Subjects
               </Link>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-               {EXAM_CATEGORIES.slice(0, 4).map((cat) => (
-                 <Link key={cat.id} href={`/practice`}>
-                    <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:shadow-xl hover:-translate-y-1 transition-all text-center group">
-                       <div className={`h-14 w-14 mx-auto mb-4 rounded-2xl bg-linear-to-br ${cat.color} flex items-center justify-center text-3xl shadow-lg group-hover:scale-110 transition-transform`}>
-                          {cat.emoji}
-                       </div>
-                       <p className="font-bold text-sm text-slate-900 dark:text-white truncate">{cat.shortLabel}</p>
-                       <p className="text-[10px] text-slate-400 font-bold mt-1 uppercase tracking-tighter">Start Practice</p>
+              {EXAM_CATEGORIES.slice(0, 4).map((cat) => (
+                <Link key={cat.id} href={`/practice`}>
+                  <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:shadow-xl hover:-translate-y-1 transition-all text-center group">
+                    <div
+                      className={`h-14 w-14 mx-auto mb-4 rounded-2xl bg-linear-to-br ${
+                        cat.color ?? "from-blue-600 to-indigo-600"
+                      } flex items-center justify-center text-3xl shadow-lg group-hover:scale-110 transition-transform`}
+                    >
+                      {cat.emoji}
                     </div>
-                 </Link>
-               ))}
+                    <p className="font-bold text-sm text-slate-900 dark:text-white truncate">
+                      {cat.shortLabel}
+                    </p>
+                    <p className="text-[10px] text-slate-400 font-bold mt-1 uppercase tracking-tighter">
+                      Start Practice
+                    </p>
+                  </div>
+                </Link>
+              ))}
             </div>
           </div>
         </div>
 
         {/* Right Column: Performance & Subscription */}
         <div className="space-y-8">
-          <SubscriptionWidget subscription={subQuery.data} />
+          <SubscriptionWidget subscription={subQueryData as any} />
 
           {/* Performance Analysis */}
           <Card className="border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden">
@@ -739,44 +851,4 @@ export default function StudentDashboardPage() {
   );
 }
 
-function HistoryIcon(props: any) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-      <path d="M3 3v5h5" />
-      <path d="m12 7v5l4 2" />
-    </svg>
-  );
-}
-
-function LayersIcon(props: any) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z" />
-      <path d="m2.6 11.08 8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9" />
-      <path d="m2.6 16.08 8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9" />
-    </svg>
-  );
-}
+// Inline SVG icons removed in favor of lucide-react History and Layers icons

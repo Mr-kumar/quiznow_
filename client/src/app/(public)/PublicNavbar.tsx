@@ -94,24 +94,31 @@ const NAV_LINKS = [
 
 // ─── Mega Menu ────────────────────────────────────────────────────────────────
 
-function ExamMegaMenu({ onClose }: { onClose: () => void }) {
-  const { data: categories } = useQuery({
-    queryKey: publicKeys.categories(),
-    queryFn: async () => {
-      const res = await publicApi.getCategories();
-      return (res.data as any) ?? res;
-    },
-    staleTime: 1000 * 60 * 60, // 1 hour
-  });
+function ExamMegaMenu({
+  categories,
+  onClose,
+}: {
+  categories: any[] | null;
+  onClose: () => void;
+}) {
+  // Helper to find category metadata from constants by ID or name
+  const getCatMeta = (cat: any) => {
+    const fromId = EXAM_CATEGORIES.find((c) => c.id === cat.id);
+    if (fromId) return fromId;
 
-  // Helper to find category metadata from constants
-  const getCatMeta = (id: string) =>
-    EXAM_CATEGORIES.find((c) => c.id === id) || EXAM_CATEGORIES[0];
+    // Fallback: Match by name (e.g. "UPSC" matches "UPSC / Civil Services")
+    const fromName = EXAM_CATEGORIES.find(
+      (c) =>
+        c.label.toLowerCase().includes(cat.name?.toLowerCase()) ||
+        cat.name?.toLowerCase().includes(c.shortLabel.toLowerCase())
+    );
+    return fromName || EXAM_CATEGORIES[0];
+  };
 
   // If we have live categories from API, use them, otherwise fallback to constants for UI
   const displayCategories = categories?.length
     ? categories.slice(0, 8)
-    : EXAM_CATEGORIES;
+    : EXAM_CATEGORIES.slice(0, 8);
 
   return (
     <div className="absolute top-full left-1/2 -translate-x-1/2 mt-3 w-[min(96vw,920px)] z-50">
@@ -138,7 +145,11 @@ function ExamMegaMenu({ onClose }: { onClose: () => void }) {
           {/* 4-column category grid */}
           <div className="p-4 grid grid-cols-2 md:grid-cols-4 gap-3">
             {displayCategories.map((cat: any) => {
-              const meta = getCatMeta(cat.id || cat.name?.toLowerCase());
+              const meta = getCatMeta(cat);
+              const label = cat.label || cat.name || meta.label;
+              const testCount = cat.count || meta.count;
+              const children = cat.subs || cat.children?.slice(0, 4) || [];
+
               return (
                 <div
                   key={cat.id}
@@ -157,10 +168,10 @@ function ExamMegaMenu({ onClose }: { onClose: () => void }) {
                     <span className="text-lg">{meta.emoji}</span>
                     <div className="min-w-0 flex-1">
                       <p className="text-xs font-semibold text-slate-800 dark:text-slate-100 leading-tight truncate group-hover:text-blue-700 dark:group-hover:text-blue-400 transition-colors">
-                        {cat.label || cat.name}
+                        {label}
                       </p>
                       <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
-                        {cat.count || meta.count} tests
+                        {testCount} tests
                       </p>
                     </div>
                     <ChevronRightIcon className="h-3 w-3 text-slate-300 dark:text-slate-600 group-hover:text-blue-500 transition-colors shrink-0" />
@@ -168,25 +179,22 @@ function ExamMegaMenu({ onClose }: { onClose: () => void }) {
 
                   {/* Sub-exam pills — direct links, no extra hover needed */}
                   <div className="flex flex-wrap gap-1">
-                    {(cat.subs || cat.children?.slice(0, 4) || []).map(
-                      (sub: any) => {
-                        const subName =
-                          typeof sub === "string" ? sub : sub.name;
-                        const subId = typeof sub === "string" ? sub : sub.id;
-                        return (
-                          <Link
-                            key={subId}
-                            href={`/exams?category=${
-                              cat.id
-                            }&q=${encodeURIComponent(subName)}`}
-                            onClick={onClose}
-                            className="text-[10px] font-medium px-1.5 py-0.5 rounded-md bg-white/80 dark:bg-slate-800/70 text-slate-600 dark:text-slate-300 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 dark:hover:text-white transition-colors border border-white/60 dark:border-slate-700/40 whitespace-nowrap"
-                          >
-                            {subName}
-                          </Link>
-                        );
-                      }
-                    )}
+                    {children.map((sub: any) => {
+                      const subName = typeof sub === "string" ? sub : sub.name;
+                      const subId = typeof sub === "string" ? sub : sub.id;
+                      return (
+                        <Link
+                          key={subId}
+                          href={`/exams?category=${
+                            cat.id
+                          }&q=${encodeURIComponent(subName)}`}
+                          onClick={onClose}
+                          className="text-[10px] font-medium px-1.5 py-0.5 rounded-md bg-white/80 dark:bg-slate-800/70 text-slate-600 dark:text-slate-300 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 dark:hover:text-white transition-colors border border-white/60 dark:border-slate-700/40 whitespace-nowrap"
+                        >
+                          {subName}
+                        </Link>
+                      );
+                    })}
                   </div>
                 </div>
               );
@@ -223,6 +231,17 @@ export function PublicNavbar() {
   const [megaOpen, setMegaOpen] = useState(false);
   const [mobileExamsOpen, setMobileExamsOpen] = useState(false);
   const megaRef = useRef<HTMLDivElement>(null);
+
+  // M-14 fix: Hoist categories query to PublicNavbar for prefetching
+  const { data: categories } = useQuery({
+    queryKey: publicKeys.categories(),
+    queryFn: async () => {
+      const res = await publicApi.getCategories();
+      const json = (res.data as any) ?? res;
+      return Array.isArray(json) ? json : json.data ?? [];
+    },
+    staleTime: 1000 * 60 * 60, // 1 hour cache
+  });
 
   const initials = user?.name ? getInitials(user.name) : "?";
   const dashboardHref =
@@ -293,7 +312,12 @@ export function PublicNavbar() {
                   )}
                 />
               </button>
-              {megaOpen && <ExamMegaMenu onClose={() => setMegaOpen(false)} />}
+              {megaOpen && (
+                <ExamMegaMenu
+                  categories={categories}
+                  onClose={() => setMegaOpen(false)}
+                />
+              )}
             </div>
 
             {/* Other links */}

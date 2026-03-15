@@ -31,8 +31,8 @@ export class SubjectsService {
     });
   }
 
-  findAll() {
-    return this.prisma.subject.findMany({
+  async findAll() {
+    const subjects = await this.prisma.subject.findMany({
       where: {
         isActive: true,
       },
@@ -46,10 +46,42 @@ export class SubjectsService {
             },
           },
         },
+        topics: {
+          where: {
+            deletedAt: null,
+          },
+          select: {
+            id: true,
+            name: true,
+            _count: {
+              select: {
+                questions: true,
+              },
+            },
+          },
+        },
       },
       orderBy: {
         name: 'asc',
       },
+    });
+
+    // M-5 fix: Add total question count per subject by summing topic question counts
+    return subjects.map((subject) => {
+      const { topics, ...rest } = subject;
+      const totalQuestions = topics.reduce(
+        (sum, topic) => sum + topic._count.questions,
+        0,
+      );
+
+      return {
+        ...rest,
+        topics, // Keep topics for frontend display if needed
+        _count: {
+          ...rest._count,
+          questions: totalQuestions,
+        },
+      };
     });
   }
 
@@ -60,6 +92,13 @@ export class SubjectsService {
         topics: {
           where: {
             deletedAt: null,
+          },
+          include: {
+            _count: {
+              select: {
+                questions: true,
+              },
+            },
           },
           orderBy: {
             name: 'asc',

@@ -1,5 +1,9 @@
 import type { Metadata } from "next";
-import { Inter, Noto_Sans_Devanagari } from "next/font/google";
+import {
+  Inter,
+  Noto_Sans_Devanagari,
+  Plus_Jakarta_Sans,
+} from "next/font/google";
 import "./globals.css";
 import "katex/dist/katex.min.css";
 import { cn } from "../lib/utils";
@@ -15,6 +19,12 @@ import {
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
+  display: "swap",
+});
+
+const plusJakarta = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  variable: "--font-plus-jakarta",
   display: "swap",
 });
 
@@ -95,7 +105,8 @@ export default function RootLayout({
           "min-h-screen bg-background font-sans antialiased text-foreground",
           inter.variable,
           notoDevanagari.variable,
-          inter.className,
+          plusJakarta.variable,
+          plusJakarta.className
         )}
       >
         {/* Global JSON-LD schemas */}

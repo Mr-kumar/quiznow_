@@ -64,3 +64,7 @@ export const adminUsersApi = {
     api.patch<ApiResponse<User>>(`/admin/users/${id}/status`, { status }),
   delete: (id: string) => api.delete<ApiResponse<void>>(`/admin/users/${id}`),
 };
+
+export const publicUsersApi = {
+  getProfile: (id: string) => api.get<any>(`/public/users/${id}/profile`),
+};

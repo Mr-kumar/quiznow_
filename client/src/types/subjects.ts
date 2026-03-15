@@ -6,6 +6,7 @@ export interface Subject {
   updatedAt: string;
   _count?: {
     topics: number;
+    questions: number;
   };
 }
 

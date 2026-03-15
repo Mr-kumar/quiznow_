@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { publicSubjectsApi } from "@/api/subjects";
-import { subjectKeys } from "@/api/query-keys";
+import { publicKeys } from "@/api/query-keys";
 import { useState } from "react";
 
 export default function SubjectDetailPage() {
@@ -35,7 +35,7 @@ export default function SubjectDetailPage() {
     isError,
     refetch,
   } = useQuery({
-    queryKey: subjectKeys.detail(subjectId as string),
+    queryKey: publicKeys.subjectDetail(subjectId as string),
     queryFn: async () => {
       const res = await publicSubjectsApi.getById(subjectId as string);
       return (res.data as any) ?? res;
@@ -120,7 +120,8 @@ export default function SubjectDetailPage() {
                       {topic.name}
                     </h3>
                     <p className="text-xs text-slate-500">
-                      {topic._count?.questions || 0} Questions available
+                      {topic._count?.questions || 0} Practice Questions
+                      available
                     </p>
                   </div>
                 </div>
@@ -132,7 +133,9 @@ export default function SubjectDetailPage() {
 
         {filteredTopics?.length === 0 && (
           <div className="py-20 text-center bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800">
-            <p className="text-slate-500 font-medium">No topics found matching your search.</p>
+            <p className="text-slate-500 font-medium">
+              No topics found matching your search.
+            </p>
           </div>
         )}
       </div>

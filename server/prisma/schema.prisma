@@ -71,6 +71,7 @@ model User {
   payments      Payment[]
 
   @@index([role])
+  @@index([name])
 }
 
 model Category {

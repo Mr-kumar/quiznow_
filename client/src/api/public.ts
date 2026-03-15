@@ -16,5 +16,15 @@ export const publicApi = {
   getLatestTests: (limit: number = 6) =>
     api.get<Test[]>("/public/test-series/latest-tests", { params: { limit } }),
 
+  getPublicSummary: () =>
+    api.get<{
+      totalUsers: number;
+      totalTests: number;
+      liveTests: number;
+      submittedAttempts: number;
+    }>("/public/analytics/summary"),
+
   getCategories: () => api.get<Category[]>("/categories/tree"),
+  getPublicCategories: (page: number = 1, limit: number = 24, q?: string) =>
+    api.get("/public/categories", { params: { page, limit, q } }),
 };

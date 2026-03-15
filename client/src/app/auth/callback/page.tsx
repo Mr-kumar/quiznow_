@@ -1,13 +1,13 @@
 "use client";
 
 import { Suspense } from "react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuthStore } from "@/stores/auth-store";
 import { Loader2 } from "lucide-react";
 import api from "@/lib/api";
 
-function CallbackHandler() {
+function CallbackHandler({ onError }: { onError: (msg: string) => void }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const login = useAuthStore((s) => s.login);
@@ -16,7 +16,7 @@ function CallbackHandler() {
     const code = searchParams.get("code");
 
     if (!code) {
-      router.replace("/login?error=oauth_failed");
+      onError("Missing authorization code. Please try signing in again.");
       return;
     }
 
@@ -52,7 +52,7 @@ function CallbackHandler() {
         }
       } catch (err) {
         console.error("[auth/callback] Token exchange failed:", err);
-        router.replace("/login?error=token_invalid");
+        onError("Sign-in failed. Please try again.");
       }
     };
 
@@ -63,17 +63,34 @@ function CallbackHandler() {
 }
 
 export default function AuthCallbackPage() {
+  const [error, setError] = useState<string | null>(null);
   return (
     <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-zinc-50 dark:bg-zinc-950">
       <div className="h-10 w-10 rounded-xl bg-zinc-900 dark:bg-white flex items-center justify-center text-white dark:text-black font-bold text-xl shadow-lg">
         Q
       </div>
-      <Loader2 className="h-5 w-5 animate-spin text-zinc-400" />
-      <p className="text-sm text-zinc-500 dark:text-zinc-400">
-        Signing you in…
-      </p>
+      {!error ? (
+        <>
+          <Loader2 className="h-5 w-5 animate-spin text-zinc-400" />
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+            Signing you in…
+          </p>
+        </>
+      ) : (
+        <>
+          <p className="text-sm text-red-600 dark:text-red-400 font-medium">
+            {error}
+          </p>
+          <a
+            href="/login"
+            className="text-sm font-bold text-blue-600 hover:underline"
+          >
+            Go to Login
+          </a>
+        </>
+      )}
       <Suspense fallback={null}>
-        <CallbackHandler />
+        <CallbackHandler onError={setError} />
       </Suspense>
     </div>
   );

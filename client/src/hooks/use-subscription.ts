@@ -2,10 +2,11 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { studentUsersApi } from "@/api/student-users";
+import { studentKeys } from "@/api/query-keys";
 
 export function useSubscription() {
   const query = useQuery({
-    queryKey: ["my-subscription"],
+    queryKey: studentKeys.subscription(),
     queryFn: async () => {
       const res = await studentUsersApi.getMySubscription();
       // Student API returns { success: true, data: subscription | null } structure
@@ -24,9 +25,11 @@ export function useSubscription() {
     new Date(subscription.expiresAt) > new Date();
 
   return {
-    subscription,
+    subscription, // this is the inner data (Subscription)
     isSubscribed: !!hasActiveSubscription,
     isLoading: query.isLoading,
     isError: query.isError,
+    // Provide full query data for components that expect the outer object
+    queryData: { data: subscription },
   };
 }
